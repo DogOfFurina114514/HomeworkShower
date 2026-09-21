@@ -97,8 +97,19 @@
     location.replace("login.html");
   }
 
+  /** 只有发布者能发布作业 */
   function isPublisher(profile) {
+    return profile?.role === "publisher";
+  }
+
+  /** 发布者与管理员都能修改，但后端只允许改当天的 */
+  function canEditToday(profile) {
     return profile?.role === "publisher" || profile?.role === "admin";
+  }
+
+  function toast(message) {
+    if (window.M3eSnackbar && typeof window.M3eSnackbar.open === "function") window.M3eSnackbar.open(message);
+    else console.log(message);
   }
 
   window.hs = {
@@ -109,6 +120,9 @@
     requireSession,
     signOut,
     isPublisher,
+    canEditToday,
+    todayString,
+    toast,
     sanitizeHtml,
     escapeHtml,
     roleLabel: (role) => ROLE_LABELS[role] || role,

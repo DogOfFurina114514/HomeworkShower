@@ -1,12 +1,20 @@
 /**
- * 主页：日期选择 + 作业看板（只按「导入/发布日期」查看）
+ * 作业看板
+ *
+ * 两种模式，由 <body data-board-mode="..."> 决定：
+ *   latest —— 主界面：只显示最近一次发布里「还没过期」的作业，没有日期筛选
+ *   date   —— 时光机：按发布日筛选，看那天发布的整批作业（含已过期）
+ *
+ * 渲染出的标记与桌面端 HomeworkBoard.vue 一致（m3e-list / m3e-list-action / m3e-chip），
+ * 因此外观由同一套 M3E 组件决定。
+ * 普通用户只读：界面上不提供修改/删除入口。
  */
 (function () {
   const { client } = hs;
+  const mode = document.body.dataset.boardMode === "date" ? "date" : "latest";
 
-  const titleEl = document.getElementById("site-title");
   const datePicker = document.getElementById("date-picker");
-  const todayButton = document.getElementById("today-button");
+  const latestButton = document.getElementById("latest-button");
   const boardEl = document.getElementById("board");
   const statusEl = document.getElementById("status");
   const accountButton = document.getElementById("account-button");
@@ -15,9 +23,11 @@
   const accountRole = document.getElementById("account-role");
   const logoutButton = document.getElementById("logout-button");
   const publishLink = document.getElementById("publish-link");
+  const timemachineButton = document.getElementById("timemachine-button");
+  const backButton = document.getElementById("back-button");
 
   let availableDates = [];
-  let currentDate = "";
+  let profile = null;
 
   function todayString() {
     const now = new Date();
@@ -26,29 +36,34 @@
   }
 
   function formatDateLabel(value) {
-    const [y, m, d] = value.split("-");
+    const [y, m, d] = String(value).split("-");
     return `${y} 年 ${Number(m)} 月 ${Number(d)} 日`;
   }
 
+  /** 过期与否以「期限」为准，并用当天日期实时判断，不看发布时写死的标记。 */
+  function isExpired(dueDate) {
+    if (!dueDate) return false;
+    return String(dueDate) < todayString();
+  }
+
   function showStatus(message, isError = false) {
+    if (!statusEl) return;
     statusEl.textContent = message;
     statusEl.classList.toggle("status--error", isError);
     statusEl.hidden = !message;
   }
 
-  function setUrlDate(date) {
-    const url = new URL(location.href);
-    url.searchParams.set("date", date);
-    history.replaceState(null, "", url);
-  }
-
   function renderEmpty(message) {
-    boardEl.innerHTML = `<div class="empty-state"><div>${hs.escapeHtml(message)}</div></div>`;
+    boardEl.innerHTML = `
+      <div class="homework-empty-state">
+        <m3e-icon name="assignment"></m3e-icon>
+        <m3e-heading variant="title" size="large" level="2">${hs.escapeHtml(message)}</m3e-heading>
+      </div>`;
   }
 
   function renderBoard(rows) {
     if (!rows.length) {
-      renderEmpty("这一天没有作业");
+      renderEmpty(mode === "latest" ? "今天没有需要做的作业" : "这一天没有作业");
       return;
     }
 
@@ -65,82 +80,107 @@
         const content = homework.content_html
           ? hs.sanitizeHtml(homework.content_html)
           : hs.escapeHtml(homework.content).replace(/\n/g, "<br>");
-        const markerColor = homework.expired ? "var(--md-sys-color-error)" : "var(--md-sys-color-primary)";
+        const expired = isExpired(homework.due_date);
         const tags = (homework.tags || []).length
-          ? `<div class="homework-item__tags">${homework.tags.map((tag) => `<span class="tag">${hs.escapeHtml(tag)}</span>`).join("")}</div>`
-          : "";
-        const due = homework.due_date
-          ? `<div class="homework-item__due">期限 ${hs.escapeHtml(homework.due_date)}${homework.expired ? " · 已过期" : ""}</div>`
+          ? `<div slot="supporting-text" class="homework-tags">${homework.tags
+              .map((tag) => `<m3e-chip variant="outlined">${hs.escapeHtml(tag)}</m3e-chip>`)
+              .join("")}</div>`
           : "";
         return `
-          <article class="homework-item">
-            <div class="homework-item__row">
-              <span class="homework-item__marker" style="background:${markerColor}"></span>
-              <div class="homework-item__text">${content}</div>
-            </div>
+          <m3e-list-action class="homework-item${expired ? " homework-item--expired" : ""}">
+            <span class="homework-content">
+              <span class="homework-marker" aria-hidden="true"></span>
+              <span class="homework-text">${content}</span>
+            </span>
             ${tags}
-            ${due}
-          </article>`;
+          </m3e-list-action>`;
       }).join("");
 
       sections.push(`
         <section class="subject-group">
-          <h2 class="subject-group__name">${hs.escapeHtml(subject)}</h2>
-          <div class="homework-list">${items}</div>
+          <m3e-heading variant="headline" size="small" level="2">${hs.escapeHtml(subject)}</m3e-heading>
+          <m3e-list class="subject-homework-list" variant="segmented">${items}</m3e-list>
         </section>`);
     }
 
-    boardEl.innerHTML = `<div class="board__columns">${sections.join("")}</div>`;
+    boardEl.innerHTML = `<div class="masonry-columns">${sections.join("")}</div>`;
   }
 
-  async function loadDate(date) {
-    currentDate = date;
-    datePicker.value = date;
-    setUrlDate(date);
+  async function loadDates() {
+    const { data, error } = await client
+      .from("publish_batches")
+      .select("published_on,homework_count,subject_count,published_at")
+      .order("published_on", { ascending: false })
+      .limit(400);
+    if (error) {
+      showStatus(`读取发布记录失败：${error.message}`, true);
+      return [];
+    }
+    availableDates = (data || []).map((row) => row.published_on).filter(Boolean);
+    return data || [];
+  }
 
-    if (!availableDates.includes(date)) {
-      const nearest = availableDates[0];
-      renderEmpty("这一天没有作业记录");
-      showStatus(nearest ? `最近一次发布是 ${formatDateLabel(nearest)}，点「最新」可跳过去。` : "后端还没有任何作业记录。");
+  async function fetchDay(date) {
+    const { data, error } = await client
+      .from("homeworks")
+      .select("subject,content,content_html,tags,due_date,sort_order")
+      .eq("published_on", date)
+      .order("subject", { ascending: true })
+      .order("sort_order", { ascending: true });
+    if (error) {
+      showStatus(`加载失败：${error.message}`, true);
+      return null;
+    }
+    return data || [];
+  }
+
+  async function loadLatest() {
+    const today = todayString();
+    const batch = availableDates.includes(today) ? today : availableDates.find((date) => date <= today) || availableDates[0];
+
+    if (!batch) {
+      renderEmpty("还没有发布过作业");
+      showStatus("后端还没有任何作业记录。");
       return;
     }
 
     showStatus("正在加载…");
-    const { data, error } = await client
-      .from("homeworks")
-      .select("subject,content,content_html,tags,due_date,due_time,expired,sort_order")
-      .eq("published_on", date)
-      .order("subject", { ascending: true })
-      .order("sort_order", { ascending: true });
+    const rows = await fetchDay(batch);
+    if (!rows) return;
 
-    if (error) {
-      showStatus(`加载失败：${error.message}`, true);
-      renderEmpty("加载失败");
+    const pending = rows.filter((row) => !isExpired(row.due_date));
+    showStatus(
+      pending.length === rows.length
+        ? `${formatDateLabel(batch)} · 共 ${pending.length} 条作业`
+        : `${formatDateLabel(batch)} · ${pending.length} 条未过期（另有 ${rows.length - pending.length} 条已过期，可去时光机查看）`,
+    );
+    renderBoard(pending);
+  }
+
+  async function loadDate(date) {
+    datePicker.value = date;
+    const url = new URL(location.href);
+    url.searchParams.set("date", date);
+    history.replaceState(null, "", url);
+
+    if (!availableDates.includes(date)) {
+      renderEmpty("这一天没有作业记录");
+      showStatus(availableDates[0] ? `最近一次发布是 ${formatDateLabel(availableDates[0])}。` : "后端还没有任何作业记录。");
       return;
     }
 
-    const batch = await client
-      .from("publish_batches")
-      .select("published_at,homework_count,subject_count,publisher_email")
-      .eq("published_on", date)
-      .maybeSingle();
-
-    const info = batch.data;
-    showStatus(
-      info
-        ? `${formatDateLabel(date)} · 共 ${info.homework_count} 条作业 / ${info.subject_count} 个科目 · 发布于 ${new Date(info.published_at).toLocaleString("zh-CN")}`
-        : formatDateLabel(date),
-    );
-    renderBoard(data || []);
+    showStatus("正在加载…");
+    const rows = await fetchDay(date);
+    if (!rows) return;
+    showStatus(`${formatDateLabel(date)} · 共 ${rows.length} 条作业`);
+    renderBoard(rows);
   }
 
   async function init() {
     const session = await hs.requireSession();
     if (!session) return;
 
-    titleEl.textContent = hs.config.siteName;
-
-    const profile = await hs.getProfile();
+    profile = await hs.getProfile();
     if (profile) {
       accountEmail.textContent = profile.email;
       accountRole.textContent = hs.roleLabel(profile.role);
@@ -154,37 +194,39 @@
       if (!accountPanel.hidden && !event.target.closest(".account")) accountPanel.hidden = true;
     });
     logoutButton.addEventListener("click", () => void hs.signOut());
+    if (publishLink) publishLink.addEventListener("click", () => location.assign("publish.html"));
+    if (timemachineButton) timemachineButton.addEventListener("click", () => location.assign("timemachine.html"));
+    if (backButton) backButton.addEventListener("click", () => location.assign("index.html"));
 
-    const { data: batches, error } = await client
-      .from("publish_batches")
-      .select("published_on,homework_count")
-      .order("published_on", { ascending: false })
-      .limit(400);
-
-    if (error) {
-      showStatus(`读取发布记录失败：${error.message}`, true);
+    const batches = await loadDates();
+    if (!batches.length) {
+      renderEmpty("还没有发布过作业");
+      showStatus("后端还没有任何作业记录。");
       return;
     }
 
-    availableDates = (batches || []).map((row) => row.published_on).filter(Boolean);
     const today = todayString();
-    const fromUrl = new URLSearchParams(location.search).get("date");
-    const initial = fromUrl || (availableDates.includes(today) ? today : availableDates[0]) || today;
-
-    if (availableDates.length) {
+    if (datePicker) {
       datePicker.min = availableDates[availableDates.length - 1];
       datePicker.max = availableDates[0] > today ? availableDates[0] : today;
     }
 
-    datePicker.addEventListener("change", () => {
-      if (datePicker.value) void loadDate(datePicker.value);
-    });
-    todayButton.addEventListener("click", () => {
-      const target = availableDates.includes(today) ? today : availableDates[0] || today;
-      void loadDate(target);
-    });
+    if (mode === "date") {
+      const fromUrl = new URLSearchParams(location.search).get("date");
+      const initial = fromUrl || (availableDates.includes(today) ? today : availableDates[0]);
+      datePicker.addEventListener("change", () => {
+        if (datePicker.value) void loadDate(datePicker.value);
+      });
+      if (latestButton) {
+        latestButton.addEventListener("click", () => {
+          void loadDate(availableDates.includes(today) ? today : availableDates[0]);
+        });
+      }
+      await loadDate(initial);
+      return;
+    }
 
-    await loadDate(initial);
+    await loadLatest();
   }
 
   void init();

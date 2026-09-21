@@ -4,84 +4,84 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>登录 · 作业</title>
-    <link rel="stylesheet" href="assets/theme.css" />
     <link rel="stylesheet" href="assets/app.css" />
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
   </head>
 
   <body>
-    <main class="auth">
-      <section class="auth__card">
-        <h1>作业</h1>
-        <p class="hint">登录后即可查看每天的作业。账号使用邮箱注册，注册后需要点开验证邮件完成验证。</p>
+    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
+      <main class="auth">
+        <section class="auth__card" id="auth-card">
+          <m3e-heading variant="headline" size="small" level="1">作业</m3e-heading>
+          <p class="hint">登录后即可查看每天的作业。账号使用邮箱注册，注册后需要点开验证邮件完成验证。</p>
 
-        <div class="auth__tabs" role="tablist" aria-label="登录或注册">
-          <button type="button" id="tab-login" role="tab" aria-selected="true" class="primary">登录</button>
-          <button type="button" id="tab-register" role="tab" aria-selected="false">注册</button>
-        </div>
+          <div class="auth__tabs" role="tablist" aria-label="登录或注册">
+            <m3e-button id="tab-login" role="tab" aria-selected="true" variant="filled">登录</m3e-button>
+            <m3e-button id="tab-register" role="tab" aria-selected="false" variant="tonal">注册</m3e-button>
+          </div>
 
-        <p class="status" id="message" hidden></p>
+          <p class="status" id="message" hidden></p>
 
-        <div class="auth__panes" id="auth-panes">
-          <form id="login-form" class="auth__pane is-active" autocomplete="on">
-            <div class="field">
-              <label for="login-email">邮箱</label>
-              <input id="login-email" name="email" type="email" autocomplete="email" required />
-            </div>
-            <div class="field">
-              <label for="login-password">密码</label>
-              <input id="login-password" name="password" type="password" autocomplete="current-password" required />
-            </div>
-            <button type="submit" class="primary">登录</button>
-          </form>
+          <div class="auth__panes" id="auth-panes">
+            <form id="login-form" class="auth__pane is-active" autocomplete="on">
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="login-email">邮箱</label>
+                <input id="login-email" name="email" type="email" autocomplete="email" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="login-password">密码</label>
+                <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+              </m3e-form-field>
+              <div class="auth__actions">
+                <m3e-button id="login-submit" variant="filled">登录</m3e-button>
+              </div>
+            </form>
 
-          <form id="register-form" class="auth__pane" autocomplete="on">
-            <div class="field">
-              <label for="register-email">邮箱</label>
-              <input id="register-email" name="email" type="email" autocomplete="email" required />
-            </div>
-            <div class="field">
-              <label for="register-password">密码（至少 8 位）</label>
-              <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" required />
-            </div>
-            <div class="field">
-              <label for="register-confirm">确认密码</label>
-              <input id="register-confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required />
-            </div>
-            <button type="submit" class="primary">注册并发送验证邮件</button>
-          </form>
-        </div>
+            <form id="register-form" class="auth__pane" autocomplete="on">
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-email">邮箱</label>
+                <input id="register-email" name="email" type="email" autocomplete="email" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-password">密码（至少 8 位）</label>
+                <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-confirm">确认密码</label>
+                <input id="register-confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required />
+              </m3e-form-field>
+              <div class="auth__actions">
+                <m3e-button id="register-submit" variant="filled">注册并发送验证邮件</m3e-button>
+              </div>
+            </form>
+          </div>
 
-        <div class="field" id="resend-box" hidden>
-          <label for="resend-email">没收到验证邮件？</label>
-          <input id="resend-email" type="email" placeholder="填写注册邮箱" />
-          <button type="button" class="text" id="resend-button">重新发送验证邮件</button>
-        </div>
-      </section>
-    </main>
+          <div class="auth__actions" id="resend-box" hidden>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="resend-email">没收到验证邮件？填注册邮箱</label>
+              <input id="resend-email" type="email" />
+            </m3e-form-field>
+            <m3e-button id="resend-button" variant="text">重新发送验证邮件</m3e-button>
+          </div>
+        </section>
+      </main>
 
-    <div class="modal" id="verify-modal" hidden>
-      <div
-        class="modal__card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="verify-title"
-        aria-describedby="verify-body"
-      >
-        <h2 class="modal__title" id="verify-title">邮箱还没有验证</h2>
-        <p class="modal__body" id="verify-body">
+      <m3e-dialog id="verify-dialog" alert dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">邮箱还没有验证</m3e-heading>
+        <p class="hint">
           这个账号还没有完成邮箱验证，所以暂时不能登录。我们可以给
           <strong id="verify-email">这个邮箱</strong>
           重新发一封验证邮件。
         </p>
         <p class="status" id="verify-message" hidden></p>
-        <div class="modal__actions">
-          <button type="button" class="text" id="verify-close">稍后再说</button>
-          <button type="button" class="primary" id="verify-resend">重新发送验证邮件</button>
+        <div slot="actions" end>
+          <m3e-button id="verify-close" variant="text">稍后再说</m3e-button>
+          <m3e-button id="verify-resend" variant="filled">重新发送验证邮件</m3e-button>
         </div>
-      </div>
-    </div>
+      </m3e-dialog>
+    </m3e-theme>
 
+    <script src="vendor/m3e.js"></script>
     <script src="vendor/supabase.js"></script>
     <script src="assets/config.js"></script>
     <script src="assets/client.js"></script>
