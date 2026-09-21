@@ -26,14 +26,46 @@
     messageEl.hidden = !text;
   }
 
-  function switchTab(mode) {
+  const panes = document.getElementById("auth-panes");
+
+  /**
+   * 切换登录 / 注册面板。
+   * 不用 hidden 切换（那会让过渡无从发生），而是切类名 + 过渡容器高度，
+   * 缓动统一为 easeOutQuart = cubic-bezier(0.25, 1, 0.5, 1)（在 CSS 里）。
+   */
+  function switchTab(mode, animate = true) {
     const isLogin = mode === "login";
-    loginForm.hidden = !isLogin;
-    registerForm.hidden = isLogin;
+    const show = isLogin ? loginForm : registerForm;
+    const hide = isLogin ? registerForm : loginForm;
+
     loginTab.classList.toggle("primary", isLogin);
     registerTab.classList.toggle("primary", !isLogin);
+    loginTab.setAttribute("aria-selected", String(isLogin));
+    registerTab.setAttribute("aria-selected", String(!isLogin));
     resendBox.hidden = true;
     showMessage("");
+
+    if (show === hide || show.classList.contains("is-active")) return;
+
+    if (!animate) {
+      show.classList.add("is-active");
+      hide.classList.remove("is-active");
+      panes.style.height = "";
+      return;
+    }
+
+    const from = panes.offsetHeight;
+    show.classList.add("is-active");
+    hide.classList.remove("is-active");
+    const to = panes.offsetHeight;
+
+    panes.style.height = `${from}px`;
+    requestAnimationFrame(() => {
+      panes.style.height = `${to}px`;
+    });
+    window.setTimeout(() => {
+      panes.style.height = "";
+    }, 320);
   }
 
   loginTab.addEventListener("click", () => switchTab("login"));
