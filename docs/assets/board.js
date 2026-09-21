@@ -193,9 +193,10 @@
     selectedId = null;
     canManage = Boolean(profile && hs.canEditToday(profile) && batch === todayString());
     showStatus(
-      pending.length === rows.length
+      (pending.length === rows.length
         ? `${formatDateLabel(batch)} · 共 ${pending.length} 条作业`
-        : `${formatDateLabel(batch)} · ${pending.length} 条未过期（另有 ${rows.length - pending.length} 条已过期，可去时光机查看）`,
+        : `${formatDateLabel(batch)} · ${pending.length} 条未过期（另有 ${rows.length - pending.length} 条已过期，可去时光机查看）`) +
+        (canManage ? " · 点击作业可修改或删除" : ""),
     );
     renderBoard(pending);
   }
@@ -222,7 +223,7 @@
     selectedId = null;
     // 只有发布者/管理员可以改，而且只能改当天
     canManage = Boolean(profile && hs.canEditToday(profile) && date === todayString());
-    const manageHint = profile && hs.canEditToday(profile) && !canManage ? "（非当天，只能查看）" : "";
+    const manageHint = canManage ? " · 点击作业可修改或删除" : profile && hs.canEditToday(profile) ? "（非当天，只能查看）" : "";
     showStatus(`${formatDateLabel(date)} · 共 ${rows.length} 条作业${manageHint}`);
     renderBoard(rows);
   }
@@ -235,10 +236,30 @@
       return;
     }
 
+    showStatus("正在读取登录状态…");
+
     // 主界面未登录也能看；时光机必须登录
-    const session = await hs.getSession();
+    let session = null;
+    try {
+      session = await hs.getSession();
+    } catch (error) {
+      showStatus(`读取登录状态失败：${error.message}`, true);
+      session = null;
+    }
+
     if (mode === "date" && !session) {
-      location.replace(`login.html?next=${encodeURIComponent(`timemachine.html${location.search}`)}`);
+      // 不自动跳转，避免和登录页互相跳导致来回加载
+      boardEl.classList.add("homework-board--prompt");
+      boardEl.innerHTML = `
+        <div class="homework-empty-state homework-empty-state--prompt">
+          <m3e-icon variant="outlined" name="lock"></m3e-icon>
+          <m3e-heading variant="title" size="large" level="2">时光机需要登录后使用</m3e-heading>
+          <m3e-button variant="filled" id="prompt-login-button">去登录</m3e-button>
+        </div>`;
+      showStatus("");
+      document.getElementById("prompt-login-button")?.addEventListener("click", () => {
+        location.assign(`login.html?next=${encodeURIComponent("timemachine.html")}`);
+      });
       return;
     }
 
@@ -298,10 +319,15 @@
       document.getElementById("edit-subject").value = row.subject || "";
       document.getElementById("edit-due").value = row.due_date || "";
       document.getElementById("edit-tags").value = (row.tags || []).join(", ");
-      document.getElementById("edit-content").value = row.content || "";
+      // 保留富文本：有 content_html 就直接放进去，没有则把纯文本转成段落
+      const editor = document.getElementById("edit-content");
+      editor.innerHTML = row.content_html
+        ? hs.sanitizeHtml(row.content_html)
+        : hs.escapeHtml(row.content || "").replace(/\n/g, "<br>");
       setDialogMessage("edit-message", "");
       editDialog.dataset.id = id;
       editDialog.show();
+      window.setTimeout(() => editor.focus(), 80);
     }
 
     async function saveEdit() {
@@ -310,17 +336,18 @@
       const subject = document.getElementById("edit-subject").value.trim() || "其它";
       const due = document.getElementById("edit-due").value;
       const tags = document.getElementById("edit-tags").value.split(",").map((t) => t.trim()).filter(Boolean);
-      const content = document.getElementById("edit-content").value;
+      const editor = document.getElementById("edit-content");
+      const contentHtml = editor.innerHTML.trim();
+      const content = (editor.innerText || "").replace(/\u00a0/g, " ").trim();
       const saveButton = document.getElementById("edit-save");
 
       saveButton.setAttribute("disabled", "");
-      // content_html 置空：网页端按纯文本编辑，展示与编辑结果保持一致
       const { error } = await client
         .from("homeworks")
         .update({
           subject,
           content,
-          content_html: null,
+          content_html: contentHtml || null,
           tags,
           due_date: due || null,
           due_time: due ? `${due}T00:00:00` : null,
@@ -373,6 +400,22 @@
     if (editDialog) {
       document.getElementById("edit-save")?.addEventListener("click", () => void saveEdit());
       document.getElementById("edit-cancel")?.addEventListener("click", () => editDialog.hide());
+
+      // 富文本工具栏
+      editDialog.querySelector(".rich-toolbar")?.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-cmd]");
+        if (!button) return;
+        event.preventDefault();
+        const editor = document.getElementById("edit-content");
+        editor.focus();
+        const command = button.dataset.cmd;
+        if (command === "createLink") {
+          const url = window.prompt("输入链接地址", "https://");
+          if (url) document.execCommand("createLink", false, url);
+        } else {
+          document.execCommand(command, false, null);
+        }
+      });
     }
     if (deleteDialog) {
       document.getElementById("delete-confirm")?.addEventListener("click", () => void confirmDelete());
@@ -387,9 +430,22 @@
         else if (action.dataset.action === "delete") openDelete(action.dataset.id);
         return;
       }
-      if (!canManage) return;
       const item = event.target.closest(".homework-item");
       if (!item) return;
+
+      // 说清楚为什么点了没反应，而不是静默忽略
+      if (!profile) {
+        hs.toast("登录后可以修改作业");
+        return;
+      }
+      if (!hs.canEditToday(profile)) {
+        hs.toast("只有发布者和管理员可以修改作业");
+        return;
+      }
+      if (!canManage) {
+        hs.toast("只能修改当天发布的作业");
+        return;
+      }
       // 再点一下取消选中，和桌面端一致
       selectedId = selectedId === item.dataset.id ? null : item.dataset.id;
       renderBoard(currentRows);

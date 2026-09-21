@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>作业</title>
-    <link rel="stylesheet" href="assets/app.css" />
-    <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
-    <script src="vendor/m3e.js" defer></script>
-    <script src="vendor/supabase.js" defer></script>
-    <script src="assets/config.js" defer></script>
-    <script src="assets/client.js" defer></script>
-    <script src="assets/board.js" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v7" />
+    <link rel="icon" href="assets/icon.svg?v7" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v7" defer></script>
+    <script src="vendor/supabase.js?v7" defer></script>
+    <script src="assets/config.js?v7" defer></script>
+    <script src="assets/client.js?v7" defer></script>
+    <script src="assets/board.js?v7" defer></script>
   </head>
 
   <body>
@@ -65,10 +65,21 @@
             <label slot="label" for="edit-tags">标签（用逗号分隔）</label>
             <input id="edit-tags" type="text" />
           </m3e-form-field>
-          <m3e-form-field variant="outlined">
-            <label slot="label" for="edit-content">内容（纯文本）</label>
-            <textarea id="edit-content" rows="4"></textarea>
-          </m3e-form-field>
+          <div class="form-row">
+            <span>内容</span>
+            <div class="rich-editor">
+              <div class="rich-toolbar" role="toolbar" aria-label="文字格式">
+                <m3e-icon-button data-cmd="bold" aria-label="加粗" title="加粗"><m3e-icon variant="outlined" name="format_bold"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="italic" aria-label="斜体" title="斜体"><m3e-icon variant="outlined" name="format_italic"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="underline" aria-label="下划线" title="下划线"><m3e-icon variant="outlined" name="format_underlined"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertUnorderedList" aria-label="无序列表" title="无序列表"><m3e-icon variant="outlined" name="format_list_bulleted"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertOrderedList" aria-label="有序列表" title="有序列表"><m3e-icon variant="outlined" name="format_list_numbered"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="createLink" aria-label="插入链接" title="插入链接"><m3e-icon variant="outlined" name="link"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="removeFormat" aria-label="清除格式" title="清除格式"><m3e-icon variant="outlined" name="format_clear"></m3e-icon></m3e-icon-button>
+              </div>
+              <div class="rich-surface" id="edit-content" contenteditable="true" role="textbox" aria-multiline="true"></div>
+            </div>
+          </div>
         </div>
         <p class="status" id="edit-message" hidden></p>
         <div slot="actions" end>
@@ -89,6 +100,8 @@
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 

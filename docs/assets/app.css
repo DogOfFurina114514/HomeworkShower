@@ -304,6 +304,11 @@ m3e-theme {
   gap: 8px;
 }
 
+/* M3E 按钮是自定义元素，选择器要命中元素本身 */
+.auth__tabs > * {
+  flex: 1;
+}
+
 .auth__panes {
   position: relative;
   display: block;
@@ -314,6 +319,7 @@ m3e-theme {
 .auth__pane {
   display: grid;
   gap: 16px;
+  padding-block-start: 10px;
   transition:
     opacity 280ms cubic-bezier(0.25, 1, 0.5, 1),
     transform 280ms cubic-bezier(0.25, 1, 0.5, 1);
@@ -503,4 +509,52 @@ m3e-theme {
 .form-row textarea {
   min-height: 96px;
   resize: vertical;
+}
+
+
+
+/* ---------------- 富文本编辑器（内容编辑） ---------------- */
+
+.rich-editor {
+  border: 1px solid var(--md-sys-color-outline, #6f797b);
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+  overflow: hidden;
+}
+
+.rich-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+}
+
+.rich-surface {
+  min-height: 110px;
+  max-height: 40vh;
+  overflow: auto;
+  padding: 10px 12px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--md-sys-color-on-surface, #171d1e);
+  overflow-wrap: anywhere;
+}
+
+.rich-surface:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary, #006877);
+  outline-offset: -2px;
+}
+
+.rich-surface :where(p, h1, h2, h3, h4, h5, h6) {
+  margin: 0 0 0.4em;
+}
+
+.rich-surface :where(ul, ol) {
+  margin: 0 0 0.4em;
+  padding-inline-start: 1.5em;
+}
+
+.rich-surface a {
+  color: var(--md-sys-color-primary, #006877);
 }

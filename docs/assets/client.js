@@ -71,15 +71,21 @@
   }
 
   async function getSession() {
-    const { data } = await client.auth.getSession();
+    // 加超时：supabase 的 getSession 在个别环境（navigator.locks 被占用）会一直不返回，
+    // 那样整页就卡在「正在加载」了
+    const { data } = await withTimeout(client.auth.getSession(), 8000, "读取登录状态");
     return data.session ?? null;
   }
 
   async function getProfile() {
-    const { data: userData } = await client.auth.getUser();
+    const { data: userData } = await withTimeout(client.auth.getUser(), 10000, "读取账号信息");
     const user = userData?.user;
     if (!user) return null;
-    const { data } = await client.from("profiles").select("role,email").eq("id", user.id).maybeSingle();
+    const { data } = await withTimeout(
+      client.from("profiles").select("role,email").eq("id", user.id).maybeSingle(),
+      10000,
+      "读取角色",
+    );
     return {
       user,
       email: data?.email || user.email || "",
