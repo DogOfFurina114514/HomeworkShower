@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>时光机 · 作业</title>
+    <link rel="stylesheet" href="assets/app.css?v15" />
+    <link rel="icon" href="assets/icon.svg?v15" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v15" defer></script>
+    <script src="vendor/supabase.js?v15" defer></script>
+    <script src="assets/config.js?v15" defer></script>
+    <script src="assets/client.js?v15" defer></script>
+    <script src="assets/board.js?v15" defer></script>
+  </head>
+
+  <body data-board-mode="date">
+    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
+      <header class="topbar">
+        <m3e-heading class="topbar__title" variant="title" size="large" level="1" id="site-title">作业 · 时光机</m3e-heading>
+        <div class="topbar__controls">
+          <m3e-form-field variant="outlined" id="date-field">
+            <label slot="label" for="date-input">发布日期</label>
+            <input id="date-input" readonly placeholder="点这里选择" autocomplete="off" />
+            <m3e-icon-button slot="suffix" aria-label="选择发布日期">
+              <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
+              <m3e-datepicker-toggle for="date-picker"></m3e-datepicker-toggle>
+            </m3e-icon-button>
+          </m3e-form-field>
+          <m3e-datepicker id="date-picker" variant="auto" label="选择发布日期" previous-month-label="上个月" next-month-label="下个月" previous-year-label="上一年" next-year-label="下一年" clear-label="清除" confirm-label="确定" dismiss-label="取消"></m3e-datepicker>
+          <m3e-button variant="text" id="back-button">
+            <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
+            回到今天
+          </m3e-button>
+          <div class="account">
+            <m3e-button variant="tonal" id="account-button" aria-haspopup="true">
+              <m3e-icon variant="outlined" slot="icon" name="account_circle"></m3e-icon>
+              <span id="account-button-label">个人中心</span>
+            </m3e-button>
+            <div class="account__panel" id="account-panel" hidden>
+              <div class="account__meta">
+                <strong id="account-email">—</strong>
+                <span>当前身份</span>
+              </div>
+              <span class="role-chip" id="account-role">用户</span>
+              <m3e-button variant="text" id="publish-link" hidden>发布作业</m3e-button>
+              <m3e-button variant="text" id="logout-button">退出登录</m3e-button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <p class="status" id="status" hidden></p>
+
+      <main class="homework-board" id="board">
+        <div class="homework-empty-state"><m3e-icon variant="outlined" name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
+      </main>
+      <m3e-dialog id="edit-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">修改作业</m3e-heading>
+        <div class="edit-form">
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="edit-subject">科目</label>
+            <input id="edit-subject" type="text" />
+          </m3e-form-field>
+          <label class="form-row">
+            <span>期限</span>
+            <input id="edit-due" type="date" />
+          </label>
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="edit-tags">标签（用逗号分隔）</label>
+            <input id="edit-tags" type="text" />
+          </m3e-form-field>
+          <div class="form-row">
+            <span>内容</span>
+            <div class="rich-editor">
+              <div class="rich-toolbar" role="toolbar" aria-label="文字格式">
+                <m3e-icon-button data-cmd="bold" aria-label="加粗" title="加粗"><m3e-icon variant="outlined" name="format_bold"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="italic" aria-label="斜体" title="斜体"><m3e-icon variant="outlined" name="format_italic"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="underline" aria-label="下划线" title="下划线"><m3e-icon variant="outlined" name="format_underlined"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertUnorderedList" aria-label="无序列表" title="无序列表"><m3e-icon variant="outlined" name="format_list_bulleted"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertOrderedList" aria-label="有序列表" title="有序列表"><m3e-icon variant="outlined" name="format_list_numbered"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="createLink" aria-label="插入链接" title="插入链接"><m3e-icon variant="outlined" name="link"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertImage" aria-label="插入图片" title="插入图片"><m3e-icon variant="outlined" name="image"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="removeFormat" aria-label="清除格式" title="清除格式"><m3e-icon variant="outlined" name="format_clear"></m3e-icon></m3e-icon-button>
+              </div>
+              <input type="file" accept="image/*" class="rich-image-input" hidden />
+              <div class="rich-surface" id="edit-content" contenteditable="true" role="textbox" aria-multiline="true"></div>
+            </div>
+          </div>
+        </div>
+        <p class="status" id="edit-message" hidden></p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="edit-cancel">取消</m3e-button>
+          <m3e-button variant="filled" id="edit-save">保存</m3e-button>
+        </div>
+      </m3e-dialog>
+
+      <m3e-dialog id="delete-dialog" alert dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">删除这条作业？</m3e-heading>
+        <p class="hint">删除后无法恢复。只有当天发布的内容可以修改或删除。</p>
+        <p class="status" id="delete-message" hidden></p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="delete-cancel">取消</m3e-button>
+          <m3e-button variant="filled" id="delete-confirm">删除</m3e-button>
+        </div>
+      </m3e-dialog>
+      <div id="fab-host"></div>
+
+      <m3e-dialog id="permission-dialog" alert dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">仅管理员可修改作业</m3e-heading>
+        <p class="hint">
+          当前身份是「<strong id="permission-role">用户</strong>」。只有发布者与管理员可以修改作业，
+          而且只能修改当天发布的内容。
+        </p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="permission-ok">我知道了</m3e-button>
+          <m3e-button variant="filled" id="permission-apply">申请管理员</m3e-button>
+        </div>
+      </m3e-dialog>
+
+      <m3e-dialog id="apply-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">申请作业管理员</m3e-heading>
+        <div class="form-row">
+          <span>管理员邮箱</span>
+          <input id="apply-email" readonly />
+        </div>
+        <p class="hint">
+          点下面的按钮会打开系统邮件应用，收件人与主题已经填好（主题：申请作业管理员），
+          你补上申请理由再发送即可。
+        </p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="apply-close">关闭</m3e-button>
+          <m3e-button variant="filled" id="apply-mail">
+            <m3e-icon variant="outlined" slot="icon" name="mail"></m3e-icon>
+            打开「电子邮件」
+          </m3e-button>
+        </div>
+      </m3e-dialog>
+    </m3e-theme>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

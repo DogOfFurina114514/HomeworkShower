@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>发布作业</title>
+    <link rel="stylesheet" href="assets/app.css?v15" />
+    <link rel="icon" href="assets/icon.svg?v15" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v15" defer></script>
+    <script src="vendor/supabase.js?v15" defer></script>
+    <script src="assets/config.js?v15" defer></script>
+    <script src="assets/client.js?v15" defer></script>
+    <script src="assets/publish.js?v15" defer></script>
+  </head>
+
+  <body>
+    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
+      <header class="topbar">
+        <m3e-heading class="topbar__title" variant="title" size="large" level="1">发布作业</m3e-heading>
+        <div class="topbar__controls">
+          <m3e-button variant="text" id="back-button">
+            <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
+            返回看板
+          </m3e-button>
+        </div>
+      </header>
+
+      <main class="publish">
+        <p class="status" id="gate" hidden>只有「发布者」可以发布作业，当前账号没有这个权限。</p>
+
+        <form id="publish-form" hidden>
+          <p class="hint">
+            在桌面端 StickyHomeworks2 里用「保存作业 → JSON」导出文件，然后在下面导入并选择它归属的日期。
+            同一天重复发布会覆盖当天记录；发布者与管理员都只能修改当天的内容。
+          </p>
+
+          <p class="status" id="message" hidden></p>
+
+          <div class="publish__row">
+            <label class="form-row">
+              <span>归属日期（只能是今天）</span>
+              <input id="publish-date" type="text" readonly />
+            </label>
+            <label class="form-row">
+              <span>选择导出的 JSON 文件</span>
+              <input id="publish-file" type="file" accept="application/json,.json" />
+            </label>
+          </div>
+
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="publish-json">或直接粘贴 JSON</label>
+            <textarea id="publish-json" rows="12" spellcheck="false" placeholder='{"format":"stickyhomeworks2.homeworks", ...}'></textarea>
+          </m3e-form-field>
+
+          <p class="status" id="preview" hidden></p>
+
+          <div class="publish__actions">
+            <m3e-button id="publish-submit" variant="filled">发布到这一天</m3e-button>
+          </div>
+        </form>
+      </main>
+    </m3e-theme>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

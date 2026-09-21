@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>登录 · 作业</title>
+    <link rel="stylesheet" href="assets/app.css?v15" />
+    <link rel="icon" href="assets/icon.svg?v15" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v15" defer></script>
+    <script src="vendor/supabase.js?v15" defer></script>
+    <script src="assets/config.js?v15" defer></script>
+    <script src="assets/client.js?v15" defer></script>
+    <script src="assets/login.js?v15" defer></script>
+  </head>
+
+  <body>
+    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
+      <main class="auth">
+        <section class="auth__card" id="auth-card">
+          <m3e-heading variant="headline" size="small" level="1">作业</m3e-heading>
+          <p class="hint">登录后即可查看每天的作业。账号使用邮箱注册，注册后需要点开验证邮件完成验证。</p>
+
+          <div class="auth__tabs" role="tablist" aria-label="登录或注册">
+            <m3e-button id="tab-login" role="tab" aria-selected="true" variant="filled">登录</m3e-button>
+            <m3e-button id="tab-register" role="tab" aria-selected="false" variant="tonal">注册</m3e-button>
+          </div>
+
+          <p class="status" id="message" hidden></p>
+
+          <div class="auth__panes" id="auth-panes">
+            <form id="login-form" class="auth__pane is-active" autocomplete="on">
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="login-email">邮箱</label>
+                <input id="login-email" name="email" type="email" autocomplete="email" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="login-password">密码</label>
+                <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+              </m3e-form-field>
+              <div class="auth__actions">
+                <m3e-button id="login-submit" variant="filled">登录</m3e-button>
+              </div>
+            </form>
+
+            <form id="register-form" class="auth__pane" autocomplete="on">
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-email">邮箱</label>
+                <input id="register-email" name="email" type="email" autocomplete="email" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-password">密码（至少 8 位）</label>
+                <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-confirm">确认密码</label>
+                <input id="register-confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required />
+              </m3e-form-field>
+              <div class="auth__actions">
+                <m3e-button id="register-submit" variant="filled">注册并发送验证邮件</m3e-button>
+              </div>
+            </form>
+          </div>
+
+          <div class="auth__actions" id="resend-box" hidden>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="resend-email">没收到验证邮件？填注册邮箱</label>
+              <input id="resend-email" type="email" />
+            </m3e-form-field>
+            <m3e-button id="resend-button" variant="text">重新发送验证邮件</m3e-button>
+          </div>
+        </section>
+      </main>
+
+      <m3e-dialog id="verify-dialog" alert dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">邮箱还没有验证</m3e-heading>
+        <p class="hint">
+          这个账号还没有完成邮箱验证，所以暂时不能登录。我们可以给
+          <strong id="verify-email">这个邮箱</strong>
+          重新发一封验证邮件。
+        </p>
+        <p class="status" id="verify-message" hidden></p>
+        <div slot="actions" end>
+          <m3e-button id="verify-close" variant="text">稍后再说</m3e-button>
+          <m3e-button id="verify-resend" variant="filled">重新发送验证邮件</m3e-button>
+        </div>
+      </m3e-dialog>
+    </m3e-theme>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -604,27 +604,3 @@ m3e-theme {
 .edit-form {
   padding-block-start: 10px;
 }
-
-/* 手机 WebView：禁掉长按图片的原生菜单与拖拽（壳里也会拦一层） */
-img,
-.homework-text img,
-.rich-surface img {
-  -webkit-touch-callout: none;
-  -webkit-user-drag: none;
-  user-select: none;
-}
-
-/* 手机端安全区：避免被刘海/手势条压住 */
-@media (max-width: 600px) {
-  .topbar {
-    padding-top: max(10px, env(safe-area-inset-top));
-  }
-
-  #fab-host {
-    bottom: max(1.25rem, env(safe-area-inset-bottom));
-  }
-
-  .homework-board {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom));
-  }
-}
