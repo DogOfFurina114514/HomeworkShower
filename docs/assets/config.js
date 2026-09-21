@@ -10,4 +10,7 @@ window.HOMEWORK_SHOWER_CONFIG = {
   supabaseKey: "sb_publishable_woB0DFosxaxHE1101sjfHA_Bt0SJMxG",
   authStorageKey: "homeworkshower.auth.v1",
   siteName: "作业",
+  // 申请管理员时邮件的收件人
+  adminEmail: "wu__20111229@outlook.com",
 };
+

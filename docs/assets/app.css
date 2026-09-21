@@ -579,3 +579,23 @@ m3e-theme {
 .homework-text .image-expired {
   margin: 6px 0;
 }
+
+/* ---------------- 右下角编辑按钮 ---------------- */
+
+#fab-host {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  z-index: 30;
+}
+
+#fab-menu {
+  z-index: 40;
+}
+
+@media (max-width: 600px) {
+  #fab-host {
+    right: 1.25rem;
+    bottom: 1.25rem;
+  }
+}

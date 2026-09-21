@@ -101,7 +101,8 @@
           ? hs.sanitizeHtml(homework.content_html)
           : hs.escapeHtml(homework.content).replace(/\n/g, "<br>");
         const expired = isExpired(homework.due_date);
-        const selected = selectedId === homework.id;
+        // dataset.id 是字符串，数据库 id 是数字，必须统一成字符串比较
+        const selected = String(selectedId) === String(homework.id);
         const tags = (homework.tags || []).length
           ? `<div slot="supporting-text" class="homework-tags">${homework.tags
               .map((tag) => `<m3e-chip variant="outlined">${hs.escapeHtml(tag)}</m3e-chip>`)
@@ -525,8 +526,7 @@
         if (action.dataset.action === "edit") openEdit(action.dataset.id);
         else if (action.dataset.action === "delete") openDelete(action.dataset.id);
         return;
-      }
-      const item = event.target.closest(".homework-item");
+      }      const item = event.target.closest(".homework-item");
       if (!item) return;
 
       // 说清楚为什么点了没反应，而不是静默忽略
@@ -546,6 +546,77 @@
       selectedId = selectedId === item.dataset.id ? null : item.dataset.id;
       renderBoard(currentRows);
     });
+
+    // ---------- 右下角编辑按钮 ----------
+    const fabHost = document.getElementById("fab-host");
+    const permissionDialog = document.getElementById("permission-dialog");
+    const applyDialog = document.getElementById("apply-dialog");
+
+    function openPermissionDialog() {
+      const roleEl = document.getElementById("permission-role");
+      if (roleEl) roleEl.textContent = profile ? hs.roleLabel(profile.role) : "未登录";
+      permissionDialog?.show();
+    }
+
+    function openApplyDialog() {
+      const emailEl = document.getElementById("apply-email");
+      if (emailEl) emailEl.value = profile?.email || "（未登录，请先登录）";
+      applyDialog?.show();
+    }
+
+    /** 打开发信应用：收件人与主题已填好 */
+    function openApplyMail() {
+      const to = hs.config.adminEmail || "";
+      const subject = "申请作业管理员";
+      const body = [
+        "你好，我想申请成为作业管理员（可以发布与修改作业）。",
+        "",
+        `我的账号邮箱：${profile?.email || "（未填写）"}`,
+        `申请时间：${new Date().toLocaleString("zh-CN")}`,
+        "",
+        "申请理由：",
+      ].join("\n");
+      location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+
+    if (fabHost) {
+      if (profile && hs.canEditToday(profile)) {
+        fabHost.innerHTML = `
+          <m3e-fab variant="primary" aria-label="编辑">
+            <m3e-fab-menu-trigger for="fab-menu">
+              <m3e-icon variant="outlined" name="edit"></m3e-icon>
+            </m3e-fab-menu-trigger>
+          </m3e-fab>
+          <m3e-fab-menu id="fab-menu" variant="primary">
+            <m3e-fab-menu-item id="fab-publish">
+              <m3e-icon variant="outlined" slot="icon" name="upload_file"></m3e-icon>
+              发布作业
+            </m3e-fab-menu-item>
+            <m3e-fab-menu-item id="fab-tip">
+              <m3e-icon variant="outlined" slot="icon" name="edit"></m3e-icon>
+              修改作业（点作业卡片）
+            </m3e-fab-menu-item>
+          </m3e-fab-menu>`;
+        document.getElementById("fab-publish")?.addEventListener("click", () => location.assign("publish.html"));
+        document.getElementById("fab-tip")?.addEventListener("click", () => {
+          hs.toast(canManage ? "点一下作业卡片即可修改或删除（仅限当天）" : "只能修改当天发布的作业");
+        });
+      } else {
+        fabHost.innerHTML = `
+          <m3e-fab variant="primary" id="fab-request" aria-label="申请修改权限">
+            <m3e-icon variant="outlined" name="edit"></m3e-icon>
+          </m3e-fab>`;
+        document.getElementById("fab-request")?.addEventListener("click", openPermissionDialog);
+      }
+    }
+
+    document.getElementById("permission-ok")?.addEventListener("click", () => permissionDialog?.hide());
+    document.getElementById("permission-apply")?.addEventListener("click", () => {
+      permissionDialog?.hide();
+      openApplyDialog();
+    });
+    document.getElementById("apply-close")?.addEventListener("click", () => applyDialog?.hide());
+    document.getElementById("apply-mail")?.addEventListener("click", openApplyMail);
 
     const batches = await loadDates();
     if (!batches.length) {

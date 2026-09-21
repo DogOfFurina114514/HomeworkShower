@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>时光机 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v8" />
-    <link rel="icon" href="assets/icon.svg?v8" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v8" defer></script>
-    <script src="vendor/supabase.js?v8" defer></script>
-    <script src="assets/config.js?v8" defer></script>
-    <script src="assets/client.js?v8" defer></script>
-    <script src="assets/board.js?v8" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v9" />
+    <link rel="icon" href="assets/icon.svg?v9" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v9" defer></script>
+    <script src="vendor/supabase.js?v9" defer></script>
+    <script src="assets/config.js?v9" defer></script>
+    <script src="assets/client.js?v9" defer></script>
+    <script src="assets/board.js?v9" defer></script>
   </head>
 
   <body>
@@ -103,9 +103,43 @@
           <m3e-button variant="filled" id="delete-confirm">删除</m3e-button>
         </div>
       </m3e-dialog>
+      <div id="fab-host"></div>
+
+      <m3e-dialog id="permission-dialog" alert dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">仅管理员可修改作业</m3e-heading>
+        <p class="hint">
+          当前身份是「<strong id="permission-role">用户</strong>」。只有发布者与管理员可以修改作业，
+          而且只能修改当天发布的内容。
+        </p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="permission-ok">我知道了</m3e-button>
+          <m3e-button variant="filled" id="permission-apply">申请管理员</m3e-button>
+        </div>
+      </m3e-dialog>
+
+      <m3e-dialog id="apply-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">申请作业管理员</m3e-heading>
+        <div class="form-row">
+          <span>我的邮箱</span>
+          <input id="apply-email" readonly />
+        </div>
+        <p class="hint">
+          点下面的按钮会打开系统邮件应用，收件人与主题已经填好（主题：申请作业管理员），
+          你补上申请理由再发送即可。
+        </p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="apply-close">关闭</m3e-button>
+          <m3e-button variant="filled" id="apply-mail">
+            <m3e-icon variant="outlined" slot="icon" name="mail"></m3e-icon>
+            打开「电子邮件」
+          </m3e-button>
+        </div>
+      </m3e-dialog>
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 
