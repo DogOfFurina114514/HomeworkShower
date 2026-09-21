@@ -59,7 +59,7 @@
   function renderEmpty(message) {
     boardEl.innerHTML = `
       <div class="homework-empty-state">
-        <m3e-icon name="assignment"></m3e-icon>
+        <m3e-icon variant="outlined" name="assignment"></m3e-icon>
         <m3e-heading variant="title" size="large" level="2">${hs.escapeHtml(message)}</m3e-heading>
       </div>`;
   }
@@ -265,3 +265,4 @@
 
   void init();
 })();
+

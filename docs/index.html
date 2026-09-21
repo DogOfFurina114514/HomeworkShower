@@ -20,12 +20,12 @@
         <m3e-heading class="topbar__title" variant="title" size="large" level="1" id="site-title">作业</m3e-heading>
         <div class="topbar__controls">
           <m3e-button variant="tonal" id="timemachine-button">
-            <m3e-icon slot="icon" name="schedule"></m3e-icon>
+            <m3e-icon variant="outlined" slot="icon" name="schedule"></m3e-icon>
             时光机
           </m3e-button>
           <div class="account">
             <m3e-button variant="tonal" id="account-button" aria-haspopup="true">
-              <m3e-icon slot="icon" name="account_circle"></m3e-icon>
+              <m3e-icon variant="outlined" slot="icon" name="account_circle"></m3e-icon>
               <span id="account-button-label">个人中心</span>
             </m3e-button>
             <div class="account__panel" id="account-panel" hidden>
@@ -49,10 +49,12 @@
       <p class="status" id="status" hidden></p>
 
       <main class="homework-board" id="board">
-        <div class="homework-empty-state"><m3e-icon name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
+        <div class="homework-empty-state"><m3e-icon variant="outlined" name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
       </main>
     </m3e-theme>
   </body>
 </html>
+
+
 
 

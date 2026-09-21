@@ -136,15 +136,25 @@
     console.error("[HomeworkShower]", text);
   }
 
-  /** 给网络请求加超时，避免请求悬挂时页面一直停在「正在加载」 */
+  /**
+   * 给网络请求加超时，避免请求悬挂时页面一直停在「正在加载」。
+   * 注意：Supabase 的查询构造器是 thenable（只有 then，没有 finally），
+   * 所以这里只依赖 Promise.resolve 包装后的 then，不能用 .finally。
+   */
   function withTimeout(promise, ms, label) {
-    let timer;
-    return Promise.race([
-      promise.finally(() => clearTimeout(timer)),
-      new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label}超时（${Math.round(ms / 1000)} 秒无响应）`)), ms);
-      }),
-    ]);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`${label}超时（${Math.round(ms / 1000)} 秒无响应）`)), ms);
+      Promise.resolve(promise).then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      );
+    });
   }
 
   window.addEventListener("error", (event) => fatal(event.message || "脚本错误"));
