@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<body style="margin:0;padding:0;">
+<div class="text-only" style="display:none;max-height:0;overflow:hidden;opacity:0;">
+你的验证码是：{{ .Token }}
+
+如果这不是你的操作，请忽略此邮件。
+</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background:#f5fafc;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#eff4f6;border:1px solid #bfc8cb;border-radius:20px;padding:30px 28px;font-family:'Segoe UI','Microsoft YaHei',system-ui,-apple-system,sans-serif;color:#171d1e;">
+      <tr><td style="font-size:15px;font-weight:600;color:#006877;padding-bottom:14px;letter-spacing:1px;">作业</td></tr>
+      <tr><td style="font-size:22px;font-weight:500;line-height:1.4;padding-bottom:12px;">验证码</td></tr>
+      <tr><td style="font-size:15px;line-height:1.7;color:#3f484a;padding-bottom:22px;">请在页面中输入下面的验证码完成验证。</td></tr>
+      
+      <tr><td align="center" style="padding:4px 0 22px;">
+          <div style="display:inline-block;padding:14px 24px;border-radius:14px;background:#eff4f6;border:1px solid #bfc8cb;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:28px;letter-spacing:6px;color:#171d1e;">{{ .Token }}</div>
+        </td></tr>
+      
+      <tr><td style="font-size:12px;line-height:1.7;color:#6f797b;border-top:1px solid #bfc8cb;padding-top:16px;">如果不是你本人操作，忽略这封邮件即可。此邮件由系统自动发送，无需回复。</td></tr>
+    </table>
+    <div style="max-width:480px;font-size:12px;color:#6f797b;padding-top:14px;font-family:'Segoe UI','Microsoft YaHei',system-ui,sans-serif;">
+      HomeworkShower · 同学打开就能看当天作业<br />
+      <a href="https://dogofurina114514.github.io/HomeworkShower/" style="color:#6f797b;text-decoration:underline;">https://dogofurina114514.github.io/HomeworkShower/</a>
+    </div>
+  </td></tr>
+</table>
+</body>
+</html>

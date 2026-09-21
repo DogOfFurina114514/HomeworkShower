@@ -60,16 +60,45 @@ select sum(row_bytes) from public.homeworks;  -- 当前占用（字节）
 
 ### 1. 数据库
 
-在 Supabase 项目的 SQL Editor 里整段执行 `supabase/schema.sql`（幂等，可重复执行）。
+在 Supabase 项目的 SQL Editor 里按顺序整段执行（都是幂等的，可重复执行）：
+
+1. `supabase/schema.sql`：建表、RLS、发布函数、整天清理函数；
+2. `supabase/bootstrap-admin.sql`：注册时的角色规则，以及管理员给他人升权的 `grant_publisher()`；
+3. `supabase/fix-service-role.sql`：允许服务端密钥（service_role）绕过角色检查（服务端脚本要用）。
+
+也可以用 Management API 直接执行：
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_xxx PROJECT_REF=xxx node tools/apply-sql.mjs
+```
 
 ### 2. 登录与邮件
 
 - Authentication → Providers → Email：开启，并保持 **Confirm email** 打开（这样注册后必须验证邮箱）；
 - Authentication → URL Configuration：`Site URL` 填 Pages 地址（例如 `https://dogofurina114514.github.io/HomeworkShower/`），`Redirect URLs` 加入同一个地址；
-- 想用自己的发信人（而不是 Supabase 内置发信服务，它每小时只能发几封）：Authentication → Emails → SMTP Settings 填自己的 SMTP，并把 Sender name 设成 `HomeworkShower`；
-- 邮件模板：把 `supabase/email-templates/` 下的内容分别贴进 Authentication → Emails 对应的模板里。模板里 `<!--PLAINTEXT-->` 标记的那一段是给不支持 HTML 的客户端看的纯文本版，正常客户端会把它隐藏掉。
+- 自定义发信人：默认走 Supabase 内置发信服务（每小时只能发几封，不适合班级使用）。要换成自己的 SMTP：
 
-### 3. 前端
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_xxx PROJECT_REF=xxx SMTP_PASS=你的SMTP授权码 node tools/apply-auth-config.mjs
+```
+
+这个脚本会一次性写好：站点地址、SMTP（发信人显示为 `HomeworkShower`）、8 套邮件模板、发送速率。
+
+- 邮件模板源文件在 `supabase/email-templates/`，由 `tools/email-templates.mjs` 生成，风格与网页端一致。
+  每封邮件里都有一段 `display:none` 的**纯文本版本**：支持 HTML 的客户端会隐藏它，
+  只认纯文本的客户端则能读到内容，两种格式同时保留。
+
+### 3. 第一个管理员
+
+`bootstrap-admin.sql` 的规则是：
+
+- 邮箱在函数里的白名单中 → 直接 `admin`（默认写了站点所有者邮箱，按需修改）；
+- 系统里还没有任何 admin → **第一个注册的人自动成为 admin**；
+- 其余人 → `user`（只读）。
+
+管理员可以用 SQL 或 `grant_publisher('someone@example.com')` 给他人升成发布者。
+
+### 4. 前端
 
 仓库 Settings → Pages → Source 选 `Deploy from a branch`，分支 `main`、目录 **`/docs`**。
 
