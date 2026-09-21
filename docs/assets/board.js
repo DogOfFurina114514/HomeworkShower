@@ -596,10 +596,7 @@
               <m3e-icon variant="outlined" slot="icon" name="save"></m3e-icon>
               保存作业（导出 JSON）
             </m3e-fab-menu-item>
-            <m3e-fab-menu-item id="fab-tip">
-              <m3e-icon variant="outlined" slot="icon" name="edit"></m3e-icon>
-              修改作业（点作业卡片）
-            </m3e-fab-menu-item>
+            
           </m3e-fab-menu>`;
         document.getElementById("fab-publish")?.addEventListener("click", () => location.assign("publish.html"));
         document.getElementById("fab-save")?.addEventListener("click", () => {
@@ -628,9 +625,7 @@
           URL.revokeObjectURL(url);
           hs.toast("已导出 JSON");
         });
-        document.getElementById("fab-tip")?.addEventListener("click", () => {
-          hs.toast(canManage ? "点一下作业卡片即可修改或删除（仅限当天）" : "只能修改当天发布的作业");
-        });
+        
       } else {
         fabHost.innerHTML = `
           <m3e-fab variant="primary" id="fab-request" aria-label="申请修改权限">
@@ -704,6 +699,8 @@
 
   void init();
 })();
+
+
 
 
 
