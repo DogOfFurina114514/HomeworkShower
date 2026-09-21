@@ -5,6 +5,388 @@
  * - 顶部只保留精简操作区（没有应用栏、没有编辑按钮）
  */
 
+* {
+  box-sizing: border-box;
+}
+
+/* hidden 必须压过组件自身的 display（m3e-* 与 .field 都会设 display） */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--md-sys-color-background, #f5fafc);
+  color: var(--md-sys-color-on-background, #171d1e);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+m3e-theme {
+  display: block;
+  min-height: 100dvh;
+}
+
+/* ---------------- 顶部操作区 ---------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--md-sys-color-background, #f5fafc);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+}
+
+.topbar__title {
+  margin-inline-end: auto;
+}
+
+.topbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account {
+  position: relative;
+}
+
+.account__panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  min-width: 240px;
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-high, #e3e9eb);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.account__meta {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+}
+
+.account__meta strong {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface, #171d1e);
+  overflow-wrap: anywhere;
+}
+
+.role-chip {
+  justify-self: start;
+  padding: 2px 12px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+}
+
+/* ---------------- 作业看板（规则取自桌面端） ---------------- */
+
+.homework-board {
+  padding: 24px 20px 72px;
+}
+
+.masonry-columns {
+  column-width: 350px;
+  column-gap: 8px;
+}
+
+.masonry-column {
+  display: block;
+}
+
+.subject-group {
+  break-inside: avoid;
+  margin: 0 0 36px;
+}
+
+.subject-group > m3e-heading {
+  display: block;
+  margin: 0 0 0.65rem;
+  color: var(--md-sys-color-on-surface, #171d1e);
+}
+
+.subject-homework-list {
+  display: block;
+  width: 100%;
+  --m3e-segmented-list-segment-gap: 0.125rem;
+  --m3e-segmented-list-container-shape: 0.75rem;
+  --m3e-segmented-list-item-container-color: var(--md-sys-color-surface-container-low, #eff4f6);
+  --m3e-segmented-list-item-container-shape: 0;
+}
+
+.homework-item {
+  min-width: 0;
+  width: 100%;
+  --m3e-list-item-container-color: var(--md-sys-color-surface-container-low, #eff4f6);
+  --m3e-list-item-label-text-color: var(--md-sys-color-on-surface, #171d1e);
+  --m3e-list-item-supporting-text-color: var(--md-sys-color-on-surface-variant, #3f484a);
+  --m3e-list-item-leading-color: var(--md-sys-color-primary, #006877);
+  --m3e-list-item-between-space: 0.75rem;
+  --m3e-list-item-padding-block: 0.75rem;
+  --m3e-list-item-padding-inline: 0.9rem;
+}
+
+.homework-content {
+  display: grid;
+  grid-template-columns: 0.375rem minmax(0, 1fr);
+  column-gap: 0.65rem;
+  align-items: start;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 1.125rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+.homework-text {
+  display: block;
+  grid-column: 2;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 富文本正文里的 p 自带外边距，会让圆点与首行错位、卡片虚高 */
+.homework-text :where(p, h1, h2, h3, h4, h5, h6, pre, blockquote) {
+  margin: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.homework-text :where(ul, ol) {
+  margin: 0;
+  padding-inline-start: 1.4em;
+}
+
+.homework-text img {
+  max-width: 100%;
+  height: auto;
+}
+
+.homework-text a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+}
+
+.homework-marker {
+  display: block;
+  grid-column: 1;
+  grid-row: 1;
+  width: 0.375rem;
+  height: 0.375rem;
+  margin-top: calc((1.55em - 0.375rem) / 2);
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.homework-item--expired {
+  --m3e-list-item-label-text-color: var(--md-sys-color-error, #ba1a1a);
+  --m3e-list-item-leading-color: var(--md-sys-color-error, #ba1a1a);
+}
+
+.homework-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-block-start: 0.35rem;
+}
+
+.homework-tags m3e-chip {
+  --m3e-outlined-chip-outline-color: var(--md-sys-color-outline-variant, #bfc8cb);
+}
+
+.homework-empty-state {
+  display: grid;
+  min-height: 14rem;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  text-align: center;
+}
+
+.homework-empty-state > m3e-icon {
+  font-size: 3rem;
+}
+
+/* ---------------- 未登录提示横幅 ---------------- */
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--md-sys-color-error-container, #ffdad6);
+  color: var(--md-sys-color-on-error-container, #410002);
+  border-bottom: 1px solid var(--md-sys-color-error, #ba1a1a);
+}
+
+.banner__text {
+  margin-inline-end: auto;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 出错时把原因直接显示在页面顶部（方便截图反馈） */
+.banner--fatal {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+/* ---------------- 状态条 ---------------- */
+
+.status {
+  margin: 16px 20px 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  font-size: 14px;
+}
+
+.status--error {
+  border-color: var(--md-sys-color-error, #ba1a1a);
+  color: var(--md-sys-color-error, #ba1a1a);
+}
+
+/* ---------------- 登录 / 注册 ---------------- */
+
+.auth {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth__card {
+  width: min(430px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 30px 28px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  border-radius: 24px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+}
+
+.auth__card h1 {
+  margin: 0;
+}
+
+.auth__tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.auth__panes {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  transition: height 280ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.auth__pane {
+  display: grid;
+  gap: 16px;
+  transition:
+    opacity 280ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 280ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.auth__pane.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+.auth__pane:not(.is-active) {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.auth__actions {
+  display: grid;
+  gap: 10px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+}
+
+.auth__card m3e-form-field,
+.publish m3e-form-field {
+  width: 100%;
+}
+
+/* ---------------- 发布页 ---------------- */
+
+.publish {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 20px 72px;
+  display: grid;
+  gap: 16px;
+}
+
+.publish__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.publish__row > * {
+  flex: 1 1 240px;
+}
+
+.publish m3e-form-field {
+  min-width: 0;
+}
+
+.publish__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth__panes,
+  .auth__pane {
+    transition: none;
+  }
+}
+
 @media (max-width: 600px) {
   .topbar {
     padding: 10px 14px;
