@@ -265,6 +265,16 @@ m3e-theme {
   line-height: 1.6;
 }
 
+/* 出错时把原因直接显示在页面顶部（方便截图反馈） */
+.banner--fatal {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
 /* ---------------- 状态条 ---------------- */
 
 .status {
