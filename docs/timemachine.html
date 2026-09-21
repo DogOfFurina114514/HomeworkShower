@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>时光机 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v7" />
-    <link rel="icon" href="assets/icon.svg?v7" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v7" defer></script>
-    <script src="vendor/supabase.js?v7" defer></script>
-    <script src="assets/config.js?v7" defer></script>
-    <script src="assets/client.js?v7" defer></script>
-    <script src="assets/board.js?v7" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v8" />
+    <link rel="icon" href="assets/icon.svg?v8" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v8" defer></script>
+    <script src="vendor/supabase.js?v8" defer></script>
+    <script src="assets/config.js?v8" defer></script>
+    <script src="assets/client.js?v8" defer></script>
+    <script src="assets/board.js?v8" defer></script>
   </head>
 
   <body>
@@ -18,11 +18,15 @@
       <header class="topbar">
         <m3e-heading class="topbar__title" variant="title" size="large" level="1" id="site-title">作业 · 时光机</m3e-heading>
         <div class="topbar__controls">
-          <button type="button" class="date-trigger" id="date-trigger" aria-haspopup="dialog">
-            <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
-            <span id="date-label">选择日期</span>
-          </button>
-          <input type="date" id="date-picker" class="date-native" tabindex="-1" aria-hidden="true" />
+          <m3e-form-field variant="outlined" id="date-field">
+            <label slot="label" for="date-input">发布日期</label>
+            <input id="date-input" readonly placeholder="点这里选择" autocomplete="off" />
+            <m3e-icon-button slot="suffix" aria-label="选择发布日期">
+              <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
+              <m3e-datepicker-toggle for="date-picker"></m3e-datepicker-toggle>
+            </m3e-icon-button>
+          </m3e-form-field>
+          <m3e-datepicker id="date-picker" variant="auto" label="选择发布日期"></m3e-datepicker>
           <m3e-button variant="text" id="back-button">
             <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
             回到今天
@@ -75,8 +79,10 @@
                 <m3e-icon-button data-cmd="insertUnorderedList" aria-label="无序列表" title="无序列表"><m3e-icon variant="outlined" name="format_list_bulleted"></m3e-icon></m3e-icon-button>
                 <m3e-icon-button data-cmd="insertOrderedList" aria-label="有序列表" title="有序列表"><m3e-icon variant="outlined" name="format_list_numbered"></m3e-icon></m3e-icon-button>
                 <m3e-icon-button data-cmd="createLink" aria-label="插入链接" title="插入链接"><m3e-icon variant="outlined" name="link"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertImage" aria-label="插入图片" title="插入图片"><m3e-icon variant="outlined" name="image"></m3e-icon></m3e-icon-button>
                 <m3e-icon-button data-cmd="removeFormat" aria-label="清除格式" title="清除格式"><m3e-icon variant="outlined" name="format_clear"></m3e-icon></m3e-icon-button>
               </div>
+              <input type="file" accept="image/*" class="rich-image-input" hidden />
               <div class="rich-surface" id="edit-content" contenteditable="true" role="textbox" aria-multiline="true"></div>
             </div>
           </div>
@@ -100,6 +106,9 @@
     </m3e-theme>
   </body>
 </html>
+
+
+
 
 
 

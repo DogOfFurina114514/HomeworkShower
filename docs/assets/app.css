@@ -435,34 +435,14 @@ m3e-theme {
 
 /* ---------------- 时光机：日期选择触发器 ---------------- */
 
-.date-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 18px;
-  border: 1px solid var(--md-sys-color-outline, #6f797b);
-  border-radius: 20px;
-  background: var(--md-sys-color-surface-container-low, #eff4f6);
-  color: var(--md-sys-color-on-surface, #171d1e);
-  font: inherit;
-  cursor: pointer;
-}
 
 .date-trigger:hover {
   filter: brightness(0.97);
 }
 
 /* 原生日期输入只用来弹出系统选择器：不显示、不接受直接输入 */
-.date-native {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  pointer-events: none;
-}
+
+/* 兜底：环境不支持 showPicker 时，把原生输入框显示出来供点击 */
 
 /* 未选日期时，提示居中（标题下移）；选中后正常顶端排列 */
 .homework-board--prompt {
@@ -557,4 +537,45 @@ m3e-theme {
 
 .rich-surface a {
   color: var(--md-sys-color-primary, #006877);
+}
+
+
+/* 顶栏日期字段：与桌面端同款 m3e-datepicker */
+#date-field {
+  min-width: 190px;
+}
+
+.rich-image-input {
+  display: none;
+}
+
+.rich-surface img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* 图片被清理后的占位块：灰底 + 裂图图标 + 文字 */
+.image-expired {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 140px;
+  padding: 16px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-high, #e3e9eb);
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  text-align: center;
+  font-size: 13px;
+}
+
+.image-expired m3e-icon {
+  --m3e-icon-size: 2.5rem;
+  color: var(--md-sys-color-outline, #6f797b);
+}
+
+.homework-text .image-expired {
+  margin: 6px 0;
 }

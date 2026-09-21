@@ -202,9 +202,8 @@
   }
 
   async function loadDate(date) {
-    datePicker.value = date;
-    const dateLabel = document.getElementById("date-label");
-    if (dateLabel) dateLabel.textContent = formatDateLabel(date);
+    const dateInput = document.getElementById("date-input");
+    if (dateInput) dateInput.value = formatDateLabel(date);
     const url = new URL(location.href);
     url.searchParams.set("date", date);
     history.replaceState(null, "", url);
@@ -221,11 +220,57 @@
     currentRows = rows;
     currentDate = date;
     selectedId = null;
-    // 只有发布者/管理员可以改，而且只能改当天
-    canManage = Boolean(profile && hs.canEditToday(profile) && date === todayString());
-    const manageHint = canManage ? " · 点击作业可修改或删除" : profile && hs.canEditToday(profile) ? "（非当天，只能查看）" : "";
-    showStatus(`${formatDateLabel(date)} · 共 ${rows.length} 条作业${manageHint}`);
+    // 时光机是只读回看，不允许任何编辑；只有主界面（latest）才能改当天的内容
+    canManage = false;
+    showStatus(`${formatDateLabel(date)} · 共 ${rows.length} 条作业`);
     renderBoard(rows);
+  }
+
+  /**
+   * 把图片压缩成 Blob：最长边 1280px，非 PNG 转 JPEG 0.8。
+   * 图片存进 Supabase Storage 桶（1 GB 额度），不占数据库那 500 MB。
+   */
+  function shrinkImage(file, maxEdge = 1280, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+      if (file.size > 12 * 1024 * 1024) {
+        reject(new Error("图片太大（超过 12 MB）"));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("读取图片失败"));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = () => reject(new Error("这个图片格式浏览器读不了"));
+        image.onload = () => {
+          const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          const context = canvas.getContext("2d");
+          if (!context) {
+            reject(new Error("当前环境不支持画布处理"));
+            return;
+          }
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          // PNG 可能带透明通道，保留 PNG；其余转 JPEG 压体积
+          const keepPng = file.type === "image/png";
+          const contentType = keepPng ? "image/png" : "image/jpeg";
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("图片处理失败"));
+                return;
+              }
+              resolve({ blob, contentType, extension: keepPng ? "png" : "jpg" });
+            },
+            contentType,
+            quality,
+          );
+        };
+        image.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   async function init() {
@@ -407,8 +452,17 @@
         if (!button) return;
         event.preventDefault();
         const editor = document.getElementById("edit-content");
-        editor.focus();
         const command = button.dataset.cmd;
+
+        if (command === "insertImage") {
+          const fileInput = editDialog.querySelector(".rich-image-input");
+          if (!fileInput) return;
+          fileInput.value = "";
+          fileInput.click();
+          return;
+        }
+
+        editor.focus();
         if (command === "createLink") {
           const url = window.prompt("输入链接地址", "https://");
           if (url) document.execCommand("createLink", false, url);
@@ -416,11 +470,53 @@
           document.execCommand(command, false, null);
         }
       });
+
+      // 插图：先压缩，再上传到图片桶（不占数据库配额），最后插入公共地址
+      editDialog.querySelector(".rich-image-input")?.addEventListener("change", async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        try {
+          setDialogMessage("edit-message", "正在处理图片…", false);
+          const shrunk = await shrinkImage(file);
+          const path = `${hs.todayString()}/${crypto.randomUUID()}.${shrunk.extension}`;
+          const { error } = await client.storage
+            .from("homework-images")
+            .upload(path, shrunk.blob, { contentType: shrunk.contentType, upsert: false });
+          if (error) throw new Error(error.message);
+
+          const { data } = client.storage.from("homework-images").getPublicUrl(path);
+          const editor = document.getElementById("edit-content");
+          editor.focus();
+          document.execCommand("insertImage", false, data.publicUrl);
+          setDialogMessage("edit-message", `已插入图片（${Math.round(shrunk.blob.size / 1024)} KB）`, false);
+        } catch (error) {
+          setDialogMessage("edit-message", `插入图片失败：${error.message}`);
+        }
+      });
     }
     if (deleteDialog) {
       document.getElementById("delete-confirm")?.addEventListener("click", () => void confirmDelete());
       document.getElementById("delete-cancel")?.addEventListener("click", () => deleteDialog.hide());
     }
+
+    /**
+     * 图片被清理后会 404：在原位置换成灰底占位块（裂图图标 + 「图片已过期」）。
+     * 注意图片的 error 事件不冒泡，必须用捕获阶段监听。
+     */
+    boardEl.addEventListener(
+      "error",
+      (event) => {
+        const image = event.target;
+        if (!(image instanceof HTMLImageElement)) return;
+        if (image.dataset.expiredPlaceholder === "1") return;
+        const box = document.createElement("span");
+        box.className = "image-expired";
+        box.innerHTML = '<m3e-icon variant="outlined" name="broken_image"></m3e-icon><span>图片已过期</span>';
+        image.dataset.expiredPlaceholder = "1";
+        image.replaceWith(box);
+      },
+      true,
+    );
 
     boardEl.addEventListener("click", (event) => {
       const action = event.target.closest("[data-action]");
@@ -465,32 +561,29 @@
     }
 
     if (mode === "date") {
-      const dateTrigger = document.getElementById("date-trigger");
-      const dateLabel = document.getElementById("date-label");
+      const dateField = document.getElementById("date-field");
+      const picker = document.getElementById("date-picker");
 
-      // 只允许通过系统日历选择，不接受键盘直接输入
-      if (datePicker) {
-        datePicker.addEventListener("keydown", (event) => {
-          if (event.key !== "Tab" && event.key !== "Escape") event.preventDefault();
-        });
-        datePicker.addEventListener("change", () => {
-          if (datePicker.value) void loadDate(datePicker.value);
+      if (picker) {
+        // 与桌面端同一套：m3e-datepicker + datepicker-toggle
+        const toDate = (value) => new Date(`${value}T00:00:00`);
+        if (availableDates.length) {
+          picker.minDate = toDate(availableDates[availableDates.length - 1]);
+          picker.maxDate = toDate(availableDates[0] > today ? availableDates[0] : today);
+        }
+        picker.addEventListener("change", () => {
+          const picked = picker.date;
+          if (!picked) return;
+          const pad = (n) => String(n).padStart(2, "0");
+          void loadDate(`${picked.getFullYear()}-${pad(picked.getMonth() + 1)}-${pad(picked.getDate())}`);
         });
       }
 
-      // 点触发器任意位置都弹出系统日期选择器
-      if (dateTrigger && datePicker) {
-        dateTrigger.addEventListener("click", () => {
-          if (typeof datePicker.showPicker === "function") {
-            try {
-              datePicker.showPicker();
-              return;
-            } catch {
-              /* 某些环境不允许 showPicker，退回 click */
-            }
-          }
-          datePicker.focus();
-          datePicker.click();
+      // 点字段任意处都能打开日历（应用里只有右侧图标能点，这里放宽）
+      if (dateField && picker) {
+        dateField.addEventListener("click", (event) => {
+          if (event.target.closest("m3e-datepicker-toggle")) return;
+          void picker.show(dateField, dateField);
         });
       }
 
@@ -498,8 +591,6 @@
       if (fromUrl && availableDates.includes(fromUrl)) {
         await loadDate(fromUrl);
       } else {
-        // 进来先不加载任何一天，提示选日期
-        if (dateLabel) dateLabel.textContent = "选择日期";
         showPickPrompt();
       }
       return;

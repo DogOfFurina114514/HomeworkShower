@@ -48,7 +48,10 @@
         }
         if (child.tagName === "IMG") {
           const src = child.getAttribute("src") || "";
-          if (!/^data:image\/(png|jpeg|gif|webp);base64,/i.test(src)) {
+          const isInlineImage = /^data:image\/(png|jpeg|gif|webp);base64,/i.test(src);
+          // 允许本项目的图片桶地址（图片存在 Storage 里，不占数据库）
+          const isBucketImage = src.startsWith(`${config.supabaseUrl}/storage/v1/object/public/homework-images/`);
+          if (!isInlineImage && !isBucketImage) {
             child.remove();
             continue;
           }
