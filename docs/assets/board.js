@@ -25,6 +25,9 @@
   const publishLink = document.getElementById("publish-link");
   const timemachineButton = document.getElementById("timemachine-button");
   const backButton = document.getElementById("back-button");
+  const accountButtonLabel = document.getElementById("account-button-label");
+  const loginBanner = document.getElementById("login-banner");
+  const bannerLoginButton = document.getElementById("banner-login-button");
 
   let availableDates = [];
   let profile = null;
@@ -177,25 +180,39 @@
   }
 
   async function init() {
-    const session = await hs.requireSession();
-    if (!session) return;
+    // 主界面未登录也能看；时光机必须登录
+    const session = await hs.getSession();
+    if (mode === "date" && !session) {
+      location.replace(`login.html?next=${encodeURIComponent(`timemachine.html${location.search}`)}`);
+      return;
+    }
 
-    profile = await hs.getProfile();
-    if (profile) {
+    profile = session ? await hs.getProfile() : null;
+
+    if (!profile) {
+      // 未登录：右上角按钮变成「登录」，顶部给一条红色横幅
+      if (accountButtonLabel) accountButtonLabel.textContent = "登录";
+      accountButton.addEventListener("click", () => location.assign("login.html"));
+      if (loginBanner) loginBanner.hidden = false;
+      if (bannerLoginButton) bannerLoginButton.addEventListener("click", () => location.assign("login.html"));
+    } else {
       accountEmail.textContent = profile.email;
       accountRole.textContent = hs.roleLabel(profile.role);
       if (publishLink) publishLink.hidden = !hs.isPublisher(profile);
+
+      accountButton.addEventListener("click", () => {
+        accountPanel.hidden = !accountPanel.hidden;
+      });
+      document.addEventListener("click", (event) => {
+        if (!accountPanel.hidden && !event.target.closest(".account")) accountPanel.hidden = true;
+      });
+      logoutButton.addEventListener("click", () => void hs.signOut());
+      if (publishLink) publishLink.addEventListener("click", () => location.assign("publish.html"));
     }
 
-    accountButton.addEventListener("click", () => {
-      accountPanel.hidden = !accountPanel.hidden;
-    });
-    document.addEventListener("click", (event) => {
-      if (!accountPanel.hidden && !event.target.closest(".account")) accountPanel.hidden = true;
-    });
-    logoutButton.addEventListener("click", () => void hs.signOut());
-    if (publishLink) publishLink.addEventListener("click", () => location.assign("publish.html"));
-    if (timemachineButton) timemachineButton.addEventListener("click", () => location.assign("timemachine.html"));
+    if (timemachineButton) {
+      timemachineButton.addEventListener("click", () => location.assign(session ? "timemachine.html" : "login.html"));
+    }
     if (backButton) backButton.addEventListener("click", () => location.assign("index.html"));
 
     const batches = await loadDates();

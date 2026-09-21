@@ -246,6 +246,25 @@ m3e-theme {
   font-size: 3rem;
 }
 
+/* ---------------- 未登录提示横幅 ---------------- */
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--md-sys-color-error-container, #ffdad6);
+  color: var(--md-sys-color-on-error-container, #410002);
+  border-bottom: 1px solid var(--md-sys-color-error, #ba1a1a);
+}
+
+.banner__text {
+  margin-inline-end: auto;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 /* ---------------- 状态条 ---------------- */
 
 .status {
