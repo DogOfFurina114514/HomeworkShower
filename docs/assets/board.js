@@ -594,7 +594,7 @@
             </m3e-fab-menu-item>
             <m3e-fab-menu-item id="fab-save">
               <m3e-icon variant="outlined" slot="icon" name="save"></m3e-icon>
-              保存作业（导出 JSON）
+              导出作业
             </m3e-fab-menu-item>
             
           </m3e-fab-menu>`;
@@ -699,6 +699,7 @@
 
   void init();
 })();
+
 
 
 
