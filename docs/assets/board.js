@@ -110,13 +110,18 @@
   }
 
   async function loadDates() {
-    const { data, error } = await client
-      .from("publish_batches")
-      .select("published_on,homework_count,subject_count,published_at")
-      .order("published_on", { ascending: false })
-      .limit(400);
+    const { data, error } = await hs.withTimeout(
+      client
+        .from("publish_batches")
+        .select("published_on,homework_count,subject_count,published_at")
+        .order("published_on", { ascending: false })
+        .limit(400),
+      15000,
+      "读取发布记录",
+    );
     if (error) {
       showStatus(`读取发布记录失败：${error.message}`, true);
+      hs.fatal(`读取发布记录失败：${error.message}`);
       return [];
     }
     availableDates = (data || []).map((row) => row.published_on).filter(Boolean);
@@ -124,14 +129,19 @@
   }
 
   async function fetchDay(date) {
-    const { data, error } = await client
-      .from("homeworks")
-      .select("subject,content,content_html,tags,due_date,sort_order")
-      .eq("published_on", date)
-      .order("subject", { ascending: true })
-      .order("sort_order", { ascending: true });
+    const { data, error } = await hs.withTimeout(
+      client
+        .from("homeworks")
+        .select("subject,content,content_html,tags,due_date,sort_order")
+        .eq("published_on", date)
+        .order("subject", { ascending: true })
+        .order("sort_order", { ascending: true }),
+      15000,
+      "读取作业",
+    );
     if (error) {
       showStatus(`加载失败：${error.message}`, true);
+      hs.fatal(`加载作业失败：${error.message}`);
       return null;
     }
     return data || [];
@@ -180,6 +190,13 @@
   }
 
   async function init() {
+    // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
+    if (!window.hs || !window.hs.client) {
+      renderEmpty("页面依赖没有加载完成");
+      showStatus("依赖脚本未就绪：可能是 vendor/ 下的文件没有加载成功，刷新重试。", true);
+      return;
+    }
+
     // 主界面未登录也能看；时光机必须登录
     const session = await hs.getSession();
     if (mode === "date" && !session) {
