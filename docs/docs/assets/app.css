@@ -1,0 +1,408 @@
+/*
+ * 布局与样式移植自桌面端 StickyHomeworks2：
+ * - 作业卡片、圆点标记、科目分组与桌面端一致
+ * - 顶部只保留日期选择，没有应用栏、没有右下角编辑按钮
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * hidden 必须优先于组件自身的 display：
+ * .field 设了 display:grid，会盖掉浏览器对 [hidden] 的默认 display:none，
+ * 导致登录与注册两个表单同时显示（发布页的表单同理）。
+ */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--md-sys-color-primary);
+}
+
+/* ---------------- 顶部栏（仅日期与个人中心） ---------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--md-sys-color-background);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.topbar__title {
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 28px;
+  margin-inline-end: auto;
+}
+
+.topbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+input[type="date"],
+input[type="email"],
+input[type="password"],
+input[type="text"],
+textarea,
+select {
+  font: inherit;
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-height: 40px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 1px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  min-height: 40px;
+  padding: 8px 18px;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  transition: filter 120ms ease;
+}
+
+button:hover {
+  filter: brightness(0.97);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+
+button.tonal {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+button.text {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  padding-inline: 12px;
+}
+
+/* ---------------- 个人中心（先占位） ---------------- */
+
+.account {
+  position: relative;
+}
+
+.account__panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 8px);
+  min-width: 240px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.account__panel[hidden] {
+  display: none;
+}
+
+.account__meta {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.account__meta strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.role-chip {
+  justify-self: start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  font-size: 12px;
+}
+
+/* ---------------- 作业看板（与桌面端同构） ---------------- */
+
+.board {
+  padding: 24px 28px 64px;
+}
+
+.board__columns {
+  column-width: 350px;
+  column-gap: 8px;
+}
+
+.subject-group {
+  break-inside: avoid;
+  margin: 0 0 36px;
+}
+
+.subject-group__name {
+  margin: 0 0 11px;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+  color: var(--md-sys-color-on-surface);
+}
+
+.homework-list {
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-low);
+  overflow: hidden;
+}
+
+.homework-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.homework-item:first-child {
+  border-top: none;
+}
+
+.homework-item__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.homework-item__marker {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 11px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+}
+
+.homework-item__text {
+  font-size: 18px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.homework-item__text a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+}
+
+.homework-item__text img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.homework-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-inline-start: 16px;
+}
+
+.tag {
+  padding: 1px 8px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.homework-item__due {
+  padding-inline-start: 16px;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.status {
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.status[hidden] {
+  display: none;
+}
+
+.status--error {
+  border-color: var(--md-sys-color-error);
+  color: var(--md-sys-color-error);
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  padding: 80px 0;
+  color: var(--md-sys-color-on-surface-variant);
+  text-align: center;
+}
+
+/* ---------------- 登录页 ---------------- */
+
+.auth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth__card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 20px;
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.auth__card h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.auth__tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.auth__tabs button {
+  flex: 1;
+}
+
+/*
+ * 登录 / 注册面板切换。
+ * 缓动统一用 easeOutQuart = cubic-bezier(0.25, 1, 0.5, 1)。
+ */
+.auth__panes {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  transition: height 280ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.auth__pane {
+  display: grid;
+  gap: 16px;
+  transition:
+    opacity 280ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 280ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.auth__pane.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+.auth__pane:not(.is-active) {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth__panes,
+  .auth__pane {
+    transition: none;
+  }
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------- 发布页 ---------------- */
+
+.publish {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 28px 64px;
+  display: grid;
+  gap: 16px;
+}
+
+.publish__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
