@@ -628,3 +628,21 @@ img,
     padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 }
+
+/* ---------------- 404 页面 ---------------- */
+
+.not-found {
+  justify-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.not-found m3e-heading:first-of-type {
+  color: var(--md-sys-color-primary, #006877);
+  line-height: 1;
+}
+
+.not-found .auth__actions {
+  width: 100%;
+  margin-block-start: 6px;
+}
