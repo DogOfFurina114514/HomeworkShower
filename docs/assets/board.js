@@ -31,6 +31,10 @@
 
   let availableDates = [];
   let profile = null;
+  let selectedId = null;
+  let canManage = false;
+  let currentRows = [];
+  let currentDate = "";
 
   function todayString() {
     const now = new Date();
@@ -57,6 +61,7 @@
   }
 
   function renderEmpty(message) {
+    boardEl.classList.remove("homework-board--prompt");
     boardEl.innerHTML = `
       <div class="homework-empty-state">
         <m3e-icon variant="outlined" name="assignment"></m3e-icon>
@@ -64,11 +69,23 @@
       </div>`;
   }
 
+  /** 时光机刚进来时：不加载任何一天，提示居中显示，等用户选日期 */
+  function showPickPrompt() {
+    boardEl.classList.add("homework-board--prompt");
+    boardEl.innerHTML = `
+      <div class="homework-empty-state homework-empty-state--prompt">
+        <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
+        <m3e-heading variant="title" size="large" level="2">请选择一个日期</m3e-heading>
+      </div>`;
+    showStatus("");
+  }
+
   function renderBoard(rows) {
     if (!rows.length) {
       renderEmpty(mode === "latest" ? "今天没有需要做的作业" : "这一天没有作业");
       return;
     }
+    boardEl.classList.remove("homework-board--prompt");
 
     const groups = new Map();
     for (const row of rows) {
@@ -84,18 +101,27 @@
           ? hs.sanitizeHtml(homework.content_html)
           : hs.escapeHtml(homework.content).replace(/\n/g, "<br>");
         const expired = isExpired(homework.due_date);
+        const selected = selectedId === homework.id;
         const tags = (homework.tags || []).length
           ? `<div slot="supporting-text" class="homework-tags">${homework.tags
               .map((tag) => `<m3e-chip variant="outlined">${hs.escapeHtml(tag)}</m3e-chip>`)
               .join("")}</div>`
           : "";
+        // 只有发布者/管理员、且看的是当天，才在选中后给出修改与删除
+        const actions = selected && canManage
+          ? `<div slot="supporting-text" class="homework-actions">
+              <m3e-icon-button data-action="edit" data-id="${homework.id}" aria-label="修改作业" title="修改作业"><m3e-icon variant="outlined" name="edit"></m3e-icon></m3e-icon-button>
+              <m3e-icon-button data-action="delete" data-id="${homework.id}" aria-label="删除作业" title="删除作业"><m3e-icon variant="outlined" name="delete"></m3e-icon></m3e-icon-button>
+            </div>`
+          : "";
         return `
-          <m3e-list-action class="homework-item${expired ? " homework-item--expired" : ""}">
+          <m3e-list-action class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${canManage ? " homework-item--clickable" : ""}" data-id="${homework.id}">
             <span class="homework-content">
               <span class="homework-marker" aria-hidden="true"></span>
               <span class="homework-text">${content}</span>
             </span>
             ${tags}
+            ${actions}
           </m3e-list-action>`;
       }).join("");
 
@@ -132,7 +158,7 @@
     const { data, error } = await hs.withTimeout(
       client
         .from("homeworks")
-        .select("subject,content,content_html,tags,due_date,sort_order")
+        .select("id,subject,content,content_html,tags,due_date,sort_order")
         .eq("published_on", date)
         .order("subject", { ascending: true })
         .order("sort_order", { ascending: true }),
@@ -162,6 +188,10 @@
     if (!rows) return;
 
     const pending = rows.filter((row) => !isExpired(row.due_date));
+    currentRows = pending;
+    currentDate = batch;
+    selectedId = null;
+    canManage = Boolean(profile && hs.canEditToday(profile) && batch === todayString());
     showStatus(
       pending.length === rows.length
         ? `${formatDateLabel(batch)} · 共 ${pending.length} 条作业`
@@ -172,6 +202,8 @@
 
   async function loadDate(date) {
     datePicker.value = date;
+    const dateLabel = document.getElementById("date-label");
+    if (dateLabel) dateLabel.textContent = formatDateLabel(date);
     const url = new URL(location.href);
     url.searchParams.set("date", date);
     history.replaceState(null, "", url);
@@ -185,7 +217,13 @@
     showStatus("正在加载…");
     const rows = await fetchDay(date);
     if (!rows) return;
-    showStatus(`${formatDateLabel(date)} · 共 ${rows.length} 条作业`);
+    currentRows = rows;
+    currentDate = date;
+    selectedId = null;
+    // 只有发布者/管理员可以改，而且只能改当天
+    canManage = Boolean(profile && hs.canEditToday(profile) && date === todayString());
+    const manageHint = profile && hs.canEditToday(profile) && !canManage ? "（非当天，只能查看）" : "";
+    showStatus(`${formatDateLabel(date)} · 共 ${rows.length} 条作业${manageHint}`);
     renderBoard(rows);
   }
 
@@ -232,6 +270,131 @@
     }
     if (backButton) backButton.addEventListener("click", () => location.assign("index.html"));
 
+    // ---------- 选中与编辑/删除（只有发布者/管理员，且只有当天） ----------
+
+    const editDialog = document.getElementById("edit-dialog");
+    const deleteDialog = document.getElementById("delete-dialog");
+
+    function findRow(id) {
+      return currentRows.find((row) => String(row.id) === String(id)) || null;
+    }
+
+    function setDialogMessage(id, text, isError = true) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.classList.toggle("status--error", isError);
+      el.hidden = !text;
+    }
+
+    async function refresh() {
+      if (mode === "date" && currentDate) await loadDate(currentDate);
+      else await loadLatest();
+    }
+
+    function openEdit(id) {
+      const row = findRow(id);
+      if (!row || !editDialog) return;
+      document.getElementById("edit-subject").value = row.subject || "";
+      document.getElementById("edit-due").value = row.due_date || "";
+      document.getElementById("edit-tags").value = (row.tags || []).join(", ");
+      document.getElementById("edit-content").value = row.content || "";
+      setDialogMessage("edit-message", "");
+      editDialog.dataset.id = id;
+      editDialog.show();
+    }
+
+    async function saveEdit() {
+      if (!editDialog) return;
+      const id = editDialog.dataset.id;
+      const subject = document.getElementById("edit-subject").value.trim() || "其它";
+      const due = document.getElementById("edit-due").value;
+      const tags = document.getElementById("edit-tags").value.split(",").map((t) => t.trim()).filter(Boolean);
+      const content = document.getElementById("edit-content").value;
+      const saveButton = document.getElementById("edit-save");
+
+      saveButton.setAttribute("disabled", "");
+      // content_html 置空：网页端按纯文本编辑，展示与编辑结果保持一致
+      const { error } = await client
+        .from("homeworks")
+        .update({
+          subject,
+          content,
+          content_html: null,
+          tags,
+          due_date: due || null,
+          due_time: due ? `${due}T00:00:00` : null,
+        })
+        .eq("id", id);
+      saveButton.removeAttribute("disabled");
+
+      if (error) {
+        setDialogMessage(
+          "edit-message",
+          String(error.message).includes("row-level security") || error.code === "42501"
+            ? "保存失败：只能修改当天发布的内容。"
+            : `保存失败：${error.message}`,
+        );
+        return;
+      }
+      editDialog.hide();
+      hs.toast("已保存");
+      await refresh();
+    }
+
+    function openDelete(id) {
+      if (!deleteDialog) return;
+      setDialogMessage("delete-message", "");
+      deleteDialog.dataset.id = id;
+      deleteDialog.show();
+    }
+
+    async function confirmDelete() {
+      if (!deleteDialog) return;
+      const id = deleteDialog.dataset.id;
+      const button = document.getElementById("delete-confirm");
+      button.setAttribute("disabled", "");
+      const { error } = await client.from("homeworks").delete().eq("id", id);
+      button.removeAttribute("disabled");
+      if (error) {
+        setDialogMessage(
+          "delete-message",
+          String(error.message).includes("row-level security") || error.code === "42501"
+            ? "删除失败：只能修改当天发布的内容。"
+            : `删除失败：${error.message}`,
+        );
+        return;
+      }
+      deleteDialog.hide();
+      hs.toast("已删除");
+      await refresh();
+    }
+
+    if (editDialog) {
+      document.getElementById("edit-save")?.addEventListener("click", () => void saveEdit());
+      document.getElementById("edit-cancel")?.addEventListener("click", () => editDialog.hide());
+    }
+    if (deleteDialog) {
+      document.getElementById("delete-confirm")?.addEventListener("click", () => void confirmDelete());
+      document.getElementById("delete-cancel")?.addEventListener("click", () => deleteDialog.hide());
+    }
+
+    boardEl.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-action]");
+      if (action) {
+        event.stopPropagation();
+        if (action.dataset.action === "edit") openEdit(action.dataset.id);
+        else if (action.dataset.action === "delete") openDelete(action.dataset.id);
+        return;
+      }
+      if (!canManage) return;
+      const item = event.target.closest(".homework-item");
+      if (!item) return;
+      // 再点一下取消选中，和桌面端一致
+      selectedId = selectedId === item.dataset.id ? null : item.dataset.id;
+      renderBoard(currentRows);
+    });
+
     const batches = await loadDates();
     if (!batches.length) {
       renderEmpty("还没有发布过作业");
@@ -246,17 +409,43 @@
     }
 
     if (mode === "date") {
-      const fromUrl = new URLSearchParams(location.search).get("date");
-      const initial = fromUrl || (availableDates.includes(today) ? today : availableDates[0]);
-      datePicker.addEventListener("change", () => {
-        if (datePicker.value) void loadDate(datePicker.value);
-      });
-      if (latestButton) {
-        latestButton.addEventListener("click", () => {
-          void loadDate(availableDates.includes(today) ? today : availableDates[0]);
+      const dateTrigger = document.getElementById("date-trigger");
+      const dateLabel = document.getElementById("date-label");
+
+      // 只允许通过系统日历选择，不接受键盘直接输入
+      if (datePicker) {
+        datePicker.addEventListener("keydown", (event) => {
+          if (event.key !== "Tab" && event.key !== "Escape") event.preventDefault();
+        });
+        datePicker.addEventListener("change", () => {
+          if (datePicker.value) void loadDate(datePicker.value);
         });
       }
-      await loadDate(initial);
+
+      // 点触发器任意位置都弹出系统日期选择器
+      if (dateTrigger && datePicker) {
+        dateTrigger.addEventListener("click", () => {
+          if (typeof datePicker.showPicker === "function") {
+            try {
+              datePicker.showPicker();
+              return;
+            } catch {
+              /* 某些环境不允许 showPicker，退回 click */
+            }
+          }
+          datePicker.focus();
+          datePicker.click();
+        });
+      }
+
+      const fromUrl = new URLSearchParams(location.search).get("date");
+      if (fromUrl && availableDates.includes(fromUrl)) {
+        await loadDate(fromUrl);
+      } else {
+        // 进来先不加载任何一天，提示选日期
+        if (dateLabel) dateLabel.textContent = "选择日期";
+        showPickPrompt();
+      }
       return;
     }
 

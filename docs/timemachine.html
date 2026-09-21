@@ -18,11 +18,11 @@
       <header class="topbar">
         <m3e-heading class="topbar__title" variant="title" size="large" level="1" id="site-title">作业 · 时光机</m3e-heading>
         <div class="topbar__controls">
-          <m3e-form-field variant="outlined" hide-subscript="always">
-            <label slot="label" for="date-picker">发布日期</label>
-            <input id="date-picker" type="date" />
-          </m3e-form-field>
-          <m3e-button variant="tonal" id="latest-button">最新</m3e-button>
+          <button type="button" class="date-trigger" id="date-trigger" aria-haspopup="dialog">
+            <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
+            <span id="date-label">选择日期</span>
+          </button>
+          <input type="date" id="date-picker" class="date-native" tabindex="-1" aria-hidden="true" />
           <m3e-button variant="text" id="back-button">
             <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
             回到今天
@@ -50,9 +50,47 @@
       <main class="homework-board" id="board">
         <div class="homework-empty-state"><m3e-icon variant="outlined" name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
       </main>
+      <m3e-dialog id="edit-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">修改作业</m3e-heading>
+        <div class="edit-form">
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="edit-subject">科目</label>
+            <input id="edit-subject" type="text" />
+          </m3e-form-field>
+          <label class="form-row">
+            <span>期限</span>
+            <input id="edit-due" type="date" />
+          </label>
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="edit-tags">标签（用逗号分隔）</label>
+            <input id="edit-tags" type="text" />
+          </m3e-form-field>
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="edit-content">内容（纯文本）</label>
+            <textarea id="edit-content" rows="4"></textarea>
+          </m3e-form-field>
+        </div>
+        <p class="status" id="edit-message" hidden></p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="edit-cancel">取消</m3e-button>
+          <m3e-button variant="filled" id="edit-save">保存</m3e-button>
+        </div>
+      </m3e-dialog>
+
+      <m3e-dialog id="delete-dialog" alert dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">删除这条作业？</m3e-heading>
+        <p class="hint">删除后无法恢复。只有当天发布的内容可以修改或删除。</p>
+        <p class="status" id="delete-message" hidden></p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="delete-cancel">取消</m3e-button>
+          <m3e-button variant="filled" id="delete-confirm">删除</m3e-button>
+        </div>
+      </m3e-dialog>
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 

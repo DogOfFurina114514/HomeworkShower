@@ -63,10 +63,10 @@ m3e-theme {
   inset-inline-end: 0;
   top: calc(100% + 8px);
   z-index: 20;
-  min-width: 240px;
+  min-width: 320px;
   display: grid;
   gap: 8px;
-  padding: 16px;
+  padding: 22px 22px 18px;
   border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
   border-radius: 16px;
   background: var(--md-sys-color-surface-container-high, #e3e9eb);
@@ -76,12 +76,12 @@ m3e-theme {
 .account__meta {
   display: grid;
   gap: 2px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--md-sys-color-on-surface-variant, #3f484a);
 }
 
 .account__meta strong {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--md-sys-color-on-surface, #171d1e);
   overflow-wrap: anywhere;
@@ -402,3 +402,105 @@ m3e-theme {
   }
 }
 
+
+
+
+
+
+/* ---------------- 作业项：选中态与编辑/删除 ---------------- */
+
+.homework-item--selected {
+  --m3e-list-item-container-color: var(--md-sys-color-secondary-container, #cde7ed);
+  --m3e-list-item-label-text-color: var(--md-sys-color-on-secondary-container, #334a50);
+  --m3e-list-item-leading-color: var(--md-sys-color-on-secondary-container, #334a50);
+}
+
+.homework-item--clickable {
+  cursor: pointer;
+}
+
+.homework-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-block-start: 0.25rem;
+}
+
+/* ---------------- 时光机：日期选择触发器 ---------------- */
+
+.date-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 1px solid var(--md-sys-color-outline, #6f797b);
+  border-radius: 20px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+  color: var(--md-sys-color-on-surface, #171d1e);
+  font: inherit;
+  cursor: pointer;
+}
+
+.date-trigger:hover {
+  filter: brightness(0.97);
+}
+
+/* 原生日期输入只用来弹出系统选择器：不显示、不接受直接输入 */
+.date-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 未选日期时，提示居中（标题下移）；选中后正常顶端排列 */
+.homework-board--prompt {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - 11rem);
+}
+
+.homework-empty-state--prompt m3e-icon {
+  --m3e-icon-size: 3rem;
+  color: var(--md-sys-color-primary, #006877);
+}
+
+/* ---------------- 修改作业对话框 ---------------- */
+
+.edit-form {
+  display: grid;
+  gap: 14px;
+  min-width: min(420px, 78vw);
+}
+
+.form-row {
+  display: grid;
+  gap: 6px;
+}
+
+.form-row > span {
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+}
+
+.form-row input,
+.form-row textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--md-sys-color-outline, #6f797b);
+  border-radius: 8px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+  color: var(--md-sys-color-on-surface, #171d1e);
+  font: inherit;
+}
+
+.form-row textarea {
+  min-height: 96px;
+  resize: vertical;
+}
