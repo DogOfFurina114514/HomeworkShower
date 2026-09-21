@@ -560,7 +560,7 @@
 
     function openApplyDialog() {
       const emailEl = document.getElementById("apply-email");
-      if (emailEl) emailEl.value = profile?.email || "（未登录，请先登录）";
+      if (emailEl) emailEl.value = hs.config.adminEmail || "";
       applyDialog?.show();
     }
 
@@ -704,6 +704,7 @@
 
   void init();
 })();
+
 
 
 
