@@ -8,6 +8,15 @@
   box-sizing: border-box;
 }
 
+/*
+ * hidden 必须优先于组件自身的 display：
+ * .field 设了 display:grid，会盖掉浏览器对 [hidden] 的默认 display:none，
+ * 导致登录与注册两个表单同时显示（发布页的表单同理）。
+ */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -323,6 +332,45 @@ button.text {
 
 .auth__tabs button {
   flex: 1;
+}
+
+/*
+ * 登录 / 注册面板切换。
+ * 缓动统一用 easeOutQuart = cubic-bezier(0.25, 1, 0.5, 1)。
+ */
+.auth__panes {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  transition: height 280ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.auth__pane {
+  display: grid;
+  gap: 16px;
+  transition:
+    opacity 280ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 280ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.auth__pane.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+.auth__pane:not(.is-active) {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth__panes,
+  .auth__pane {
+    transition: none;
+  }
 }
 
 .field {
