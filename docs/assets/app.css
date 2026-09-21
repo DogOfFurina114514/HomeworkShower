@@ -599,3 +599,8 @@ m3e-theme {
     bottom: 1.25rem;
   }
 }
+
+/* 对话框里第一个输入框的浮动标签需要空间，否则被内容区裁掉 */
+.edit-form {
+  padding-block-start: 10px;
+}

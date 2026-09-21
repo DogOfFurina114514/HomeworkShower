@@ -579,7 +579,7 @@
       location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     }
 
-    if (fabHost) {
+    if (fabHost && mode === "latest") {
       if (profile && hs.canEditToday(profile)) {
         fabHost.innerHTML = `
           <m3e-fab variant="primary" aria-label="编辑">
@@ -592,12 +592,42 @@
               <m3e-icon variant="outlined" slot="icon" name="upload_file"></m3e-icon>
               发布作业
             </m3e-fab-menu-item>
+            <m3e-fab-menu-item id="fab-save">
+              <m3e-icon variant="outlined" slot="icon" name="save"></m3e-icon>
+              保存作业（导出 JSON）
+            </m3e-fab-menu-item>
             <m3e-fab-menu-item id="fab-tip">
               <m3e-icon variant="outlined" slot="icon" name="edit"></m3e-icon>
               修改作业（点作业卡片）
             </m3e-fab-menu-item>
           </m3e-fab-menu>`;
         document.getElementById("fab-publish")?.addEventListener("click", () => location.assign("publish.html"));
+        document.getElementById("fab-save")?.addEventListener("click", () => {
+          const subjects = [];
+          for (const row of currentRows) {
+            let group = subjects.find((item) => item.subject === (row.subject || "其它"));
+            if (!group) {
+              group = { subject: row.subject || "其它", homeworks: [] };
+              subjects.push(group);
+            }
+            group.homeworks.push({
+              content: row.content,
+              contentHtml: row.content_html ?? null,
+              tags: row.tags || [],
+              dueDate: row.due_date,
+              expired: isExpired(row.due_date),
+            });
+          }
+          const payload = { format: "stickyhomeworks2.homeworks", publishedOn: currentDate, subjects };
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `作业-${currentDate || "latest"}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+          hs.toast("已导出 JSON");
+        });
         document.getElementById("fab-tip")?.addEventListener("click", () => {
           hs.toast(canManage ? "点一下作业卡片即可修改或删除（仅限当天）" : "只能修改当天发布的作业");
         });
@@ -642,6 +672,12 @@
           picker.minDate = toDate(availableDates[availableDates.length - 1]);
           picker.maxDate = toDate(availableDates[0] > today ? availableDates[0] : today);
         }
+        // 没有发布记录的日子直接在日历里禁掉
+        picker.blackoutDates = (date) => {
+          const pad = (n) => String(n).padStart(2, "0");
+          const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+          return !availableDates.includes(key);
+        };
         picker.addEventListener("change", () => {
           const picked = picker.date;
           if (!picked) return;
@@ -658,12 +694,8 @@
         });
       }
 
-      const fromUrl = new URLSearchParams(location.search).get("date");
-      if (fromUrl && availableDates.includes(fromUrl)) {
-        await loadDate(fromUrl);
-      } else {
-        showPickPrompt();
-      }
+      // 每次打开都从「请选择一个日期」开始，不按地址栏里的 date 自动加载
+      showPickPrompt();
       return;
     }
 
@@ -672,5 +704,7 @@
 
   void init();
 })();
+
+
 
 
