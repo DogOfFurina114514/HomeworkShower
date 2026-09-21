@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>页面不存在 · 作业</title>
+    <link rel="stylesheet" href="assets/app.css?v16" />
+    <link rel="icon" href="assets/icon.svg?v16" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v16" defer></script>
+    <script>
+      // GitHub Pages 的 404 兜底页：
+      // 1) 验证邮件有时会指向 auth.html/（结尾多一个斜杠），那个路径不存在会落到这里，
+      //    这时自动纠正回 auth.html，并把 # 后面的验证结果原样带过去；
+      // 2) 真正的输错网址：留在本页，显示与站点同款的 404 界面。
+      (function () {
+        var path = location.pathname;
+        var base = "/" + path.split("/").filter(Boolean)[0] + "/";
+        var fixed = path.replace(/\/+$/, "");
+
+        if (/\/auth\.html$/i.test(fixed)) {
+          location.replace(fixed + location.search + location.hash);
+          return;
+        }
+        if (fixed === base.replace(/\/$/, "") || fixed === "/" || /\/index\.html$/i.test(fixed)) {
+          location.replace(base + location.search + location.hash);
+        }
+      })();
+    </script>
+  </head>
+
+  <body>
+    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
+      <main class="auth">
+        <section class="auth__card not-found">
+          <m3e-heading variant="display" size="large" level="1">404</m3e-heading>
+          <m3e-heading variant="title" size="large" level="2">找不到这个页面</m3e-heading>
+          <p class="hint">你打开的地址不存在，可能是网址输入有误，或者这个页面已经被删掉了。</p>
+          <p class="hint" id="not-found-path"></p>
+          <div class="auth__actions">
+            <m3e-button variant="filled" id="go-home">
+              <m3e-icon variant="outlined" slot="icon" name="home"></m3e-icon>
+              返回主页
+            </m3e-button>
+            <m3e-button variant="text" id="go-timemachine">去时光机看看</m3e-button>
+          </div>
+        </section>
+      </main>
+    </m3e-theme>
+
+    <script>
+      (function () {
+        // 主页地址从当前域名推导，换域名也不用改
+        var base = location.origin + "/" + location.pathname.split("/").filter(Boolean)[0] + "/";
+        var pathEl = document.getElementById("not-found-path");
+        if (pathEl) pathEl.textContent = "出错的地址：" + location.pathname + location.search;
+        document.getElementById("go-home").addEventListener("click", function () {
+          location.assign(base);
+        });
+        document.getElementById("go-timemachine").addEventListener("click", function () {
+          location.assign(base + "timemachine.html");
+        });
+      })();
+    </script>
+  </body>
+</html>

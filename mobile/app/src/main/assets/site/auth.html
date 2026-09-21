@@ -3,42 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>验证成功 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v15" />
-    <link rel="icon" href="assets/icon.svg?v15" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v15" defer></script>
-    <script src="vendor/supabase.js?v15" defer></script>
-    <script src="assets/config.js?v15" defer></script>
-    <script src="assets/client.js?v15" defer></script>
-    <script src="assets/auth.js?v15" defer></script>
+    <title>邮箱验证 · 作业</title>
+    <link rel="stylesheet" href="assets/app.css?v16" />
+    <link rel="icon" href="assets/icon.svg?v16" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v16" defer></script>
+    <script src="vendor/supabase.js?v16" defer></script>
+    <script src="assets/config.js?v16" defer></script>
+    <script src="assets/client.js?v16" defer></script>
+    <script src="assets/auth.js?v16" defer></script>
   </head>
 
   <body>
     <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
       <main class="auth">
         <section class="auth__card">
-          <m3e-heading variant="headline" size="small" level="1" id="auth-title">验证成功</m3e-heading>
-          <p class="hint" id="auth-hint">邮箱已验证，现在可以查看作业了。</p>
+          <m3e-heading variant="headline" size="small" level="1" id="auth-title">邮箱验证</m3e-heading>
+          <p class="hint" id="auth-hint">正在读取验证结果…</p>
+          <p class="status" id="auth-message" hidden></p>
           <div class="auth__actions">
             <m3e-button variant="filled" id="auth-continue">进入作业看板</m3e-button>
+          </div>
+          <div class="auth__actions" id="auth-resend-box" hidden>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="auth-resend-email">注册时用的邮箱</label>
+              <input id="auth-resend-email" type="email" autocomplete="email" />
+            </m3e-form-field>
+            <m3e-button variant="text" id="auth-resend-button">重新发送验证邮件</m3e-button>
           </div>
         </section>
       </main>
     </m3e-theme>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

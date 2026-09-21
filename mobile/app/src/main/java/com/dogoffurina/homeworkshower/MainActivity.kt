@@ -1,152 +1,190 @@
 package com.dogoffurina.homeworkshower
 
-import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.webkit.WebViewAssetLoader
-import androidx.webkit.WebViewClientCompat
 
 /**
- * 就是个壳：把与网页端完全相同的静态页面放进 assets/site，用 WebView 加载。
- *
- * 重点处理两件事：
- * 1. 用 WebViewAssetLoader 走 https://appassets.androidplatform.net/ 这个虚拟域名，
- *    而不是 file:// —— 否则 localStorage / fetch / Supabase 登录态都用不了。
- * 2. 屏蔽 WebView 自带的各种"系统组件"：长按图片菜单、长按链接菜单、
- *    文字选择手柄、滚动边缘光效、缩放控件、震动反馈等。
+ * 极简 WebView 壳：
+ * - 不继承 AppCompatActivity、不用 Material 主题（部分 ROM 上会闪退），只用平台 Activity；
+ * - 启动过程包在 try/catch 里，出问题就把堆栈画在屏幕上，方便截图反馈；
+ * - 屏蔽长按菜单、手势缩放、边缘光效等 WebView 自带组件。
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
 
-    private lateinit var webView: WebView
+    private var webView: WebView? = null
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
-    private val fileChooser = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        filePathCallback?.onReceiveValue(
-            WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
-        )
-        filePathCallback = null
-    }
-
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            WebView.setWebContentsDebuggingEnabled(false)
+            setContentView(buildWebView())
+        } catch (error: Throwable) {
+            showCrash(error)
+        }
+    }
 
-        // 关掉 WebView 的调试开关（发布版不给外部调试）
-        WebView.setWebContentsDebuggingEnabled(false)
+    private fun buildWebView(): View {
+        val view = WebView(this)
+        webView = view
 
-        webView = WebView(this).apply {
-            // ---- 页面能力 ----
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.databaseEnabled = true
-            settings.cacheMode = WebSettings.LOAD_DEFAULT
-            settings.mediaPlaybackRequiresUserGesture = true
-            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-
-            // 不开放本地文件访问（页面全部走 assets 虚拟域名）
-            settings.allowFileAccess = false
-            settings.allowContentAccess = false
-            settings.allowFileAccessFromFileURLs = false
-            settings.allowUniversalAccessFromFileURLs = false
-
-            // ---- 屏蔽自带组件 ----
-            settings.setSupportZoom(false)
-            settings.builtInZoomControls = false
-            settings.displayZoomControls = false
-            settings.textZoom = 100
-            overScrollMode = View.OVER_SCROLL_NEVER          // 去掉滚动到头的边缘光效
-            isLongClickable = false                          // 关掉长按
-            isHapticFeedbackEnabled = false                  // 关掉长按震动
-            setOnLongClickListener { true }                  // 吞掉长按 → 不弹图片/链接菜单
-
-            // 文字选择手柄也一并关掉（网页里需要选择时用输入框）
-            isFocusable = true
-            isFocusableInTouchMode = true
+        view.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            cacheMode = WebSettings.LOAD_DEFAULT
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            allowFileAccess = false
+            allowContentAccess = false
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
+            textZoom = 100
         }
 
-        // 长按图片/链接时系统会走 context menu，这里也拦掉
-        webView.setOnCreateContextMenuListener { _, _, _ -> /* 不弹任何菜单 */ }
+        view.overScrollMode = View.OVER_SCROLL_NEVER
+        view.isLongClickable = false
+        view.isHapticFeedbackEnabled = false
+        // 吞掉长按，避免弹出系统的图片/链接菜单
+        view.setOnLongClickListener { true }
+        view.setOnCreateContextMenuListener { _, _, _ -> }
 
-        webView.webChromeClient = object : WebChromeClient() {
-            // 富文本里"插入图片"要能选文件
+        view.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
-                view: WebView,
-                callback: ValueCallback<Array<Uri>>,
-                params: FileChooserParams
+                webView: WebView?,
+                callback: ValueCallback<Array<Uri>>?,
+                params: FileChooserParams?
             ): Boolean {
                 filePathCallback?.onReceiveValue(null)
                 filePathCallback = callback
                 return try {
-                    fileChooser.launch(params.createIntent())
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(params!!.createIntent(), REQUEST_FILE)
                     true
-                } catch (error: Exception) {
+                } catch (error: Throwable) {
                     filePathCallback = null
                     false
                 }
             }
         }
 
-        webView.webViewClient = object : WebViewClientCompat() {
-            private val loader = WebViewAssetLoader.Builder()
-                .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this@MainActivity))
-                .build()
+        val loader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
 
+        view.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
-                view: WebView,
-                request: WebResourceRequest
-            ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
+                webView: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                return try {
+                    loader.shouldInterceptRequest(request!!.url)
+                } catch (error: Throwable) {
+                    null
+                }
+            }
 
             override fun shouldOverrideUrlLoading(
-                view: WebView,
-                request: WebResourceRequest
+                webView: WebView?,
+                request: WebResourceRequest?
             ): Boolean {
-                val url = request.url
-                // 站内页面留在 WebView 里，其它链接交给系统浏览器
+                val url = request?.url ?: return false
                 return if (url.host == "appassets.androidplatform.net") {
                     false
                 } else {
-                    startActivity(Intent(Intent.ACTION_VIEW, url))
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, url))
+                    } catch (error: Throwable) {
+                        // 没有浏览器也不影响
+                    }
                     true
                 }
             }
         }
 
-        setContentView(webView)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/site/index.html")
+        view.loadUrl("https://appassets.androidplatform.net/assets/site/index.html")
+        return view
+    }
 
-        // 返回键优先回退网页历史
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
-            }
-        })
+    @Deprecated("平台 Activity 的旧接口，这里够用且兼容性最好")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == REQUEST_FILE) {
+            filePathCallback?.onReceiveValue(
+                WebChromeClient.FileChooserParams.parseResult(resultCode, data)
+            )
+            filePathCallback = null
+            return
+        }
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    /** 出问题时把原因画出来，而不是直接闪退 */
+    private fun showCrash(error: Throwable) {
+        val text = TextView(this).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(Color.parseColor("#410002"))
+            setBackgroundColor(Color.parseColor("#FFDAD6"))
+            setPadding(32, 48, 32, 48)
+            text = "启动失败：\n\n" + android.util.Log.getStackTraceString(error)
+        }
+        val retry = Button(this).apply {
+            text = "重试"
+            setOnClickListener { recreate() }
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(text, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            addView(retry)
+        }
+        setContentView(ScrollView(this).apply { addView(column) })
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        val view = webView
+        if (view != null && view.canGoBack()) view.goBack() else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        webView.onPause()
+        webView?.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        webView.onResume()
+        webView?.onResume()
     }
 
     override fun onDestroy() {
-        webView.destroy()
+        webView?.destroy()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val REQUEST_FILE = 1001
     }
 }
