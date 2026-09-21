@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>页面跳转中…</title>
+    <script>
+      // GitHub Pages 的 404 兜底页：
+      // 验证邮件有时会指向 auth.html/（结尾多一个斜杠），那个路径不存在会落到这里，
+      // 这里把它纠正回 auth.html，并把 # 后面的结果原样带过去。
+      (function () {
+        var path = location.pathname;
+        var base = "/" + path.split("/").filter(Boolean)[0] + "/";
+        var fixed = path.replace(/\/+$/, "");
+
+        if (/\/auth\.html$/i.test(fixed)) {
+          location.replace(fixed + location.search + location.hash);
+          return;
+        }
+        if (fixed === base.replace(/\/$/, "") || fixed === "/" || /\/index\.html$/i.test(fixed)) {
+          location.replace(base + location.search + location.hash);
+          return;
+        }
+        document.documentElement.dataset.ready = "1";
+      })();
+    </script>
+    <link rel="stylesheet" href="assets/app.css" />
+  </head>
+  <body>
+    <main class="auth">
+      <section class="auth__card">
+        <h1>页面不存在</h1>
+        <p class="hint">你打开的地址无法访问。如果这是邮件里的验证链接，请回到首页重新发送验证邮件。</p>
+        <p><a href="./">返回作业看板</a></p>
+      </section>
+    </main>
+  </body>
+</html>
