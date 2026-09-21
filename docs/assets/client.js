@@ -64,6 +64,12 @@
     return String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  function todayString() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  }
+
   async function getSession() {
     const { data } = await client.auth.getSession();
     return data.session ?? null;
@@ -112,6 +118,41 @@
     else console.log(message);
   }
 
+  /**
+   * 把错误直接画到页面顶部：这个站点在手机/别人电脑上没法开控制台，
+   * 出问题时至少截图就能定位。
+   */
+  function fatal(message) {
+    const text = String(message || "未知错误");
+    let bar = document.getElementById("fatal-bar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "fatal-bar";
+      bar.className = "banner banner--fatal";
+      bar.setAttribute("role", "alert");
+      document.body.prepend(bar);
+    }
+    bar.textContent = `出错了：${text}`;
+    console.error("[HomeworkShower]", text);
+  }
+
+  /** 给网络请求加超时，避免请求悬挂时页面一直停在「正在加载」 */
+  function withTimeout(promise, ms, label) {
+    let timer;
+    return Promise.race([
+      promise.finally(() => clearTimeout(timer)),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}超时（${Math.round(ms / 1000)} 秒无响应）`)), ms);
+      }),
+    ]);
+  }
+
+  window.addEventListener("error", (event) => fatal(event.message || "脚本错误"));
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason;
+    fatal(reason instanceof Error ? reason.message : String(reason));
+  });
+
   window.hs = {
     client,
     config,
@@ -123,6 +164,8 @@
     canEditToday,
     todayString,
     toast,
+    fatal,
+    withTimeout,
     sanitizeHtml,
     escapeHtml,
     roleLabel: (role) => ROLE_LABELS[role] || role,
