@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>发布作业</title>
-    <link rel="stylesheet" href="assets/app.css?v12" />
-    <link rel="icon" href="assets/icon.svg?v12" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v12" defer></script>
-    <script src="vendor/supabase.js?v12" defer></script>
-    <script src="assets/config.js?v12" defer></script>
-    <script src="assets/client.js?v12" defer></script>
-    <script src="assets/publish.js?v12" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v13" />
+    <link rel="icon" href="assets/icon.svg?v13" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v13" defer></script>
+    <script src="vendor/supabase.js?v13" defer></script>
+    <script src="assets/config.js?v13" defer></script>
+    <script src="assets/client.js?v13" defer></script>
+    <script src="assets/publish.js?v13" defer></script>
   </head>
 
   <body>
@@ -37,14 +37,14 @@
           <p class="status" id="message" hidden></p>
 
           <div class="publish__row">
-            <m3e-form-field variant="outlined">
-              <label slot="label" for="publish-date">归属日期</label>
-              <input id="publish-date" type="date" required />
-            </m3e-form-field>
-            <m3e-form-field variant="outlined">
-              <label slot="label" for="publish-file">选择导出的 JSON 文件</label>
+            <label class="form-row">
+              <span>归属日期（只能是今天）</span>
+              <input id="publish-date" type="text" readonly />
+            </label>
+            <label class="form-row">
+              <span>选择导出的 JSON 文件</span>
               <input id="publish-file" type="file" accept="application/json,.json" />
-            </m3e-form-field>
+            </label>
           </div>
 
           <m3e-form-field variant="outlined">
@@ -62,6 +62,8 @@
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 
