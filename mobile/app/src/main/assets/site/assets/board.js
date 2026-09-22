@@ -363,7 +363,10 @@
       const row = findRow(id);
       if (!row || !editDialog) return;
       document.getElementById("edit-subject").value = row.subject || "";
-      document.getElementById("edit-due").value = row.due_date || "";
+      const duePicker = document.getElementById("edit-due-picker");
+      const dueInput = document.getElementById("edit-due-input");
+      dueInput.value = row.due_date ? formatDateLabel(row.due_date) : "";
+      if (duePicker) duePicker.date = row.due_date ? new Date(`${row.due_date}T00:00:00`) : null;
       document.getElementById("edit-tags").value = (row.tags || []).join(", ");
       // 保留富文本：有 content_html 就直接放进去，没有则把纯文本转成段落
       const editor = document.getElementById("edit-content");
@@ -380,7 +383,11 @@
       if (!editDialog) return;
       const id = editDialog.dataset.id;
       const subject = document.getElementById("edit-subject").value.trim() || "其它";
-      const due = document.getElementById("edit-due").value;
+const duePickerEl = document.getElementById("edit-due-picker");
+      const picked = duePickerEl && duePickerEl.date;
+      const due = picked
+        ? `${picked.getFullYear()}-${String(picked.getMonth() + 1).padStart(2, "0")}-${String(picked.getDate()).padStart(2, "0")}`
+        : "";
       const tags = document.getElementById("edit-tags").value.split(",").map((t) => t.trim()).filter(Boolean);
       const editor = document.getElementById("edit-content");
       const contentHtml = editor.innerHTML.trim();
@@ -446,6 +453,21 @@
     if (editDialog) {
       document.getElementById("edit-save")?.addEventListener("click", () => void saveEdit());
       document.getElementById("edit-cancel")?.addEventListener("click", () => editDialog.hide());
+
+      // 期限：与应用同款 m3e-datepicker，点输入框任意处都能唤起日历
+      {
+        const dueInput = document.getElementById("edit-due-input");
+        const duePickerCtl = document.getElementById("edit-due-picker");
+        if (dueInput && duePickerCtl) {
+          duePickerCtl.addEventListener("change", () => {
+            const picked = duePickerCtl.date;
+            dueInput.value = picked
+              ? `${picked.getFullYear()} 年 ${picked.getMonth() + 1} 月 ${picked.getDate()} 日`
+              : "";
+          });
+          dueInput.addEventListener("click", () => void duePickerCtl.show(dueInput, dueInput));
+        }
+      }
 
       // 富文本工具栏
       editDialog.querySelector(".rich-toolbar")?.addEventListener("click", (event) => {
@@ -699,6 +721,8 @@
 
   void init();
 })();
+
+
 
 
 

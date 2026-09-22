@@ -646,3 +646,19 @@ img,
   width: 100%;
   margin-block-start: 6px;
 }
+
+/* 浮动标签需要上方空间；textarea 不加占位文字，标签就会正常上浮 */
+.publish m3e-form-field {
+  padding-block-start: 8px;
+}
+
+/* 日期框里的文字不允许被选中（点一下只唤起日历） */
+.date-native,
+#date-input,
+#edit-due-input,
+.publish #publish-date,
+.form-row input[readonly] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

@@ -35,12 +35,45 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 上次崩溃的记录优先显示 —— 崩在 Activity 创建之前的那种，只能靠这个看到原因
+        val previous = CrashApplication.readCrash(this)
+        if (previous != null) {
+            showSavedCrash(previous)
+            return
+        }
+
         try {
             WebView.setWebContentsDebuggingEnabled(false)
             setContentView(buildWebView())
         } catch (error: Throwable) {
             showCrash(error)
         }
+    }
+
+    /** 显示上一次的崩溃记录，并给一个清除后重试的按钮 */
+    private fun showSavedCrash(report: String) {
+        val text = TextView(this).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(Color.parseColor("#410002"))
+            setBackgroundColor(Color.parseColor("#FFDAD6"))
+            setPadding(32, 48, 32, 48)
+            text = "上次启动崩溃了：\n\n$report"
+        }
+        val retry = Button(this).apply {
+            text = "清除记录并重试"
+            setOnClickListener {
+                CrashApplication.clearCrash(this@MainActivity)
+                recreate()
+            }
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(text, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            addView(retry)
+        }
+        setContentView(ScrollView(this).apply { addView(column) })
     }
 
     private fun buildWebView(): View {
@@ -188,3 +221,4 @@ class MainActivity : Activity() {
         const val REQUEST_FILE = 1001
     }
 }
+
