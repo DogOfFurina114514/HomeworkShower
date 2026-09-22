@@ -151,8 +151,8 @@
 
     const profile = await hs.getProfile();
     if (!hs.isPublisher(profile)) {
-      // 不是发布者：直接送回主页，避免直接输网址进来
-      location.replace("index.html");
+      // 不是发布者：当作页面不存在，直接跳 404
+      location.replace("404.html");
       return;
     }
 
@@ -161,6 +161,7 @@
     dateInput.value = hs.todayString();
   })();
 })();
+
 
 
 
