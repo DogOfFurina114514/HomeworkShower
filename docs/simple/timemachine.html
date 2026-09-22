@@ -4,75 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <时光机 · 作业简版>时光机 · 作业简版</时光机 · 作业简版>
-    <link rel="stylesheet" href="app.css?v53" />
-    <script src="../assets/config.js?v53"></script>
-    <script src="app.js?v53"></script>
-  </head>  <body>
-    <header class="topbar">
-      <h1>作业 · 时光机</h1>
-      <div class="controls">
-        <label class="date-wrap"><span>发布日期</span><input type="date" id="date-picker" /></label>
-        <a class="pill text" href="index.html">回到今天</a>
-        <a class="pill" id="account-button" href="login.html"><span class="dot"></span><span id="account-label">登录</span></a>
-      </div>
-    </header>
-    <p class="status" id="status">请选择一个日期</p>
-    <main class="board" id="board"><p class="empty">请选择一个日期</p></main>
+    <script src="../assets/config.js?v54"></script>
+    <script src="core.js?v54"></script>
+  </head>
+  <    <div id="topbar-host"></div>
+    <p class="status" id="status">正在加载…</p>
+    <main class="board" id="board"></main>>
+    <div id="topbar-host"></div>
+    <p class="status" id="status">正在加载…</p>
+    <main class="board" id="board"></main>
     <script>
-      (function () {
-        hsSimple.lowBar();
-        var session = hsSimple.session();
-        var dates = [];
-        if (session) {
-          document.getElementById("account-label").innerHTML = "个人中心";
-          document.getElementById("account-button").setAttribute("href", "#");
-        }
-        document.getElementById("date-picker").onchange = function () {
-          if (!this.value) return;
-          hsSimple.message(hsSimple.formatDate(this.value) + " 没有作业记录", true);
-          hsSimple.renderBoard([], { emptyText: "这一天没有作业" });
-          hsSimple.api("homeworks?select=id,subject,content,content_html,tags,due_date,sort_order&published_on=eq." + this.value + "&order=subject.asc,sort_order.asc")
-            .then(function (rows) {
-              hsSimple.message(hsSimple.formatDate(document.getElementById("date-picker").value) + " · 共 " + rows.length + " 条作业");
-              hsSimple.renderBoard(rows, { emptyText: "这一天没有作业" });
-            })
-            .catch(function (error) { hsSimple.message("加载失败：" + error.message, true); });
-        };
-        hsSimple.api("publish_batches?select=published_on&order=published_on.desc&limit=400")
-          .then(function (rows) {
-            for (var i = 0; i < rows.length; i++) dates.push(rows[i].published_on);
-            var picker = document.getElementById("date-picker");
-            if (dates.length) { picker.min = dates[dates.length - 1]; picker.max = dates[0]; }
-            hsSimple.message(dates.length ? "请选择一个日期（可选 " + hsSimple.formatDate(dates[dates.length - 1]) + " 起到 " + hsSimple.formatDate(dates[0]) + "）" : "还没有发布过作业");
-          })
-          .catch(function (error) { hsSimple.message("读取发布记录失败：" + error.message, true); });
-      })();
+      hsSimple.render("timemachine");
     </script>
-  </body>
+  </    <div id="topbar-host"></div>
+    <p class="status" id="status">正在加载…</p>
+    <main class="board" id="board"></main>>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
