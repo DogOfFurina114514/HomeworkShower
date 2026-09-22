@@ -100,12 +100,12 @@
       profile = null;
       return Promise.resolve(null);
     }
-    return fetch(config.supabaseUrl + "/rest/v1/profiles?select=id,role,banned&id=eq." + current.userId, {
+    return fetch(config.supabaseUrl + "/rest/v1/profiles?select=id,role,banned,deletion_requested_at,deleted_at&id=eq." + current.userId, {
       headers: { apikey: config.supabaseKey, Authorization: "Bearer " + current.accessToken }
     })
       .then(function (response) { return response.ok ? response.json() : []; })
       .then(function (rows) {
-        profile = rows && rows[0] ? rows[0] : { id: current.userId, role: "user", banned: false };
+        profile = rows && rows[0] ? rows[0] : { id: current.userId, role: "user", banned: false, deletion_requested_at: null, deleted_at: null };
         return profile;
       })
       .catch(function () { return null; });
@@ -841,6 +841,79 @@
       '<div class="dialogactions"><button class="pill primary" id="do-password">发送验证邮件到当前邮箱</button></div>';
     document.body.appendChild(card);
     $("old-email").value = (session() || {}).email || "";
+    // —— 注销账号：先验证邮箱，再逐字输入短语，提交后全平台登出 ——
+    var PHRASE = "我确认注销账号，并允许服务器将我的账号数据继续存放60天";
+    var block = document.createElement("div");
+    block.className = "card";
+    block.innerHTML = "<h2>注销账号</h2>" +
+      '<p class="status" id="deletion-status">注销不可逆。提交后你会从所有设备退出登录，账号将在 3 天后进入已注销状态。</p>' +
+      '<div id="deletion-send"><div class="dialogactions"><button class="pill primary" id="ask-deletion">申请注销，先验证邮箱</button></div></div>' +
+      '<div id="deletion-confirm" style="display:none"><p>邮箱已验证。请把下面这句话<strong>原样输入</strong>（含标点）：</p>' +
+      '<p class="status" id="deletion-phrase">' + PHRASE + "</p>" +
+      '<label class="field"><span>在此输入上面那句话</span><input id="deletion-input" /></label>' +
+      '<div class="dialogactions"><button class="pill primary" id="do-deletion">确认注销</button>' +
+      '<button class="pill text" id="undo-deletion">我改主意了，取消</button></div></div>';
+    document.body.appendChild(block);
+
+    function deletionStatus(text, isError) {
+      var el = $("deletion-status");
+      if (!el) return;
+      el.className = isError ? "status error" : "status";
+      el.innerHTML = escapeHtml(text);
+    }
+
+    $("ask-deletion").onclick = function () {
+      var current = session();
+      if (!current) return void (location.href = "login.html");
+      deletionStatus("正在发送验证邮件…", false);
+      fetch(config.supabaseUrl + "/auth/v1/otp?redirect_to=" + encodeURIComponent(location.href.replace(/[^/]*$/, "security.html?deletion=confirm")), {
+        method: "POST",
+        headers: { apikey: config.supabaseKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: current.email, create_user: false })
+      }).then(function (response) {
+        return response.text().then(function (text) {
+          if (!response.ok) throw new Error(readError(text, response.status));
+          deletionStatus("验证邮件已发送到 " + current.email + "：点开邮件里的按钮（也能顺便取消注销），回来后这里会出现确认输入框。", false);
+        });
+      }).catch(function (error) { deletionStatus("发送失败：" + error.message, true); });
+    };
+
+    $("do-deletion").onclick = function () {
+      if ($("deletion-input").value.replace(/^\s+|\s+$/g, "") !== PHRASE) {
+        return void deletionStatus("输入的内容与确认短语不一致，请原样输入（注意标点）。", true);
+      }
+      deletionStatus("正在提交注销申请…", false);
+      api("rpc/request_account_deletion", { method: "POST", body: {} })
+        .then(function () {
+          // 提交后即在所有地方退出登录
+          var current = session();
+          return fetch(config.supabaseUrl + "/auth/v1/logout?scope=global", {
+            method: "POST",
+            headers: { apikey: config.supabaseKey, Authorization: "Bearer " + (current ? current.accessToken : ""), "Content-Type": "application/json" }
+          }).catch(function () {});
+        })
+        .then(function () {
+          try { window.localStorage.removeItem(STORAGE_KEY); } catch (error) {}
+          location.href = "deleted.html?state=requested";
+        })
+        .catch(function (error) { deletionStatus("提交失败：" + error.message, true); });
+    };
+
+    $("undo-deletion").onclick = function () {
+      api("rpc/cancel_account_deletion", { method: "POST", body: {} })
+        .then(function () {
+          deletionStatus("已取消注销申请，账号保持正常。", false);
+          $("deletion-confirm").style.display = "none";
+          $("deletion-send").style.display = "block";
+        })
+        .catch(function (error) { deletionStatus("取消失败：" + error.message, true); });
+    };
+
+    if (String(location.search).indexOf("deletion=confirm") >= 0) {
+      $("deletion-send").style.display = "none";
+      $("deletion-confirm").style.display = "block";
+      deletionStatus("邮箱已验证，请按下面的提示输入确认短语。", false);
+    }
 
     $("appeal").onclick = function () { appealDialog(); };
     $("do-email").onclick = function () {
@@ -940,6 +1013,16 @@
         location.href = "ban.html";
         return;
       }
+      if (profile && profile.deleted_at && page !== "auth") {
+        location.href = "deleted.html";
+        return;
+      }
+      if (profile && profile.deletion_requested_at && page !== "auth") {
+        // 3 天内登录 = 取消注销
+        api("rpc/cancel_account_deletion", { method: "POST", body: {} })
+          .then(function () { message("已为你取消注销申请，欢迎回来", false); })
+          .catch(function () {});
+      }
       (pages[page] || pageIndex)();
     });
   }
@@ -955,6 +1038,8 @@
     message: message
   };
 })();
+
+
 
 
 
