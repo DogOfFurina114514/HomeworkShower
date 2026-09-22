@@ -416,13 +416,6 @@ m3e-theme {
   cursor: pointer;
 }
 
-.homework-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  padding-block-start: 0.25rem;
-}
 
 /* ---------------- 时光机：日期选择触发器 ---------------- */
 
@@ -751,9 +744,6 @@ button {
 }
 
 /* 编辑/删除按钮出现时也带一点动效 */
-.homework-actions {
-  animation: hs-rise 220ms cubic-bezier(0.25, 1, 0.5, 1) both;
-}
 
 }
 
@@ -806,16 +796,43 @@ m3e-theme {
 }
 
 
-/* 点击选中：只做缓动缩放（easeOutQuad），不重播入场动画 */
+/* 选中态：不改变尺寸（放大让卡片内部溢出会冒出滚动条），只做背景与阴影，同样走 easeOutQuad 节奏 */
+.homework-item {
+  position: relative;
+}
+
 .homework-item--selected {
-  transform: scale(1.015);
+  --m3e-list-item-container-color: var(--md-sys-color-secondary-container, #cde7ed);
+  --m3e-list-item-label-text-color: var(--md-sys-color-on-secondary-container, #334a50);
+  --m3e-list-item-leading-color: var(--md-sys-color-on-secondary-container, #334a50);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
 }
 
+/* 按压：缩小一点（easeOutQuad），缩小不会溢出，所以不会有滚动条 */
 .homework-item--clickable:active {
-  transform: scale(0.97);
+  transform: scale(0.975);
 }
 
-/* 因为选中而重绘时，跳过入场动画 */
+/* 修改/删除按钮：绝对定位浮在右下角，不占布局；随选中淡入并轻微放大 */
+.homework-actions {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transform: scale(0.92);
+  pointer-events: none;
+  transition:
+    opacity 180ms cubic-bezier(0.5, 1, 0.89, 1),
+    transform 200ms cubic-bezier(0.5, 1, 0.89, 1);
+}
+
+.homework-item--selected .homework-actions {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
 .masonry-columns--no-anim .subject-group,
 .masonry-columns--no-anim .homework-item {
   animation: none !important;
@@ -824,3 +841,4 @@ m3e-theme {
 .masonry-columns--no-anim .homework-actions {
   animation: hs-fade 160ms ease-out both;
 }
+

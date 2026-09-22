@@ -111,12 +111,12 @@
               .map((tag) => `<m3e-chip variant="outlined">${hs.escapeHtml(tag)}</m3e-chip>`)
               .join("")}</div>`
           : "";
-        // 只有发布者/管理员、且看的是当天，才在选中后给出修改与删除
-        const actions = selected && canManage
-          ? `<div slot="supporting-text" class="homework-actions">
+        // 操作按钮常驻卡片内（绝对定位浮在右下角，不占布局），选中时用 CSS 淡入
+        const actions = canManage
+          ? `<span class="homework-actions">
               <m3e-icon-button data-action="edit" data-id="${homework.id}" aria-label="修改作业" title="修改作业"><m3e-icon variant="outlined" name="edit"></m3e-icon></m3e-icon-button>
               <m3e-icon-button data-action="delete" data-id="${homework.id}" aria-label="删除作业" title="删除作业"><m3e-icon variant="outlined" name="delete"></m3e-icon></m3e-icon-button>
-            </div>`
+            </span>`
           : "";
         return `
           <m3e-list-action style="--i: ${homeworks.indexOf(homework)}" class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${canManage ? " homework-item--clickable" : ""}" data-id="${homework.id}">
@@ -568,10 +568,13 @@ const duePickerEl = document.getElementById("edit-due-picker");
         hs.toast("只能修改当天发布的作业");
         return;
       }
-      // 再点一下取消选中，和桌面端一致
-      selectedId = selectedId === item.dataset.id ? null : item.dataset.id;
-      skipEnterAnimation = true;
-      renderBoard(currentRows);
+      // 只切 class：不重绘 → 多栏布局不重排、过渡能真正播放
+      const nextId = selectedId === item.dataset.id ? null : item.dataset.id;
+      selectedId = nextId;
+      const items = boardEl.querySelectorAll(".homework-item");
+      for (const node of items) {
+        node.classList.toggle("homework-item--selected", nextId !== null && node.dataset.id === nextId);
+      }
     });
 
     // ---------- 右下角编辑按钮 ----------
@@ -726,6 +729,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
