@@ -25,5 +25,4 @@ HomeworkShower —— 来源与协议说明
     @m3e/web、@m3e/icons   —— MIT License（Material 3 Expressive 组件）
     supabase-js            —— MIT License
 
-桌面端应用（StickyHomeworks2-tauri 的本地修改版）仅在作者本机自用，不对外分发；
-如需分发，必须同样以 AGPL-3.0 发布并提供完整源码。
+
