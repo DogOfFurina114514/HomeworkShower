@@ -146,7 +146,8 @@
   const deletionStepConfirm = document.getElementById("deletion-step-confirm");
   const deletionInput = document.getElementById("deletion-input");
 
-  /** 第 1 步：发验证邮件（Magic link），点开后才允许进入确认步骤 */
+  /** 第 1 步：发"仅做验证"的邮件（reauthentication 模板），证明是本人操作。
+      注意这里不发 Magic link —— Magic link 属于"收到注销申请"的通知邮件（第 3 步之后发）。 */
   async function requestDeletion() {
     const email = profile?.email || "";
     if (!email) return show(deletionMessage, "没有拿到邮箱地址，请重新登录后再试。");
@@ -155,14 +156,14 @@
     button.setAttribute("disabled", "");
     show(deletionMessage, "正在发送验证邮件…", false);
     const redirectTo = new URL("security.html?deletion=confirm", location.href).href;
-    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+    const { error } = await client.auth.reauthenticate();
     button.removeAttribute("disabled");
 
     show(
       deletionMessage,
       error
         ? `发送失败：${error.message}`
-        : `验证邮件已发送到 ${email}：请点开邮件里的按钮（也能顺便取消注销）。回来后这里会出现确认输入框。`,
+        : `验证邮件已发送到 ${email}：请点开邮件里的按钮确认是你本人操作，回来后这里会出现确认输入框。`,
       Boolean(error),
     );
   }
@@ -181,6 +182,16 @@
     if (error) {
       button.removeAttribute("disabled");
       return show(deletionMessage, `提交失败：${error.message}`);
+    }
+
+    // 申请已记录 → 发"通知邮件"：说明已收到，并带 Magic link 供随时取消
+    try {
+      await client.auth.signInWithOtp({
+        email: profile?.email || "",
+        options: { emailRedirectTo: new URL("security.html?deletion=cancelled", location.href).href },
+      });
+    } catch (ignored) {
+      /* 通知邮件发失败不影响注销申请本身 */
     }
 
     // 按需求：提交后即在所有地方退出登录
@@ -244,6 +255,7 @@
     }
   })();
 })();
+
 
 
 
