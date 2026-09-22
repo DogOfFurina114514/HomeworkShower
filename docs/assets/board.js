@@ -405,6 +405,11 @@
       if (publishLink) publishLink.hidden = !hs.isPublisher(profile);
       const manageUsersButton = document.getElementById("manage-users-button");
       if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(profile);
+      const securityLink = document.getElementById("security-link");
+      if (securityLink) {
+        securityLink.hidden = false;
+        securityLink.addEventListener("click", () => location.assign("security.html"));
+      }
 
       accountButton.addEventListener("click", () => {
         accountPanel.hidden = !accountPanel.hidden;
@@ -912,6 +917,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 

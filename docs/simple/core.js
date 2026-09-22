@@ -389,6 +389,13 @@
     button.onclick = function (event) {
       event.preventDefault();
       var actions = [];
+      actions.push({
+        label: "安全中心",
+        onClick: function (close) {
+          close();
+          location.href = "security.html";
+        }
+      });
       if (isPublisher()) {
         actions.push({
           label: "管理用户",
@@ -815,6 +822,82 @@
     };
   }
 
+  /* ---------------------------------------------------- 页面：安全中心 */
+
+  function pageSecurity() {
+    topbar({ title: "安全中心", back: "index.html" });
+    if (!session()) return void (location.href = "login.html");
+    var card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = "<h2>更改邮箱</h2>" +
+      '<p class="status" id="status">当前账号：' + escapeHtml((session() || {}).email || "") + "</p>" +
+      '<label class="field"><span>当前邮箱（旧）</span><input id="old-email" readonly /></label>' +
+      '<label class="field"><span>新邮箱</span><input id="new-email" type="email" /></label>' +
+      '<div class="dialogactions"><button class="pill primary" id="do-email">发送验证邮件到新邮箱</button></div>' +
+      '<div class="dialogactions"><button class="pill text" id="appeal">旧邮箱不可用，去申诉</button></div>' +
+      "<h2 style='margin-top:22px'>更改密码</h2>" +
+      '<label class="field"><span>新密码（至少 8 位）</span><input id="new-password" type="password" /></label>' +
+      '<label class="field"><span>确认新密码</span><input id="confirm-password" type="password" /></label>' +
+      '<div class="dialogactions"><button class="pill primary" id="do-password">发送验证邮件到当前邮箱</button></div>';
+    document.body.appendChild(card);
+    $("old-email").value = (session() || {}).email || "";
+
+    $("appeal").onclick = function () { appealDialog(); };
+    $("do-email").onclick = function () {
+      var next = $("new-email").value.replace(/^\s+|\s+$/g, "");
+      if (!next) return void message("请填写新的邮箱地址", true);
+      message("正在发送验证邮件…");
+      fetch(config.supabaseUrl + "/auth/v1/user", {
+        method: "PUT",
+        headers: { apikey: config.supabaseKey, Authorization: "Bearer " + (session() || {}).accessToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: next })
+      }).then(function (response) {
+        return response.text().then(function (text) {
+          if (!response.ok) throw new Error(readError(text, response.status));
+          message("已向 " + next + " 发送验证邮件，点开确认后才会生效；确认前旧邮箱仍然可用。");
+        });
+      }).catch(function (error) { message("发送失败：" + error.message, true); });
+    };
+    $("do-password").onclick = function () {
+      var next = $("new-password").value;
+      if (next.length < 8) return void message("密码至少 8 位", true);
+      if (next !== $("confirm-password").value) return void message("两次输入的密码不一致", true);
+      message("正在发送验证邮件…");
+      fetch(config.supabaseUrl + "/auth/v1/recover", {
+        method: "POST",
+        headers: { apikey: config.supabaseKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: (session() || {}).email || "" })
+      }).then(function (response) {
+        return response.text().then(function (text) {
+          if (!response.ok) throw new Error(readError(text, response.status));
+          message("确认邮件已发送到 " + ((session() || {}).email || "你的邮箱") + "，点开链接后即可设置新密码。");
+        });
+      }).catch(function (error) { message("发送失败：" + error.message, true); });
+    };
+  }
+
+  /** 旧邮箱不可用申诉：与「申请管理员」同一套界面 */
+  function appealDialog() {
+    var oldEmail = (session() || {}).email || "";
+    dialog({
+      title: "旧邮箱不可用申诉",
+      body: '<label class="field"><span>我的邮箱（旧）</span><input readonly value="' + escapeHtml(oldEmail) + '" /></label>' +
+        "<p>如果旧邮箱已经无法登录、收不到验证邮件，可以给管理员发一封申诉邮件，说明情况并附上可用的新邮箱。</p>",
+      actions: [
+        { label: "关闭" },
+        {
+          label: "打开「电子邮件」",
+          primary: true,
+          onClick: function (close) {
+            close();
+            location.href = "mailto:" + (config.adminEmail || "") +
+              "?subject=" + encodeURIComponent("邮箱不可用申诉") +
+              "&body=" + encodeURIComponent("我的账号旧邮箱已经无法使用，申请协助。\n\n账号（旧邮箱）：" + oldEmail + "\n\n可用的新邮箱：");
+          }
+        }
+      ]
+    });
+  }
   /* ---------------------------------------------------- 页面：验证结果 */
 
   function pageAuth() {
@@ -849,6 +932,7 @@
       timemachine: pageTimemachine,
       login: pageLogin,
       publish: pagePublish,
+      security: pageSecurity,
       auth: pageAuth
     };
     refreshProfile().then(function () {
@@ -871,6 +955,7 @@
     message: message
   };
 })();
+
 
 
 
