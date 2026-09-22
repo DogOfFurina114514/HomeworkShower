@@ -166,7 +166,17 @@
     });
   }
 
-  window.addEventListener("error", (event) => fatal(event.message || "脚本错误"));
+  window.addEventListener("error", (event) => {
+    const message = String(event.message || "");
+    // 跨域脚本（通常是浏览器扩展注入的）出错时浏览器只会给 "Script error."，
+    // 既没有文件名也没有行号，对排查没帮助，就别弹红条吓人了，只写控制台。
+    if (!message || message === "Script error.") {
+      console.warn("[HomeworkShower] 忽略了无来源的脚本错误（多半来自浏览器扩展）");
+      return;
+    }
+    const where = event.filename ? `（${String(event.filename).split("/").pop()}:${event.lineno}）` : "";
+    fatal(message + where);
+  });
   window.addEventListener("unhandledrejection", (event) => {
     const reason = event.reason;
     fatal(reason instanceof Error ? reason.message : String(reason));
@@ -190,3 +200,4 @@
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();
+
