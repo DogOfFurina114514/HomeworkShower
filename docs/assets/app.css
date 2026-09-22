@@ -901,3 +901,40 @@ html.hs-booting body {
   --m3e-list-item-leading-color: var(--md-sys-color-on-secondary-container, #334a50);
   box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
 }
+
+/* ============================================================
+   收尾修正
+   1) 右下角编辑按钮定位被后来的 filter 过渡影响（filter 会让元素成为 fixed 的包含块），
+      这里用 !important 钉死，保证始终在右下角。
+   2) 展开动画不做 max-height 过渡：多栏布局里高度每帧变化都会重排各栏，表现为抖动。
+      改为高度瞬时、只对按钮做透明度淡入（透明度不触发重排）。
+   ============================================================ */
+
+#fab-host {
+  position: fixed !important;
+  right: 2rem !important;
+  bottom: 2rem !important;
+  left: auto !important;
+  top: auto !important;
+  z-index: 30;
+}
+
+/* 去掉让 m3e-theme 成为包含块的 filter 过渡 */
+m3e-theme {
+  transition: none !important;
+}
+
+.homework-actions {
+  max-height: none;
+  transition: opacity 160ms cubic-bezier(0.5, 1, 0.89, 1);
+}
+
+.homework-item--selected .homework-actions {
+  max-height: none;
+  opacity: 1;
+}
+
+.homework-actions:not(.homework-item--selected .homework-actions) {
+  /* 未选中：不占高度、不可点 */
+  display: none;
+}
