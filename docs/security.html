@@ -38,13 +38,13 @@
         location.replace(location.pathname.replace(/[^/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
       })();
     </script>
-    <link rel="stylesheet" href="assets/app.css?v62" />
-    <link rel="icon" href="assets/icon.svg?v62" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v62" defer></script>
-    <script src="vendor/supabase.js?v62" defer></script>
-    <script src="assets/config.js?v62" defer></script>
-    <script src="assets/client.js?v62" defer></script>
-    <script src="assets/security.js?v62" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v63" />
+    <link rel="icon" href="assets/icon.svg?v63" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v63" defer></script>
+    <script src="vendor/supabase.js?v63" defer></script>
+    <script src="assets/config.js?v63" defer></script>
+    <script src="assets/client.js?v63" defer></script>
+    <script src="assets/security.js?v63" defer></script>
   </head>
 
   <body>
@@ -59,7 +59,7 @@
         </div>
       </header>
 
-      <main class="publish">
+      <main class="security">
         <p class="status" id="status">当前账号：<strong id="account-email">—</strong></p>
 
         <section class="auth__card">
@@ -74,17 +74,28 @@
             <input id="current-email" readonly />
           </m3e-form-field>
 
-          <m3e-form-field variant="outlined">
-            <label slot="label" for="new-email">新邮箱</label>
-            <input id="new-email" type="email" autocomplete="email" />
-          </m3e-form-field>
-
           <p class="status" id="email-message" hidden></p>
-          <p class="status" id="email-pending" hidden></p>
 
-          <div class="auth__actions">
-            <m3e-button variant="filled" id="change-email">发送验证邮件到新邮箱</m3e-button>
-            <m3e-button variant="text" id="resend-email" hidden>重新发送验证邮件</m3e-button>
+          <!-- 第一步：先验证旧邮箱 -->
+          <div id="email-step-old">
+            <p class="hint">第 1 步：先验证当前邮箱。点下面的按钮后，去当前邮箱里点开确认链接。</p>
+            <div class="auth__actions">
+              <m3e-button variant="filled" id="verify-old-email">发送验证邮件到当前邮箱</m3e-button>
+            </div>
+          </div>
+
+          <!-- 第二步：旧邮箱验证通过后，再填新邮箱 -->
+          <div id="email-step-new" hidden>
+            <p class="hint">第 2 步：当前邮箱已验证，现在填写新邮箱并完成最后一次确认。</p>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="new-email">新邮箱</label>
+              <input id="new-email" type="email" autocomplete="email" />
+            </m3e-form-field>
+            <p class="status" id="email-pending" hidden></p>
+            <div class="auth__actions">
+              <m3e-button variant="filled" id="change-email">发送验证邮件到新邮箱</m3e-button>
+              <m3e-button variant="text" id="resend-email" hidden>重新发送验证邮件</m3e-button>
+            </div>
           </div>
 
           <p class="hint">旧邮箱已经无法登录、收不到验证邮件？</p>
@@ -146,6 +157,24 @@
           </div>
         </section>
       </main>
+      <m3e-dialog id="appeal-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">旧邮箱不可用申诉</m3e-heading>
+        <m3e-form-field variant="outlined">
+          <label slot="label" for="appeal-email">我的邮箱（旧）</label>
+          <input id="appeal-email" readonly />
+        </m3e-form-field>
+        <p class="hint">
+          如果旧邮箱已经无法登录、收不到验证邮件，可以给管理员发一封申诉邮件，
+          说明情况并附上可用的新邮箱，管理员核实后会帮你处理。
+        </p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="appeal-close">关闭</m3e-button>
+          <m3e-button variant="filled" id="appeal-mail">
+            <m3e-icon variant="outlined" slot="icon" name="mail"></m3e-icon>
+            打开「电子邮件」
+          </m3e-button>
+        </div>
+      </m3e-dialog>
     </m3e-theme>
 
     <script>
@@ -155,6 +184,8 @@
     </script>
   </body>
 </html>
+
+
 
 
 

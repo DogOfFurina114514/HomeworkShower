@@ -35,50 +35,50 @@
     el.hidden = !text;
   }
 
-  /** 旧邮箱不可用时的申诉：与「申请管理员」同一套界面逻辑 */
+  /** 旧邮箱不可用时的申诉：用 M3E 弹窗，与「申请管理员」同款外观 */
   function openAppeal() {
-    const oldEmail = profile?.email || "（未获取到）";
-    const dialog = document.createElement("div");
-    dialog.className = "backdrop open";
-    dialog.innerHTML = `
-      <div class="dialog" role="dialog" aria-modal="true">
-        <h3>旧邮箱不可用申诉</h3>
-        <div class="form-row">
-          <span>我的邮箱（旧）</span>
-          <input readonly value="${hs.escapeHtml(oldEmail)}" />
-        </div>
-        <p class="hint">
-          如果旧邮箱已经无法登录、收不到验证邮件，可以给管理员发一封申诉邮件，
-          说明情况并附上可用的新邮箱，管理员核实后会帮你处理。
-        </p>
-        <div class="dialog-actions">
-          <button class="pill text" data-act="close">关闭</button>
-          <button class="pill primary" data-act="mail">打开「电子邮件」</button>
-        </div>
-      </div>`;
-    document.body.appendChild(dialog);
-
-    const close = () => dialog.remove();
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) return close();
-      const action = event.target.closest("[data-act]")?.dataset.act;
-      if (action === "close") return close();
-      if (action === "mail") {
-        const to = hs.config.adminEmail || "";
-        const subject = "邮箱不可用申诉";
-        const body = [
-          "你好，我的账号旧邮箱已经无法使用，无法自行修改邮箱，申请协助。",
-          "",
-          `账号（旧邮箱）：${oldEmail}`,
-          `申请时间：${new Date().toLocaleString("zh-CN")}`,
-          "",
-          "可用的新邮箱：",
-        ].join("\n");
-        location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      }
-    });
+    const dialog = document.getElementById("appeal-dialog");
+    const emailInput = document.getElementById("appeal-email");
+    if (!dialog) return;
+    if (emailInput) emailInput.value = profile?.email || "";
+    dialog.show();
   }
 
+  function mailAppeal() {
+    const oldEmail = profile?.email || "";
+    const to = hs.config.adminEmail || "";
+    const subject = "邮箱不可用申诉";
+    const body = [
+      "你好，我的账号旧邮箱已经无法使用，无法自行修改邮箱，申请协助。",
+      "",
+      `账号（旧邮箱）：${oldEmail}`,
+      `申请时间：${new Date().toLocaleString("zh-CN")}`,
+      "",
+      "可用的新邮箱：",
+    ].join("\n");
+    location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+  const emailStepOld = document.getElementById("email-step-old");
+  const emailStepNew = document.getElementById("email-step-new");
+
+  /** 第 1 步：验证当前（旧）邮箱 —— 证明这个账号确实属于你 */
+  async function verifyOldEmail() {
+    const email = profile?.email || "";
+    if (!email) return show(emailMessage, "没有拿到邮箱地址，请重新登录后再试。");
+    const button = document.getElementById("verify-old-email");
+    button.setAttribute("disabled", "");
+    show(emailMessage, "正在发送验证邮件…", false);
+    const redirectTo = new URL("security.html?emailchange=old", location.href).href;
+    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+    button.removeAttribute("disabled");
+    show(
+      emailMessage,
+      error ? `发送失败：${error.message}` : `验证邮件已发送到 ${email}，请点开邮件里的链接（同时也会让你重新登录一次）。`,
+      Boolean(error),
+    );
+  }
+
+  /** 第 2 步：旧邮箱验证通过后，再验证新邮箱 */
   async function changeEmail() {
     const next = (newEmailInput?.value || "").trim();
     if (!next) return show(emailMessage, "请填写新的邮箱地址。");
@@ -93,14 +93,10 @@
 
     if (error) {
       const text = String(error.message || "").toLowerCase();
-      show(
-        emailMessage,
-        text.includes("already") ? "这个邮箱已经被其它账号使用了。" : `发送失败：${error.message}`,
-      );
+      show(emailMessage, text.includes("already") ? "这个邮箱已经被其它账号使用了。" : `发送失败：${error.message}`);
       return;
     }
 
-    // A 方案：明确显示"等待确认"，并允许重发；旧邮箱在此之前仍然可用
     pendingEmail = next;
     show(emailMessage, "");
     if (resendButton) resendButton.hidden = false;
@@ -213,6 +209,9 @@
     if (emailField) emailField.value = profile.email || "";
     document.getElementById("account-email")?.replaceChildren(document.createTextNode(profile.email || ""));
 
+    document.getElementById("verify-old-email")?.addEventListener("click", () => void verifyOldEmail());
+    document.getElementById("appeal-close")?.addEventListener("click", () => document.getElementById("appeal-dialog")?.hide());
+    document.getElementById("appeal-mail")?.addEventListener("click", mailAppeal);
     changeEmailButton.addEventListener("click", () => void changeEmail());
     resendButton?.addEventListener("click", () => void resendEmail());
     appealButton?.addEventListener("click", openAppeal);
@@ -220,6 +219,14 @@
     document.getElementById("request-deletion")?.addEventListener("click", () => void requestDeletion());
     document.getElementById("confirm-deletion")?.addEventListener("click", () => void confirmDeletion());
     document.getElementById("cancel-deletion-request")?.addEventListener("click", () => void cancelDeletion());
+
+    // 旧邮箱验证完成回来（?emailchange=old）→ 展开第 2 步
+    if (params.get("emailchange") === "old") {
+      if (emailStepOld) emailStepOld.hidden = true;
+      if (emailStepNew) emailStepNew.hidden = false;
+      show(emailMessage, "当前邮箱已验证，请填写新邮箱。", false);
+      history.replaceState(null, "", location.pathname);
+    }
 
     // 点了邮件里的验证链接回来（?deletion=confirm）→ 直接展开确认步骤
     const params = new URLSearchParams(location.search);
@@ -235,5 +242,6 @@
     }
   })();
 })();
+
 
 

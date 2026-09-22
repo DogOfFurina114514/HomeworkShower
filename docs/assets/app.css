@@ -739,3 +739,20 @@ m3e-form-field input,
 m3e-form-field textarea {
   width: 100%;
 }
+
+/* ---------- 安全中心：居中的窄栏布局（此前误用了发布页的 900px 布局） ---------- */
+.security {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 24px 20px 72px;
+  display: grid;
+  gap: 16px;
+}
+
+.security > .status {
+  margin: 0;
+}
+
+.security .auth__card {
+  width: 100%;
+}
