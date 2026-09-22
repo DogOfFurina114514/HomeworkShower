@@ -726,3 +726,16 @@ svg.icon {
   vertical-align: middle;
   flex: 0 0 auto;
 }
+
+/* 表单字段统一占满一行。
+   重写样式表时漏掉了这条，导致发布页/弹窗里的输入框缩成内容大小。 */
+m3e-form-field {
+  width: 100%;
+  min-width: 0;
+  display: block;
+}
+
+m3e-form-field input,
+m3e-form-field textarea {
+  width: 100%;
+}
