@@ -861,3 +861,27 @@ html.hs-booting body {
   visibility: hidden;
 }
 
+
+/* ============================================================
+   看板分栏：由 JS 按列高分配（同桌面端），这里只负责排布。
+   放在文件末尾，覆盖上面遗留的 CSS 多栏规则。
+   ============================================================ */
+
+.masonry-columns {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 8px;
+  column-width: auto !important;
+  column-count: auto !important;
+}
+
+.masonry-column {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 分栏后科目组之间只需要下边距 */
+.masonry-column > .subject-group:last-child {
+  margin-bottom: 0;
+}
