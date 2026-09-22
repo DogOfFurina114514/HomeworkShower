@@ -868,7 +868,7 @@
       var current = session();
       if (!current) return void (location.href = "login.html");
       deletionStatus("正在发送验证邮件…", false);
-      // 验证邮件只做验证：走 reauthenticate，邮件里是 6 位验证码（不带取消注销）
+      // 验证邮件只做验证：走 reauthenticate，邮件里是数字验证码（不带取消注销）
       fetch(config.supabaseUrl + "/auth/v1/reauthenticate", {
         method: "POST",
         headers: { apikey: config.supabaseKey, Authorization: "Bearer " + current.accessToken, "Content-Type": "application/json" },
@@ -1074,6 +1074,8 @@
     message: message
   };
 })();
+
+
 
 
 
