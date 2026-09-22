@@ -848,6 +848,8 @@
     block.innerHTML = "<h2>注销账号</h2>" +
       '<p class="status" id="deletion-status">注销不可逆。提交后你会从所有设备退出登录，账号将在 3 天后进入已注销状态。</p>' +
       '<div id="deletion-send"><div class="dialogactions"><button class="pill primary" id="ask-deletion">申请注销，先验证邮箱</button></div></div>' +
+      '<div id="deletion-code-box" style="display:none"><label class="field"><span>邮箱验证码（6 位）</span><input id="deletion-code" inputmode="numeric" /></label>' +
+      '<div class="dialogactions"><button class="pill primary" id="do-deletion-code">验证并继续</button></div></div>' +
       '<div id="deletion-confirm" style="display:none"><p>邮箱已验证。请把下面这句话<strong>原样输入</strong>（含标点）：</p>' +
       '<p class="status" id="deletion-phrase">' + PHRASE + "</p>" +
       '<label class="field"><span>在此输入上面那句话</span><input id="deletion-input" /></label>' +
@@ -866,16 +868,37 @@
       var current = session();
       if (!current) return void (location.href = "login.html");
       deletionStatus("正在发送验证邮件…", false);
-      fetch(config.supabaseUrl + "/auth/v1/otp?redirect_to=" + encodeURIComponent(location.href.replace(/[^/]*$/, "security.html?deletion=confirm")), {
+      // 验证邮件只做验证：走 reauthenticate，邮件里是 6 位验证码（不带取消注销）
+      fetch(config.supabaseUrl + "/auth/v1/reauthenticate", {
         method: "POST",
-        headers: { apikey: config.supabaseKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: current.email, create_user: false })
+        headers: { apikey: config.supabaseKey, Authorization: "Bearer " + current.accessToken, "Content-Type": "application/json" },
+        body: "{}"
       }).then(function (response) {
         return response.text().then(function (text) {
           if (!response.ok) throw new Error(readError(text, response.status));
-          deletionStatus("验证邮件已发送到 " + current.email + "：点开邮件里的按钮（也能顺便取消注销），回来后这里会出现确认输入框。", false);
+          document.getElementById("deletion-code-box").style.display = "block";
+          deletionStatus("验证邮件已发送到 " + current.email + "：请把邮件里的 6 位验证码填到下面。", false);
         });
       }).catch(function (error) { deletionStatus("发送失败：" + error.message, true); });
+    };
+
+    $("do-deletion-code").onclick = function () {
+      var token = ($("deletion-code").value || "").replace(/^\s+|\s+$/g, "");
+      if (!/^\d{6}$/.test(token)) return void deletionStatus("请输入邮件里的 6 位数字验证码。", true);
+      deletionStatus("正在校验…", false);
+      fetch(config.supabaseUrl + "/auth/v1/verify", {
+        method: "POST",
+        headers: { apikey: config.supabaseKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "reauthentication", token: token })
+      }).then(function (response) {
+        return response.text().then(function (text) {
+          if (!response.ok) throw new Error(readError(text, response.status));
+          $("deletion-code-box").style.display = "none";
+          $("deletion-send").style.display = "none";
+          $("deletion-confirm").style.display = "block";
+          deletionStatus("邮箱已验证，请按下面的提示输入确认短语。", false);
+        });
+      }).catch(function (error) { deletionStatus("验证码不正确或已过期：" + error.message, true); });
     };
 
     $("do-deletion").onclick = function () {
@@ -883,13 +906,26 @@
         return void deletionStatus("输入的内容与确认短语不一致，请原样输入（注意标点）。", true);
       }
       deletionStatus("正在提交注销申请…", false);
+      var mine = session();
+      var accessToken = mine ? mine.accessToken : "";
+      var myEmail = mine ? mine.email : "";
+
       api("rpc/request_account_deletion", { method: "POST", body: {} })
         .then(function () {
+          // 申请已记录 → 发通知邮件（Magic link，含"取消注销"）
+          var redirect = location.href.replace(/[^/]*$/, "security.html?deletion=cancelled");
+          return fetch(config.supabaseUrl + "/auth/v1/otp?redirect_to=" + encodeURIComponent(redirect), {
+            method: "POST",
+            headers: { apikey: config.supabaseKey, "Content-Type": "application/json" },
+            body: JSON.stringify({ email: myEmail, create_user: false })
+          });
+        })
+        .catch(function () { /* 通知邮件失败不影响注销 */ })
+        .then(function () {
           // 提交后即在所有地方退出登录
-          var current = session();
           return fetch(config.supabaseUrl + "/auth/v1/logout?scope=global", {
             method: "POST",
-            headers: { apikey: config.supabaseKey, Authorization: "Bearer " + (current ? current.accessToken : ""), "Content-Type": "application/json" }
+            headers: { apikey: config.supabaseKey, Authorization: "Bearer " + accessToken, "Content-Type": "application/json" }
           }).catch(function () {});
         })
         .then(function () {
@@ -1038,6 +1074,8 @@
     message: message
   };
 })();
+
+
 
 
 
