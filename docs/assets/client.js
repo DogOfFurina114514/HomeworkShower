@@ -226,6 +226,11 @@
         return;
       }
       const dialog = document.createElement("m3e-dialog");
+      // 自定义元素是异步升级的：立刻调用 .show() 会因为方法还不存在而失败，
+      // 这里先把它标记为已升级，再显示。
+      if (window.customElements && typeof window.customElements.upgrade === "function") {
+        window.customElements.upgrade(dialog);
+      }
       dialog.setAttribute("dismissible", "");
       dialog.innerHTML =
         '<m3e-heading slot="header" variant="headline" size="small" level="2">欢迎回来</m3e-heading>' +
@@ -260,6 +265,7 @@
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();
+
 
 
 
