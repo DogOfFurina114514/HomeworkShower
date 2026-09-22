@@ -80,6 +80,9 @@
     showStatus("");
   }
 
+/** 选中导致的局部重绘：跳过入场动画，只让卡片自己缩放 */
+  let skipEnterAnimation = false;
+
   function renderBoard(rows) {
     if (!rows.length) {
       renderEmpty(mode === "latest" ? "今天没有需要做的作业" : "这一天没有作业");
@@ -133,7 +136,8 @@
         </section>`);
     }
 
-    boardEl.innerHTML = `<div class="masonry-columns">${sections.join("")}</div>`;
+    boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
+    skipEnterAnimation = false;
   }
 
   async function loadDates() {
@@ -566,6 +570,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
       }
       // 再点一下取消选中，和桌面端一致
       selectedId = selectedId === item.dataset.id ? null : item.dataset.id;
+      skipEnterAnimation = true;
       renderBoard(currentRows);
     });
 
@@ -721,6 +726,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
