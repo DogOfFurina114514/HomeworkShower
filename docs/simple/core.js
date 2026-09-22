@@ -901,7 +901,7 @@
       }).catch(function (error) { deletionStatus("验证码不正确或已过期：" + error.message, true); });
     };
 
-    $("undo-deletion").onclick = function () {
+    $("do-deletion").onclick = function () {
       if ($("deletion-input").value.replace(/^\s+|\s+$/g, "") !== PHRASE) {
         return void deletionStatus("输入的内容与确认短语不一致，请原样输入（注意标点）。", true);
       }
@@ -1074,6 +1074,7 @@
     message: message
   };
 })();
+
 
 
 
