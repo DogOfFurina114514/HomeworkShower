@@ -132,7 +132,7 @@ m3e-theme {
 }
 
 .homework-item {
-  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
   animation-delay: calc(var(--i, 0) * 40ms + 80ms);
   transition:
     background-color 200ms ease-out,
@@ -716,12 +716,12 @@ button {
 }
 
 .subject-group {
-  animation: hs-rise 420ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation: hs-rise 420ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
   animation-delay: calc(var(--i, 0) * 60ms);
 }
 
 .homework-item {
-  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
   animation-delay: calc(var(--i, 0) * 40ms + 80ms);
   transition:
     background-color 200ms ease-out,
@@ -740,7 +740,7 @@ button {
 .status,
 .banner,
 .homework-empty-state {
-  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
 }
 
 /* 编辑/删除按钮出现时也带一点动效 */
@@ -844,3 +844,21 @@ m3e-theme {
 }
 
 
+
+/* ============================================================
+   首屏防露馅
+   M3E 体积较大，脚本执行前自定义元素只是未知标签，弹窗内容会裸奔。
+   这里先隐藏这些元素；同时用启动遮罩盖住整页，等组件真正升级后再显示。
+   ============================================================ */
+
+m3e-dialog:not(:defined),
+m3e-fab:not(:defined),
+m3e-fab-menu:not(:defined),
+m3e-datepicker:not(:defined),
+m3e-snackbar:not(:defined) {
+  display: none !important;
+}
+
+html.hs-booting body {
+  visibility: hidden;
+}
