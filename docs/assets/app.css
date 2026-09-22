@@ -953,3 +953,29 @@ m3e-theme {
   flex: 1 1 0 !important;
   min-width: 0;
 }
+
+/* ============================================================
+   编辑按钮的展开动效（最终版）
+   之前用 display:none 隐藏 → 无法参与过渡，所以看不到缓动。
+   现在：常驻在文档流里，用 max-height + opacity 过渡（easeOutQuad）。
+   分栏已改为固定列，高度变化只影响自己这一列，不会再全盘重排。
+   ============================================================ */
+
+.homework-actions {
+  display: flex !important;
+  justify-content: flex-end;
+  gap: 2px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    max-height 240ms cubic-bezier(0.5, 1, 0.89, 1),
+    opacity 180ms cubic-bezier(0.5, 1, 0.89, 1);
+}
+
+.homework-item--selected .homework-actions {
+  max-height: 72px;
+  opacity: 1;
+  pointer-events: auto;
+}
