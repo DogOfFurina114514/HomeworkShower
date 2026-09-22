@@ -38,13 +38,13 @@
         location.replace(location.pathname.replace(/[^/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
       })();
     </script>
-    <link rel="stylesheet" href="assets/app.css?v68" />
-    <link rel="icon" href="assets/icon.svg?v68" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v68" defer></script>
-    <script src="vendor/supabase.js?v68" defer></script>
-    <script src="assets/config.js?v68" defer></script>
-    <script src="assets/client.js?v68" defer></script>
-    <script src="assets/security.js?v68" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v69" />
+    <link rel="icon" href="assets/icon.svg?v69" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v69" defer></script>
+    <script src="vendor/supabase.js?v69" defer></script>
+    <script src="assets/config.js?v69" defer></script>
+    <script src="assets/client.js?v69" defer></script>
+    <script src="assets/security.js?v69" defer></script>
   </head>
 
   <body>
@@ -140,7 +140,7 @@
           </div>
 
           <div id="deletion-step-code" hidden>
-            <p class="hint">验证邮件里有 6 位验证码，请填入下面的输入框：</p>
+            <p class="hint">验证邮件里有数字验证码，请填入下面的输入框：</p>
             <m3e-form-field variant="outlined">
               <label slot="label" for="deletion-code">邮箱验证码</label>
               <input id="deletion-code" inputmode="numeric" autocomplete="one-time-code" />
@@ -195,6 +195,8 @@
     </script>
   </body>
 </html>
+
+
 
 
 

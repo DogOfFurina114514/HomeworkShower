@@ -166,7 +166,7 @@
     }
     show(
       deletionMessage,
-      error ? `发送失败：${error.message}` : `验证邮件已发送到 ${email}：请把邮件里的 6 位验证码填到下面。`,
+      error ? `发送失败：${error.message}` : `验证邮件已发送到 ${email}：请把邮件里的数字验证码填到下面。`,
       Boolean(error),
     );
   }
@@ -174,7 +174,7 @@
   /** 第 2 步：校验验证码（reauthentication 的 nonce），通过后才进入短语确认 */
   async function submitDeletionCode() {
     const token = (document.getElementById("deletion-code")?.value || "").trim();
-    if (!/^\d{6}$/.test(token)) return show(deletionMessage, "请输入邮件里的 6 位数字验证码。");
+    if (!/^\d{6,8}$/.test(token)) return show(deletionMessage, "请输入邮件里的数字验证码。");
     const button = document.getElementById("submit-deletion-code");
     button.setAttribute("disabled", "");
     show(deletionMessage, "正在校验…", false);
@@ -275,6 +275,7 @@
     }
   })();
 })();
+
 
 
 

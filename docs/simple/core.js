@@ -848,7 +848,7 @@
     block.innerHTML = "<h2>注销账号</h2>" +
       '<p class="status" id="deletion-status">注销不可逆。提交后你会从所有设备退出登录，账号将在 3 天后进入已注销状态。</p>' +
       '<div id="deletion-send"><div class="dialogactions"><button class="pill primary" id="ask-deletion">申请注销，先验证邮箱</button></div></div>' +
-      '<div id="deletion-code-box" style="display:none"><label class="field"><span>邮箱验证码（6 位）</span><input id="deletion-code" inputmode="numeric" /></label>' +
+      '<div id="deletion-code-box" style="display:none"><label class="field"><span>邮箱验证码</span><input id="deletion-code" inputmode="numeric" /></label>' +
       '<div class="dialogactions"><button class="pill primary" id="do-deletion-code">验证并继续</button></div></div>' +
       '<div id="deletion-confirm" style="display:none"><p>邮箱已验证。请把下面这句话<strong>原样输入</strong>（含标点）：</p>' +
       '<p class="status" id="deletion-phrase">' + PHRASE + "</p>" +
@@ -877,14 +877,14 @@
         return response.text().then(function (text) {
           if (!response.ok) throw new Error(readError(text, response.status));
           document.getElementById("deletion-code-box").style.display = "block";
-          deletionStatus("验证邮件已发送到 " + current.email + "：请把邮件里的 6 位验证码填到下面。", false);
+          deletionStatus("验证邮件已发送到 " + current.email + "：请把邮件里的数字验证码填到下面。", false);
         });
       }).catch(function (error) { deletionStatus("发送失败：" + error.message, true); });
     };
 
     $("do-deletion-code").onclick = function () {
       var token = ($("deletion-code").value || "").replace(/^\s+|\s+$/g, "");
-      if (!/^\d{6}$/.test(token)) return void deletionStatus("请输入邮件里的 6 位数字验证码。", true);
+      if (!/^\d{6,8}$/.test(token)) return void deletionStatus("请输入邮件里的数字验证码。", true);
       deletionStatus("正在校验…", false);
       fetch(config.supabaseUrl + "/auth/v1/verify", {
         method: "POST",
@@ -1074,6 +1074,8 @@
     message: message
   };
 })();
+
+
 
 
 
