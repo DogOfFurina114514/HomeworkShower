@@ -868,11 +868,11 @@
       var current = session();
       if (!current) return void (location.href = "login.html");
       deletionStatus("正在发送验证邮件…", false);
-      // 验证邮件只做验证：走 reauthenticate，邮件里是数字验证码（不带取消注销）
-      fetch(config.supabaseUrl + "/auth/v1/reauthenticate", {
+      // 验证邮件只做验证：走 recovery 验证码（reauthenticate 的 nonce 校验不稳定）
+      fetch(config.supabaseUrl + "/auth/v1/recover", {
         method: "POST",
-        headers: { apikey: config.supabaseKey, Authorization: "Bearer " + current.accessToken, "Content-Type": "application/json" },
-        body: "{}"
+        headers: { apikey: config.supabaseKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: current.email })
       }).then(function (response) {
         return response.text().then(function (text) {
           if (!response.ok) throw new Error(readError(text, response.status));
@@ -889,7 +889,7 @@
       fetch(config.supabaseUrl + "/auth/v1/verify", {
         method: "POST",
         headers: { apikey: config.supabaseKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "reauthentication", token: token })
+        body: JSON.stringify({ type: "recovery", email: (session() || {}).email || "", token: token })
       }).then(function (response) {
         return response.text().then(function (text) {
           if (!response.ok) throw new Error(readError(text, response.status));
@@ -1074,6 +1074,8 @@
     message: message
   };
 })();
+
+
 
 
 

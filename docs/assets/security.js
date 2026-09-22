@@ -157,7 +157,8 @@
     button.setAttribute("disabled", "");
     show(deletionMessage, "正在发送验证邮件…", false);
     const redirectTo = new URL("security.html?deletion=confirm", location.href).href;
-    const { error } = await client.auth.reauthenticate();
+    // 不用 reauthenticate（其 nonce 校验不稳定），改用 recovery 验证码
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
     button.removeAttribute("disabled");
 
     if (!error) {
@@ -178,7 +179,7 @@
     const button = document.getElementById("submit-deletion-code");
     button.setAttribute("disabled", "");
     show(deletionMessage, "正在校验…", false);
-    const { error } = await client.auth.verifyOtp({ type: "reauthentication", token });
+    const { error } = await client.auth.verifyOtp({ email: profile?.email || "", token, type: "recovery" });
     button.removeAttribute("disabled");
     if (error) return show(deletionMessage, `验证码不正确或已过期：${error.message}`);
     if (deletionStepCode) deletionStepCode.hidden = true;
@@ -275,6 +276,7 @@
     }
   })();
 })();
+
 
 
 
