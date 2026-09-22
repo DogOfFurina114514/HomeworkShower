@@ -44,7 +44,7 @@
     calendar: "M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 8v9H5v-9h14z",
     edit: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z",
     trash: "M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
-    warn: "M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-7h-2v5h2V9z",
+    warn: "M12 3 L2 20 L22 20 Z M11 9 L13 9 L13 14 L11 14 Z M11 16 L13 16 L13 18 L11 18 Z",
     block: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM5.7 7.1l11.2 11.2A8 8 0 0 1 5.7 7.1zm1.4-1.4a8 8 0 0 1 11.2 11.2L7.1 5.7z",
     back: "M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z"
   };
@@ -230,8 +230,16 @@
     ".field textarea{min-height:150px;resize:vertical;font-size:14px}",
     ".card{max-width:460px;margin:24px auto;padding:24px;border:1px solid #bfc8cb;border-radius:24px;background:#eff4f6}",
     ".card h2{margin:0 0 14px;font-size:22px;font-weight:500}",
+    ".tabs{display:flex;gap:8px;margin:0 0 12px}.tabs .pill{flex:1;justify-content:center}",
     "@media(max-width:700px){.cols{display:block}.topbar{padding:10px 14px}}"
   ].join("");
+
+  /** 记住当前视图（简版/完整版），方便用户从另一种视图调回来 */
+  function rememberView() {
+    try {
+      document.cookie = "hs_view=simple; path=/; max-age=31536000";
+    } catch (error) {}
+  }
 
   function injectStyle() {
     if ($("hs-simple-style")) return;
@@ -270,8 +278,11 @@
     if (options.showTimemachine) {
       html += '<a class="pill" href="timemachine.html">' + icon("clock", 18) + "时光机</a>";
     }
-    html += '<a class="pill" id="account-button" href="login.html">' + icon("account", 18) +
-      '<span id="account-label">' + (current ? "个人中心" : "登录") + "</span></a></div></header>";
+    if (!options.hideAccount) {
+      html += '<a class="pill" id="account-button" href="login.html">' + icon("account", 18) +
+        '<span id="account-label">' + (current ? "个人中心" : "登录") + "</span></a>";
+    }
+    html += "</div></header>";
     var host = $("topbar-host");
     if (host) host.innerHTML = html;
     else document.body.insertAdjacentHTML("afterbegin", html);
@@ -369,6 +380,84 @@
     }).join("") + "</div>";
   }
 
+  /** 个人中心：所有简版页面共用；发布者额外有「管理用户」 */
+  function bindAccount() {
+    var button = $("account-button");
+    if (!button || !session()) return;
+    $("account-label").innerHTML = "个人中心";
+    button.setAttribute("href", "#");
+    button.onclick = function (event) {
+      event.preventDefault();
+      var actions = [];
+      if (isPublisher()) {
+        actions.push({
+          label: "管理用户",
+          onClick: function (close) {
+            close();
+            manageUsers();
+          }
+        });
+      }
+      actions.push({
+        label: "退出登录",
+        onClick: function (close) {
+          close();
+          try { window.localStorage.removeItem(STORAGE_KEY); } catch (error) {}
+          location.href = "login.html";
+        }
+      });
+      actions.push({ label: "关闭", primary: true });
+      dialog({
+        title: "个人中心",
+        body: "<p>当前身份：<b>" + roleLabel(profile ? profile.role : "user") + "</b><br>" +
+          escapeHtml((session() || {}).email || "") + "</p>",
+        actions: actions
+      });
+    };
+  }
+
+  /** 管理用户（仅发布者）：设/撤管理员、封禁/解封 */
+  function manageUsers() {
+    var close = dialog({ title: "管理用户", body: '<p class="status" id="users-status">正在加载…</p><div class="list" id="users"></div>', actions: [] });
+
+    function paint() {
+      api("rpc/admin_list_users", { method: "POST", body: {} })
+        .then(function (users) {
+          var box = $("users");
+          if (!box) return;
+          if (!users || !users.length) return void (box.innerHTML = "<p>还没有其他用户。</p>");
+          box.innerHTML = users.map(function (user) {
+            var locked = user.role === "publisher";
+            return '<div class="userrow"><div class="who"><strong>' + escapeHtml(user.email || "（无邮箱）") +
+              '</strong><span class="chip">' + roleLabel(user.role) + (user.banned ? " · 已封禁" : "") + "</span></div>" +
+              (locked ? "<span>不可修改</span>" : '<div class="dialogactions">' +
+                '<button class="pill text" data-role="' + user.id + '" data-next="' + (user.role === "admin" ? "user" : "admin") + '">' +
+                (user.role === "admin" ? "移除管理员" : "设为管理员") + "</button>" +
+                '<button class="pill text" data-ban="' + user.id + '" data-next="' + (user.banned ? "false" : "true") + '">' +
+                (user.banned ? "解封" : "封禁") + "</button></div>") + "</div>";
+          }).join("");
+          Array.prototype.forEach.call(box.querySelectorAll("[data-role],[data-ban]"), function (node) {
+            node.onclick = function () {
+              var asRole = node.getAttribute("data-role");
+              var promise = asRole
+                ? api("rpc/admin_set_role", { method: "POST", body: { p_user_id: asRole, p_role: node.getAttribute("data-next") } })
+                : api("rpc/admin_set_banned", { method: "POST", body: { p_user_id: node.getAttribute("data-ban"), p_banned: node.getAttribute("data-next") === "true" } });
+              promise.then(function () { paint(); }).catch(function (error) {
+                var status = $("users-status");
+                if (status) { status.className = "status error"; status.innerHTML = escapeHtml(error.message); }
+              });
+            };
+          });
+          close();
+          dialog({ title: "管理用户", body: box.outerHTML, actions: [{ label: "关闭", primary: true }] });
+        })
+        .catch(function (error) {
+          var status = $("users-status");
+          if (status) { status.className = "status error"; status.innerHTML = escapeHtml(error.message); }
+        });
+    }
+    paint();
+  }
   /* ---------------------------------------------------------- 页面：看板 */
 
   function pageIndex() {
@@ -505,6 +594,7 @@
         });
       };
     }
+    bindAccount();
     fab(exportJson);
 
     $("board").onclick = function (event) {
@@ -584,6 +674,7 @@
     if (!session()) return void (location.href = "login.html");
 
     var picker = $("date-picker");
+    bindAccount();
     message("请选择一个日期");
 
     api("publish_batches?select=published_on&order=published_on.desc&limit=400")
@@ -594,6 +685,20 @@
         picker.max = dates[0];
       })
       .catch(function (error) { message("读取发布记录失败：" + error.message, true); });
+
+    var wrap = picker.parentNode;
+    if (wrap) {
+      wrap.style.cursor = "pointer";
+      wrap.onclick = function (event) {
+        if (event.target === picker) return;
+        try {
+          if (typeof picker.showPicker === "function") picker.showPicker();
+          else picker.focus();
+        } catch (error) {
+          picker.focus();
+        }
+      };
+    }
 
     picker.onchange = function () {
       if (!picker.value) return;
@@ -610,7 +715,7 @@
   /* -------------------------------------------------- 页面：登录注册 */
 
   function pageLogin() {
-    topbar({ title: config.siteName || "作业" });
+    topbar({ title: config.siteName || "作业", hideAccount: true });
     var mode = "login";
     var card = document.createElement("div");
     card.className = "card";
@@ -619,17 +724,20 @@
       '<label class="field"><span>邮箱</span><input id="email" type="email" /></label>' +
       '<label class="field"><span>密码（至少 8 位）</span><input id="password" type="password" /></label>' +
       '<label class="field" id="confirm-row" style="display:none"><span>确认密码</span><input id="confirm" type="password" /></label>' +
-      '<div class="dialogactions"><button class="pill text" id="tab-login">登录</button>' +
-      '<button class="pill" id="tab-register">注册</button>' +
-      '<button class="pill primary" id="submit">登录</button></div>';
+      '<div class="tabs"><button class="pill primary" id="tab-login">登录</button>' +
+      '<button class="pill" id="tab-register">注册</button></div>' +
+      '<div class="dialogactions"><button class="pill primary" id="submit">登录</button></div>';
     document.body.appendChild(card);
 
     if (session()) return void refreshProfile().then(function () { location.href = "index.html"; });
 
     function setMode(next) {
       mode = next;
-      $("confirm-row").style.display = next === "register" ? "block" : "none";
-      $("submit").innerHTML = next === "register" ? "注册并发送验证邮件" : "登录";
+      var registering = next === "register";
+      $("confirm-row").style.display = registering ? "block" : "none";
+      $("submit").innerHTML = registering ? "注册并发送验证邮件" : "登录";
+      $("tab-login").className = "pill" + (registering ? "" : " primary");
+      $("tab-register").className = "pill" + (registering ? " primary" : "");
     }
     $("tab-login").onclick = function () { setMode("login"); };
     $("tab-register").onclick = function () { setMode("register"); };
@@ -734,6 +842,7 @@
 
   function render(page) {
     injectStyle();
+    rememberView();
     lowBar();
     var pages = {
       index: pageIndex,
@@ -762,3 +871,4 @@
     message: message
   };
 })();
+
