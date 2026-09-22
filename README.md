@@ -127,3 +127,11 @@ mobile/     手机端 Android 壳
 supabase/   数据库结构与权限脚本
 tools/      部署辅助脚本
 ```
+
+---
+
+## 来源与协议
+
+本项目以 **AGPL-3.0** 发布（见 `LICENSE`）。界面设计与部分样式规则改写自
+[belugaQAQ/StickyHomeworks2-tauri](https://github.com/belugaQAQ/StickyHomeworks2-tauri)（AGPL-3.0），
+具体改动范围见 `NOTICE`。其余部分为原创，并使用了 MIT 协议的 `@m3e/web`、`@m3e/icons` 与 `supabase-js`。

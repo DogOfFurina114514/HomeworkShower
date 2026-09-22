@@ -1,0 +1,29 @@
+HomeworkShower —— 来源与协议说明
+================================
+
+本项目的网页端（docs/ 目录）以 GNU Affero General Public License v3.0（AGPL-3.0）发布，
+完整协议文本见同目录下的 LICENSE 文件。
+
+上游来源
+--------
+本项目的界面设计与部分样式规则参考／改写自：
+
+    StickyHomeworks2-tauri
+    作者：belugaQAQ
+    仓库：https://github.com/belugaQAQ/StickyHomeworks2-tauri
+    协议：AGPL-3.0
+
+依据 AGPL-3.0 的要求，这里明确说明本项目对上游作品做了哪些改动：
+
+    1. 作业看板的卡片、科目分组、瀑布流分栏等样式规则，改写为网页端实现；
+    2. 主题色与 M3 配色沿用上游使用的来源色 #22D1EC；
+    3. 新增了网页端独有的部分：Supabase 后端与行级权限、登录注册与邮箱验证、
+       时光机、发布页、用户管理与封禁、兼容旧浏览器的简版页面、Android WebView 壳。
+
+本项目的其它部分为原创，或使用以下 MIT 协议组件：
+
+    @m3e/web、@m3e/icons   —— MIT License（Material 3 Expressive 组件）
+    supabase-js            —— MIT License
+
+桌面端应用（StickyHomeworks2-tauri 的本地修改版）仅在作者本机自用，不对外分发；
+如需分发，必须同样以 AGPL-3.0 发布并提供完整源码。
