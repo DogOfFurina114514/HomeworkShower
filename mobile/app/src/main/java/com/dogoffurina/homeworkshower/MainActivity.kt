@@ -53,12 +53,12 @@ class MainActivity : Activity() {
 
     /** 显示上一次的崩溃记录，并给一个清除后重试的按钮 */
     private fun showSavedCrash(report: String) {
-        val text = TextView(this).apply {
+        val reportView = TextView(this).apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setTextColor(Color.parseColor("#410002"))
             setBackgroundColor(Color.parseColor("#FFDAD6"))
             setPadding(32, 48, 32, 48)
-            text = "上次启动崩溃了：\n\n$report"
+            setText("上次启动崩溃了：\n\n$report")
         }
         val retry = Button(this).apply {
             text = "清除记录并重试"
@@ -70,7 +70,7 @@ class MainActivity : Activity() {
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            addView(text, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            addView(reportView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             addView(retry)
         }
         setContentView(ScrollView(this).apply { addView(column) })
@@ -173,12 +173,12 @@ class MainActivity : Activity() {
 
     /** 出问题时把原因画出来，而不是直接闪退 */
     private fun showCrash(error: Throwable) {
-        val text = TextView(this).apply {
+        val reportView = TextView(this).apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setTextColor(Color.parseColor("#410002"))
             setBackgroundColor(Color.parseColor("#FFDAD6"))
             setPadding(32, 48, 32, 48)
-            text = "启动失败：\n\n" + android.util.Log.getStackTraceString(error)
+            setText("启动失败：\n\n" + android.util.Log.getStackTraceString(error))
         }
         val retry = Button(this).apply {
             text = "重试"
@@ -187,7 +187,7 @@ class MainActivity : Activity() {
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            addView(text, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            addView(reportView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             addView(retry)
         }
         setContentView(ScrollView(this).apply { addView(column) })
@@ -221,4 +221,5 @@ class MainActivity : Activity() {
         const val REQUEST_FILE = 1001
     }
 }
+
 
