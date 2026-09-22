@@ -386,11 +386,6 @@ m3e-theme {
   gap: 8px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .auth__panes,
-  .auth__pane {
-    transition: none;
-  }
 }
 
 @media (max-width: 600px) {
@@ -765,16 +760,6 @@ button {
   animation: hs-rise 220ms cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .subject-group,
-  .homework-item,
-  .status,
-  .banner,
-  .homework-empty-state,
-  .homework-actions {
-    animation: none;
-    transition: none;
-  }
 }
 
 /* ============================================================
