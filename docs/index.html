@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>作业</title>
-    <link rel="stylesheet" href="assets/app.css?v18" />
-    <link rel="icon" href="assets/icon.svg?v18" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v18" defer></script>
-    <script src="vendor/supabase.js?v18" defer></script>
-    <script src="assets/config.js?v18" defer></script>
-    <script src="assets/client.js?v18" defer></script>
-    <script src="assets/board.js?v18" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v19" />
+    <link rel="icon" href="assets/icon.svg?v19" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v19" defer></script>
+    <script src="vendor/supabase.js?v19" defer></script>
+    <script src="assets/config.js?v19" defer></script>
+    <script src="assets/client.js?v19" defer></script>
+    <script src="assets/board.js?v19" defer></script>
   </head>
 
   <body>
@@ -57,10 +57,15 @@
             <label slot="label" for="edit-subject">科目</label>
             <input id="edit-subject" type="text" />
           </m3e-form-field>
-          <label class="form-row">
-            <span>期限</span>
-            <input id="edit-due" type="date" />
-          </label>
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="edit-due-input">期限</label>
+            <input id="edit-due-input" readonly autocomplete="off" />
+            <m3e-icon-button slot="suffix" aria-label="选择期限">
+              <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
+              <m3e-datepicker-toggle for="edit-due-picker"></m3e-datepicker-toggle>
+            </m3e-icon-button>
+          </m3e-form-field>
+          <m3e-datepicker id="edit-due-picker" variant="auto" label="选择期限" clear-label="清除" confirm-label="确定" dismiss-label="取消"></m3e-datepicker>
           <m3e-form-field variant="outlined">
             <label slot="label" for="edit-tags">标签（用逗号分隔）</label>
             <input id="edit-tags" type="text" />
@@ -134,6 +139,8 @@
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 
