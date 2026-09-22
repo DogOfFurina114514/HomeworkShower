@@ -230,13 +230,16 @@
     }
 
     // 申请已记录 → 发"通知邮件"：说明已收到，并带 Magic link 供随时取消
+    let notified = false;
     try {
-      await client.auth.signInWithOtp({
+      const { error: mailError } = await client.auth.signInWithOtp({
         email: profile?.email || "",
         options: { emailRedirectTo: new URL("security.html?deletion=cancelled", location.href).href },
       });
-    } catch (ignored) {
-      /* 通知邮件发失败不影响注销申请本身 */
+      notified = !mailError;
+      if (mailError) console.warn("[HomeworkShower] 通知邮件发送失败：", mailError.message);
+    } catch (error) {
+      console.warn("[HomeworkShower] 通知邮件发送失败：", error);
     }
 
     // 按需求：提交后即在所有地方退出登录
@@ -245,7 +248,7 @@
     } catch (ignored) {
       await client.auth.signOut();
     }
-    location.replace("deleted.html?state=requested");
+    location.replace(`deleted.html?state=requested&notified=${notified ? "1" : "0"}`);
   }
 
   /** 反悔：清掉申请（也用于 3 天内回来时的手动取消） */
@@ -303,6 +306,7 @@
     }
   })();
 })();
+
 
 
 

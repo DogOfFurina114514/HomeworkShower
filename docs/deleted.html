@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>账号已注销 · 作业</title>
-    <link rel="icon" href="assets/icon.svg?v72" type="image/svg+xml" />
-    <script src="assets/config.js?v72"></script>
+    <link rel="icon" href="assets/icon.svg?v73" type="image/svg+xml" />
+    <script src="assets/config.js?v73"></script>
     <!--
       注销相关页面：不加载 M3E、不加载 supabase，样式内联手写，
       任何浏览器都能打开；用 ?state=requested 区分"申请已提交"与"已注销"。
@@ -82,6 +82,7 @@
         var CONFIG = window.HOMEWORK_SHOWER_CONFIG || {};
         var adminEmail = CONFIG.adminEmail || "wu__20111229@outlook.com";
         var requested = String(location.search).indexOf("state=requested") >= 0;
+        var notified = String(location.search).indexOf("notified=0") < 0;
 
         var SVG_MAIL =
           '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm8 7L4.2 6h15.6L12 11zm0 2.3L4 8.2V18h16V8.2l-8 5.1z"/></svg>';
@@ -94,8 +95,9 @@
             "你已经从所有设备退出登录，账号将在 <strong>3 天后</strong>进入已注销状态。";
           document.getElementById("line2").innerHTML =
             "在进入已注销状态之前，只要再用这个账号登录一次，注销就会自动取消 —— 我们随时欢迎你回来。";
-          document.getElementById("line3").innerHTML =
-            "取消注销的入口也在刚才那封邮件里。如果那不是你本人的操作，请尽快点击邮件中的按钮。";
+          document.getElementById("line3").innerHTML = notified
+            ? "取消注销的入口也在刚才那封邮件里。如果那不是你本人的操作，请尽快点击邮件中的按钮。"
+            : "通知邮件发送失败了 —— 不过不影响注销本身：在 3 天内用这个账号登录一次，同样可以取消注销。";
         } else {
           document.getElementById("title").innerHTML = "账号已注销";
           document.getElementById("line1").innerHTML = "这个账号已经注销，无法再登录使用。";
@@ -116,6 +118,8 @@
     </script>
   </body>
 </html>
+
+
 
 
 
