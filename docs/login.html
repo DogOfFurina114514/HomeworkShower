@@ -4,34 +4,80 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>登录 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v22" />
-    <link rel="icon" href="assets/icon.svg?v22" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v24" />
+    <link rel="icon" href="assets/icon.svg?v24" type="image/svg+xml" />
     <script>
-      // 老浏览器（iOS Safari < 17.4、Chrome < 90）没有 ElementInternals.states（CSS 自定义状态），
-      // M3E 组件内部会直接对它调 .add/.delete 从而抛 TypeError 导致组件崩掉。
-      // 这里补一个最小实现（一个 Set），让组件能正常跑；不支持自定义状态的浏览器只是少了个状态选择器，
-      // 组件自身的 class/属性逻辑不受影响。
+      // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
+      //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
+      //  - Safari < 16.4：连 attachInternals 都没有。
+      // M3E 组件内部直接调用 internals.states.add/delete，缺了就抛 TypeError 把组件打挂。
+      // ElementInternals 实例通常不可扩展（defineProperty 会失败），所以这里用 Proxy 包一层，
+      // 并对完全没有该 API 的浏览器给出最小实现。
       (function () {
-        if (typeof Element === "undefined" || typeof Element.prototype.attachInternals !== "function") return;
-        var original = Element.prototype.attachInternals;
-        Element.prototype.attachInternals = function () {
-          var internals = original.apply(this, arguments);
-          try {
-            if (internals && !internals.states) {
-              Object.defineProperty(internals, "states", { value: new Set(), configurable: true });
-            }
-          } catch (error) {
-            /* 实在补不上就算了，不影响其它功能 */
+        if (typeof Element === "undefined") return;
+
+        var stateMap = new WeakMap();
+        function statesOf(target) {
+          var set = stateMap.get(target);
+          if (!set) {
+            set = new Set();
+            stateMap.set(target, set);
           }
-          return internals;
-        };
+          return set;
+        }
+
+        function wrap(internals) {
+          if (!internals) return internals;
+          if (internals.states) return internals;
+          try {
+            return new Proxy(internals, {
+              get: function (target, prop) {
+                if (prop === "states") return statesOf(target);
+                var value = Reflect.get(target, prop, target);
+                return typeof value === "function" ? value.bind(target) : value;
+              },
+            });
+          } catch (error) {
+            try {
+              Object.defineProperty(internals, "states", { value: statesOf(internals), configurable: true });
+            } catch (ignored) {
+              /* 兜不住也不影响其它功能 */
+            }
+            return internals;
+          }
+        }
+
+        if (typeof Element.prototype.attachInternals === "function") {
+          var original = Element.prototype.attachInternals;
+          Element.prototype.attachInternals = function () {
+            return wrap(original.apply(this, arguments));
+          };
+        } else {
+          Element.prototype.attachInternals = function () {
+            return wrap({
+              states: null,
+              form: null,
+              labels: [],
+              role: null,
+              ariaLabel: null,
+              ariaLabelledByElements: null,
+              setFormValue: function () {},
+              setValidity: function () { return true; },
+              checkValidity: function () { return true; },
+              reportValidity: function () { return true; },
+              willValidate: false,
+              validity: { valid: true },
+              validationMessage: "",
+            });
+          };
+        }
       })();
     </script>
-    <script src="vendor/m3e.js?v23" defer></script>
-    <script src="vendor/supabase.js?v22" defer></script>
-    <script src="assets/config.js?v22" defer></script>
-    <script src="assets/client.js?v22" defer></script>
-    <script src="assets/login.js?v22" defer></script>
+    <script src="vendor/m3e.js?v24" defer></script>
+    <script src="vendor/supabase.js?v24" defer></script>
+    <script src="assets/config.js?v24" defer></script>
+    <script src="assets/client.js?v24" defer></script>
+    <script src="assets/login.js?v24" defer></script>
   </head>
 
   <body>
@@ -108,6 +154,7 @@
     </m3e-theme>
   </body>
 </html>
+
 
 
 
