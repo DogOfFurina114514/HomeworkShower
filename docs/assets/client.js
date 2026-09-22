@@ -166,45 +166,6 @@
     });
   }
 
-  /** 渲染不出来就切到「设备不支持」页（带上当前页面名，好跳对应简版） */
-  function fallbackToUnsupport(reason) {
-    if (location.pathname.indexOf("/simple/") >= 0) return;
-    if (location.pathname.indexOf("unsupport.html") >= 0) return;
-    const name = location.pathname.replace(/.*\//, "") || "index.html";
-    console.warn("[HomeworkShower] 渲染失败，切换到兼容提示页：", reason);
-    location.replace(
-      location.pathname.replace(/[^/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name),
-    );
-  }
-
-  // 组件库脚本自身报错 → 说明这个设备渲染不了新版页面
-  window.addEventListener(
-    "error",
-    (event) => {
-      const file = String(event.filename || "");
-      if (file.indexOf("m3e") >= 0) {
-        event.preventDefault();
-        fallbackToUnsupport(event.message || "m3e 脚本错误");
-      }
-    },
-    true,
-  );
-
-  // 静默失败检测：页面加载完 1.5 秒后，M3E 主题元素若还没升级出 shadow DOM，
-  // 说明组件根本没生效，继续留着就是一堆没样式的裸标签，直接切走。
-  window.addEventListener("load", () => {
-    window.setTimeout(() => {
-      try {
-        if (location.pathname.indexOf("/simple/") >= 0) return;
-        if (location.pathname.indexOf("unsupport.html") >= 0) return;
-        const theme = document.querySelector("m3e-theme");
-        if (theme && !theme.shadowRoot) fallbackToUnsupport("m3e-theme 未升级");
-      } catch (error) {
-        fallbackToUnsupport(String(error));
-      }
-    }, 1500);
-  });
-
   window.addEventListener("error", (event) => {
     const message = String(event.message || "");
     // 跨域脚本（通常是浏览器扩展注入的）出错时浏览器只会给 "Script error."，
@@ -239,5 +200,6 @@
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();
+
 
 
