@@ -160,7 +160,7 @@ window.hsSimple = (function () {
     var full = location.pathname.replace(/simple\/[^\/]*$/, "") + (location.pathname.match(/simple\/([\w.-]+)$/) ? location.pathname.match(/simple\/([\w.-]+)$/)[1] : "index.html");
     bar.innerHTML =
       '<b>你的浏览器版本过低</b>，当前是简版页面（功能与控件位置与完整版一致，但没有 M3 动效）。' +
-      ' <a href="' + full + '?full=1">重试完整版</a>';
+      ' <a href="' + full + '">重试完整版</a>';
     document.body.insertBefore(bar, document.body.firstChild);
   }
 
@@ -280,6 +280,8 @@ window.hsSimple = (function () {
     renderBoard: renderBoard
   };
 })();
+
+
 
 
 

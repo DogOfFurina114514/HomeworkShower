@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>设备不支持 · 作业</title>
-    <link rel="icon" href="assets/icon.svg?v32" type="image/svg+xml" />
+    <link rel="icon" href="assets/icon.svg?v33" type="image/svg+xml" />
     <!--
       设备不支持页：不加载 M3E、不加载 supabase、不做任何依赖检测，
       样式全部内联手写，保证任何浏览器都能打开。
@@ -70,12 +70,10 @@
         <span id="warn-text">你的设备不能正确渲染新版页面。</span>
       </div>
       <h1>已切换到兼容模式</h1>
-      <p>新版页面用到了较新的浏览器特性（CSS 自定义状态、可构造样式表等）。你的浏览器不支持这些特性，继续打开会出现排版错乱。</p>
-      <p>我们准备了<strong>功能与布局一致、但不需要这些特性的简版页面</strong>。</p>
+      <p>下面可以打开功能与布局一致、但不需要这些特性的简版页面。</p>
       <p id="where"></p>
       <div class="actions">
         <a class="pill" id="go-simple" href="#">去往简版</a>
-        <a class="pill ghost" id="go-home" href="./">回到主页</a>
       </div>
     </main>
 
@@ -87,8 +85,7 @@
         var parts = location.pathname.split("/").filter(function (item) { return !!item; });
         var base = "/" + (parts[0] || "") + "/";
         var home = origin + base;
-
-        var page = "";
+var page = "";
         var match = String(location.search).match(/[?&]page=([^&]+)/);
         if (match) {
           page = decodeURIComponent(match[1]).replace(/^.*\//, "");
@@ -101,16 +98,12 @@
 
         var simpleUrl = home + "simple/" + page;
         document.getElementById("go-simple").setAttribute("href", simpleUrl);
-        document.getElementById("go-home").setAttribute("href", home);
         document.getElementById("where").innerHTML = "即将前往：" + simpleUrl;
-
-        // 3 秒后自动进入对应的简版页面
-        window.setTimeout(function () {
-          location.replace(simpleUrl);
-        }, 3000);
       })();
     </script>
   </body>
 </html>
+
+
 
 

@@ -709,7 +709,7 @@ button {
 @keyframes hs-rise {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.985);
+    transform: scale(0.985);
   }
   to {
     opacity: 1;
@@ -809,3 +809,4 @@ m3e-theme {
 #fab-host m3e-fab:active {
   transform: scale(0.94);
 }
+
