@@ -40,7 +40,8 @@
     const dialog = document.getElementById("appeal-dialog");
     const emailInput = document.getElementById("appeal-email");
     if (!dialog) return;
-    if (emailInput) emailInput.value = profile?.email || "";
+    // 显示"要联系谁"，不是申请人自己的邮箱
+    if (emailInput) emailInput.value = hs.config.adminEmail || "";
     dialog.show();
   }
 
@@ -242,6 +243,7 @@
     }
   })();
 })();
+
 
 
 

@@ -954,7 +954,7 @@
     var oldEmail = (session() || {}).email || "";
     dialog({
       title: "旧邮箱不可用申诉",
-      body: '<label class="field"><span>我的邮箱（旧）</span><input readonly value="' + escapeHtml(oldEmail) + '" /></label>' +
+      body: '<label class="field"><span>管理员邮箱</span><input readonly value="' + escapeHtml(config.adminEmail || "") + '" /></label>' +
         "<p>如果旧邮箱已经无法登录、收不到验证邮件，可以给管理员发一封申诉邮件，说明情况并附上可用的新邮箱。</p>",
       actions: [
         { label: "关闭" },
@@ -1038,6 +1038,8 @@
     message: message
   };
 })();
+
+
 
 
 
