@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>发布作业</title>
-    <link rel="stylesheet" href="assets/app.css?v16" />
-    <link rel="icon" href="assets/icon.svg?v16" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v16" defer></script>
-    <script src="vendor/supabase.js?v16" defer></script>
-    <script src="assets/config.js?v16" defer></script>
-    <script src="assets/client.js?v16" defer></script>
-    <script src="assets/publish.js?v16" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v17" />
+    <link rel="icon" href="assets/icon.svg?v17" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v17" defer></script>
+    <script src="vendor/supabase.js?v17" defer></script>
+    <script src="assets/config.js?v17" defer></script>
+    <script src="assets/client.js?v17" defer></script>
+    <script src="assets/publish.js?v17" defer></script>
   </head>
 
   <body>
@@ -47,10 +47,10 @@
             </label>
           </div>
 
-          <m3e-form-field variant="outlined">
-            <label slot="label" for="publish-json">或直接粘贴 JSON</label>
+          <label class="form-row">
+            <span>或直接粘贴 JSON</span>
             <textarea id="publish-json" rows="12" spellcheck="false" placeholder='{"format":"stickyhomeworks2.homeworks", ...}'></textarea>
-          </m3e-form-field>
+          </label>
 
           <p class="status" id="preview" hidden></p>
 
@@ -62,6 +62,8 @@
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 
