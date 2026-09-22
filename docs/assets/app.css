@@ -1034,3 +1034,14 @@ m3e-theme {
 .user-row__info {
   min-width: 0;
 }
+
+/* 修改作业弹窗：M3E 对话框内容区顶部会裁掉浮动标签，这里留足空间 */
+m3e-dialog .edit-form,
+#edit-dialog .edit-form {
+  padding-block-start: 22px !important;
+}
+
+m3e-dialog .edit-form > *:first-child,
+m3e-dialog .edit-form > m3e-form-field:first-child {
+  margin-block-start: 0;
+}

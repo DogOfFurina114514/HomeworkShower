@@ -151,8 +151,8 @@
 
     const profile = await hs.getProfile();
     if (!hs.isPublisher(profile)) {
-      gateEl.hidden = false;
-      formEl.hidden = true;
+      // 不是发布者：直接送回主页，避免直接输网址进来
+      location.replace("index.html");
       return;
     }
 
@@ -161,5 +161,6 @@
     dateInput.value = hs.todayString();
   })();
 })();
+
 
 

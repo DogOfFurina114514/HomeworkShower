@@ -760,10 +760,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
             </m3e-fab-menu-trigger>
           </m3e-fab>
           <m3e-fab-menu id="fab-menu" variant="primary">
-            <m3e-fab-menu-item id="fab-publish">
+            ${hs.isPublisher(profile) ? `<m3e-fab-menu-item id="fab-publish">
               <m3e-icon variant="outlined" slot="icon" name="upload_file"></m3e-icon>
               发布作业
-            </m3e-fab-menu-item>
+            </m3e-fab-menu-item>` : ""}
             <m3e-fab-menu-item id="fab-save">
               <m3e-icon variant="outlined" slot="icon" name="ios_share"></m3e-icon>
               导出作业
@@ -871,6 +871,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
