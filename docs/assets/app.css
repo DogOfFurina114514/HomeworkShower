@@ -103,13 +103,11 @@ m3e-theme {
 }
 
 .masonry-columns {
-  column-width: 350px;
-  column-gap: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
 }
 
-.masonry-column {
-  display: block;
-}
 
 .subject-group {
   break-inside: avoid;
@@ -394,9 +392,9 @@ m3e-theme {
   }
 
   .masonry-columns {
-    column-width: auto;
-    column-count: 1;
-  }
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
 }
 
 
@@ -862,3 +860,4 @@ m3e-snackbar:not(:defined) {
 html.hs-booting body {
   visibility: hidden;
 }
+
