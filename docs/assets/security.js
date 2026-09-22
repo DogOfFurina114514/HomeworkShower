@@ -221,6 +221,8 @@
     document.getElementById("confirm-deletion")?.addEventListener("click", () => void confirmDeletion());
     document.getElementById("cancel-deletion-request")?.addEventListener("click", () => void cancelDeletion());
 
+    const params = new URLSearchParams(location.search);
+
     // 旧邮箱验证完成回来（?emailchange=old）→ 展开第 2 步
     if (params.get("emailchange") === "old") {
       if (emailStepOld) emailStepOld.hidden = true;
@@ -230,7 +232,6 @@
     }
 
     // 点了邮件里的验证链接回来（?deletion=confirm）→ 直接展开确认步骤
-    const params = new URLSearchParams(location.search);
     if (params.get("deletion") === "confirm") {
       if (deletionStepSend) deletionStepSend.hidden = true;
       if (deletionStepConfirm) deletionStepConfirm.hidden = false;
@@ -243,6 +244,7 @@
     }
   })();
 })();
+
 
 
 

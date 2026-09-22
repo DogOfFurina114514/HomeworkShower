@@ -756,3 +756,10 @@ m3e-form-field textarea {
 .security .auth__card {
   width: 100%;
 }
+
+/* 弹窗内容里第一个表单字段：留出浮动标签的空间（否则标签上沿被内容区裁掉）。
+   用 margin 而不是 padding —— 标签是跟着字段一起移动的。 */
+m3e-dialog > m3e-form-field:first-of-type,
+m3e-dialog .edit-form > m3e-form-field:first-child {
+  margin-block-start: 18px;
+}
