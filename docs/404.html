@@ -2,110 +2,74 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <script>
-      /* 老浏览器检测：M3E 依赖若干较新的 API，缺了才切到不依赖组件库的简版页面。
-         注意 attachInternals 挂在 HTMLElement.prototype（不是 Element.prototype）。
-         地址上带 ?full=1 时强制走完整版，作为逃生口。 */
-      (function () {
-        if (location.search.indexOf("full=1") >= 0) return;
-        var ok = false;
-        try {
-          ok =
-            typeof window.Proxy !== "undefined" &&
-            typeof window.customElements !== "undefined" &&
-            typeof HTMLElement !== "undefined" &&
-            typeof HTMLElement.prototype.attachInternals === "function" &&
-            typeof CSSStyleSheet !== "undefined" &&
-            typeof CSSStyleSheet.prototype.replaceSync === "function" &&
-            "adoptedStyleSheets" in Document.prototype;
-        } catch (error) {
-          ok = false;
-        }
-        if (ok) return;
-        var target = location.pathname.replace(/[^\/]*$/, "simple.html");
-        location.replace(target + "?from=fallback");
-      })();
-    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>页面不存在 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v28" />
-    <link rel="icon" href="assets/icon.svg?v28" type="image/svg+xml" />
+    <link rel="icon" href="assets/icon.svg?v29" type="image/svg+xml" />
+    <!--
+      404 是兜底页面：不加载 M3E、不加载 supabase、不做浏览器检测，
+      样式全部内联手写，保证任何浏览器（含很老的设备）都能正常打开。
+    -->
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #f5fafc;
+        color: #171d1e;
+        font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      .card {
+        width: 100%;
+        max-width: 440px;
+        padding: 28px 26px;
+        border: 1px solid #bfc8cb;
+        border-radius: 24px;
+        background: #eff4f6;
+        text-align: center;
+      }
+      .code { margin: 0; font-size: 52px; font-weight: 500; line-height: 1; color: #006877; }
+      h1 { margin: 14px 0 10px; font-size: 22px; font-weight: 500; }
+      p { margin: 0 0 10px; font-size: 15px; line-height: 1.7; color: #3f484a; word-break: break-all; }
+      .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+      a.pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 10px 20px;
+        border-radius: 21px;
+        background: #006877;
+        color: #fff;
+        font-size: 15px;
+        text-decoration: none;
+      }
+      a.pill.ghost { background: transparent; color: #006877; }
+    </style>
+  </head>
+
+  <body>
+    <main class="card">
+      <p class="code">404</p>
+      <h1>找不到这个页面</h1>
+      <p>你打开的地址不存在，可能是网址输入有误，或者这个页面已经被删掉了。</p>
+      <p id="where"></p>
+      <div class="actions">
+        <a class="pill" id="home" href="./">返回主页</a>
+        <a class="pill ghost" id="timemachine" href="timemachine.html">去时光机看看</a>
+      </div>
+    </main>
+
     <script>
-      // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
-      //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
-      //  - Safari < 16.4：连 attachInternals 都没有。
-      // M3E 组件内部直接调用 internals.states.add/delete，缺了就抛 TypeError 把组件打挂。
-      // ElementInternals 实例通常不可扩展（defineProperty 会失败），所以这里用 Proxy 包一层，
-      // 并对完全没有该 API 的浏览器给出最小实现。
-      (function () {
-        if (typeof Element === "undefined") return;
-
-        var stateMap = new WeakMap();
-        function statesOf(target) {
-          var set = stateMap.get(target);
-          if (!set) {
-            set = new Set();
-            stateMap.set(target, set);
-          }
-          return set;
-        }
-
-        function wrap(internals) {
-          if (!internals) return internals;
-          if (internals.states) return internals;
-          try {
-            return new Proxy(internals, {
-              get: function (target, prop) {
-                if (prop === "states") return statesOf(target);
-                var value = Reflect.get(target, prop, target);
-                return typeof value === "function" ? value.bind(target) : value;
-              },
-            });
-          } catch (error) {
-            try {
-              Object.defineProperty(internals, "states", { value: statesOf(internals), configurable: true });
-            } catch (ignored) {
-              /* 兜不住也不影响其它功能 */
-            }
-            return internals;
-          }
-        }
-
-        if (typeof Element.prototype.attachInternals === "function") {
-          var original = Element.prototype.attachInternals;
-          Element.prototype.attachInternals = function () {
-            return wrap(original.apply(this, arguments));
-          };
-        } else {
-          Element.prototype.attachInternals = function () {
-            return wrap({
-              states: null,
-              form: null,
-              labels: [],
-              role: null,
-              ariaLabel: null,
-              ariaLabelledByElements: null,
-              setFormValue: function () {},
-              setValidity: function () { return true; },
-              checkValidity: function () { return true; },
-              reportValidity: function () { return true; },
-              willValidate: false,
-              validity: { valid: true },
-              validationMessage: "",
-            });
-          };
-        }
-      })();
-    </script>
-    <script src="vendor/m3e.js?v28" defer></script>
-    <script>
-      // GitHub Pages 的 404 兜底页：
-      // 1) 验证邮件有时会指向 auth.html/（结尾多一个斜杠），那个路径不存在会落到这里，
-      //    这时自动纠正回 auth.html，并把 # 后面的验证结果原样带过去；
-      // 2) 真正的输错网址：留在本页，显示与站点同款的 404 界面。
+      /* ES5 写法，老浏览器也能跑；顺便把验证邮件里 auth.html/ 这种多斜杠地址纠正回来 */
       (function () {
         var path = location.pathname;
-        var base = "/" + path.split("/").filter(Boolean)[0] + "/";
+        var parts = path.split("/").filter(function (item) { return !!item; });
+        var base = "/" + (parts[0] || "") + "/";
         var fixed = path.replace(/\/+$/, "");
 
         if (/\/auth\.html$/i.test(fixed)) {
@@ -114,57 +78,15 @@
         }
         if (fixed === base.replace(/\/$/, "") || fixed === "/" || /\/index\.html$/i.test(fixed)) {
           location.replace(base + location.search + location.hash);
+          return;
         }
-      })();
-    </script>
-  </head>
 
-  <body>
-    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
-      <main class="auth">
-        <section class="auth__card not-found">
-          <m3e-heading variant="display" size="large" level="1">404</m3e-heading>
-          <m3e-heading variant="title" size="large" level="2">找不到这个页面</m3e-heading>
-          <p class="hint">你打开的地址不存在，可能是网址输入有误，或者这个页面已经被删掉了。</p>
-          <p class="hint" id="not-found-path"></p>
-          <div class="auth__actions">
-            <m3e-button variant="filled" id="go-home">
-              <m3e-icon variant="outlined" slot="icon" name="home"></m3e-icon>
-              返回主页
-            </m3e-button>
-            <m3e-button variant="text" id="go-timemachine">去时光机看看</m3e-button>
-          </div>
-        </section>
-      </main>
-    </m3e-theme>
-
-    <script>
-      (function () {
-        // 主页地址从当前域名推导，换域名也不用改
-        var base = location.origin + "/" + location.pathname.split("/").filter(Boolean)[0] + "/";
-        var pathEl = document.getElementById("not-found-path");
-        if (pathEl) pathEl.textContent = "出错的地址：" + location.pathname + location.search;
-        document.getElementById("go-home").addEventListener("click", function () {
-          location.assign(base);
-        });
-        document.getElementById("go-timemachine").addEventListener("click", function () {
-          location.assign(base + "timemachine.html");
-        });
+        var origin = location.origin || location.protocol + "//" + location.host;
+        var home = origin + base;
+        document.getElementById("home").setAttribute("href", home);
+        document.getElementById("timemachine").setAttribute("href", home + "timemachine.html");
+        document.getElementById("where").innerHTML = "出错的地址：" + path + location.search;
       })();
     </script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-

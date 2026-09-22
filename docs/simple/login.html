@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <登录 · 作业简版>登录 · 作业简版</登录 · 作业简版>
+    <link rel="stylesheet" href="app.css?v29" />
+    <script src="../assets/config.js?v29"></script>
+    <script src="app.js?v29"></script>
+  </head>  <body>
+    <header class="topbar">
+      <h1>作业</h1>
+      <div class="controls"><a class="pill text" href="index.html">返回看板</a></div>
+    </header>
+    <div class="card">
+      <h2>登录 / 注册</h2>
+      <p class="status" id="status">登录后可以用时光机，也才能发布或修改作业（仅限当天）。</p>
+      <label class="field"><span>邮箱</span><input id="email" type="email" autocomplete="email" /></label>
+      <label class="field"><span>密码（至少 8 位）</span><input id="password" type="password" /></label>
+      <label class="field" id="confirm-row" style="display:none"><span>确认密码</span><input id="confirm" type="password" /></label>
+      <div class="dialog-actions">
+        <button class="pill text" id="tab-login">登录</button>
+        <button class="pill" id="tab-register">注册</button>
+        <button class="pill primary" id="submit">登录</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        hsSimple.lowBar();
+        var mode = "login";
+        function setMode(next) {
+          mode = next;
+          document.getElementById("confirm-row").style.display = next === "register" ? "block" : "none";
+          document.getElementById("submit").innerHTML = next === "register" ? "注册并发送验证邮件" : "登录";
+        }
+        document.getElementById("tab-login").onclick = function () { setMode("login"); };
+        document.getElementById("tab-register").onclick = function () { setMode("register"); };
+        document.getElementById("submit").onclick = function () {
+          var email = document.getElementById("email").value.replace(/^\s+|\s+$/g, "");
+          var password = document.getElementById("password").value;
+          if (!email || !password) { hsSimple.message("请填写邮箱和密码", true); return; }
+          hsSimple.message("处理中…");
+          if (mode === "register") {
+            if (password.length < 8) { hsSimple.message("密码至少 8 位", true); return; }
+            if (password !== document.getElementById("confirm").value) { hsSimple.message("两次输入的密码不一致", true); return; }
+            hsSimple.signUp(email, password)
+              .then(function () { hsSimple.message("注册成功，验证邮件已发送，请到邮箱点开链接完成验证。"); })
+              .catch(function (error) { hsSimple.message("注册失败：" + error.message, true); });
+            return;
+          }
+          hsSimple.login(email, password)
+            .then(function () { location.href = "index.html"; })
+            .catch(function (error) {
+              var text = String(error.message || "");
+              if (text.toLowerCase().indexOf("confirm") >= 0) {
+                hsSimple.dialog({ title: "邮箱还没有验证", body: "<p>请先到邮箱点开验证链接，再回来登录。</p>", actions: [{ label: "好", primary: true }] });
+                return;
+              }
+              hsSimple.message("登录失败：" + text, true);
+            });
+        };
+      })();
+    </script>
+  </body>
+</html>
+
+

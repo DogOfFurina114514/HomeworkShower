@@ -1,0 +1,339 @@
+/* 简版页面样式：手绘 M3 风格（不依赖任何组件库），布局与完整版一致 */
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: #f5fafc;
+  color: #171d1e;
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ---------- 顶部常驻红色提示 ---------- */
+
+.low-browser-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: block;
+  padding: 10px 16px;
+  background: #ffdad6;
+  color: #410002;
+  border-bottom: 1px solid #ba1a1a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.low-browser-bar b { font-weight: 600; }
+
+.low-browser-bar a {
+  color: #410002;
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* ---------- 顶栏（与完整版同样的控件与位置） ---------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f5fafc;
+  border-bottom: 1px solid #bfc8cb;
+}
+
+.topbar h1 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.topbar .controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* M3 风格胶囊按钮 */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 20px;
+  background: #cde7ed;
+  color: #0b3c46;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.pill.primary { background: #006877; color: #ffffff; }
+.pill.text { background: transparent; color: #006877; padding: 8px 12px; }
+.pill:active { filter: brightness(0.94); }
+
+.pill .dot {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* 日期选择（时光机） */
+.date-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #6f797b;
+  border-radius: 20px;
+  background: #eff4f6;
+}
+
+.date-wrap span { font-size: 13px; color: #3f484a; white-space: nowrap; }
+
+.date-wrap input {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  color: #171d1e;
+  padding: 6px 0;
+}
+
+/* ---------- 未登录红色横幅（与完整版一致） ---------- */
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ffdad6;
+  color: #410002;
+  border-bottom: 1px solid #ba1a1a;
+  font-size: 14px;
+}
+
+.banner span { flex: 1 1 200px; }
+
+/* ---------- 状态条 ---------- */
+
+.status {
+  margin: 16px 16px 0;
+  padding: 10px 14px;
+  border: 1px solid #bfc8cb;
+  border-radius: 12px;
+  background: #eff4f6;
+  color: #3f484a;
+  font-size: 14px;
+}
+
+.status.error { border-color: #ba1a1a; color: #ba1a1a; }
+
+/* ---------- 作业看板（与完整版同样的两列/分组结构） ---------- */
+
+main.board { padding: 20px 16px 96px; }
+
+@media (min-width: 760px) {
+  main.board { column-count: 2; column-gap: 16px; }
+  .group { break-inside: avoid; }
+}
+
+.group { margin: 0 0 28px; }
+
+.group h2 {
+  margin: 0 0 10px;
+  font-size: 19px;
+  font-weight: 500;
+  color: #171d1e;
+}
+
+.item {
+  position: relative;
+  margin: 0 0 2px;
+  padding: 12px 14px 12px 28px;
+  border-radius: 12px;
+  background: #eff4f6;
+  font-size: 17px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.item:before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 22px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #006877;
+}
+
+.item.expired { color: #ba1a1a; }
+.item.expired:before { background: #ba1a1a; }
+.item.clickable { cursor: pointer; }
+.item.selected { background: #cde7ed; }
+.item img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.item .tags { display: block; margin-top: 6px; }
+
+.item .tag {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 2px 10px;
+  border: 1px solid #bfc8cb;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #3f484a;
+}
+
+.item .actions { display: block; margin-top: 8px; text-align: right; }
+
+.empty {
+  padding: 64px 16px;
+  text-align: center;
+  color: #3f484a;
+  font-size: 17px;
+}
+
+/* ---------- 右下角编辑按钮 ---------- */
+
+.fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  width: 60px;
+  height: 60px;
+  border: 0;
+  border-radius: 18px;
+  background: #006877;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+}
+
+.fab:active { transform: scale(0.94); }
+
+.fab-menu {
+  position: fixed;
+  right: 24px;
+  bottom: 96px;
+  z-index: 31;
+  display: none;
+  min-width: 190px;
+  padding: 8px;
+  border-radius: 16px;
+  background: #e3e9eb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+}
+
+.fab-menu.open { display: block; }
+
+.fab-menu a,
+.fab-menu button {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #171d1e;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fab-menu a:active,
+.fab-menu button:active { background: #cdd3d6; }
+
+/* ---------- 弹窗（手绘 M3 风格） ---------- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.backdrop.open { display: flex; }
+
+.dialog {
+  width: 100%;
+  max-width: 420px;
+  max-height: 86vh;
+  overflow: auto;
+  padding: 22px;
+  border-radius: 28px;
+  background: #e3e9eb;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.dialog h3 { margin: 0 0 12px; font-size: 21px; font-weight: 500; }
+.dialog p { margin: 0 0 12px; font-size: 15px; color: #3f484a; }
+
+.dialog .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ---------- 表单（登录 / 发布） ---------- */
+
+.field { display: block; margin: 0 0 14px; }
+.field > span { display: block; margin-bottom: 6px; font-size: 13px; color: #3f484a; }
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #6f797b;
+  border-radius: 12px;
+  background: #eff4f6;
+  color: #171d1e;
+  font: inherit;
+  font-size: 16px;
+}
+
+.field textarea { min-height: 160px; resize: vertical; font-size: 14px; }
+
+.card {
+  max-width: 460px;
+  margin: 24px auto;
+  padding: 24px;
+  border: 1px solid #bfc8cb;
+  border-radius: 24px;
+  background: #eff4f6;
+}
+
+.card h2 { margin: 0 0 14px; font-size: 22px; font-weight: 500; }
+
+

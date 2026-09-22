@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <邮箱验证 · 作业简版>邮箱验证 · 作业简版</邮箱验证 · 作业简版>
+    <link rel="stylesheet" href="app.css?v29" />
+    <script src="../assets/config.js?v29"></script>
+    <script src="app.js?v29"></script>
+  </head>  <body>
+    <header class="topbar"><h1>邮箱验证</h1></header>
+    <div class="card">
+      <h2 id="title">邮箱验证</h2>
+      <p class="status" id="status">正在读取验证结果…</p>
+      <div class="dialog-actions"><a class="pill primary" href="index.html">进入作业看板</a></div>
+    </div>
+    <script>
+      (function () {
+        hsSimple.lowBar();
+        var hash = String(location.hash || "").replace(/^#/, "");
+        var titleEl = document.getElementById("title");
+        if (hash.indexOf("error") >= 0) {
+          var code = (hash.match(/error_code=([^&]+)/) || [])[1] || "";
+          titleEl.innerHTML = "验证失败";
+          hsSimple.message(
+            code === "otp_expired"
+              ? "验证链接已经过期。回到登录页重新发送一封即可。"
+              : "验证链接无法使用，请回到登录页重新发送验证邮件。",
+            true
+          );
+        } else if (hash.indexOf("access_token") >= 0 || hash.indexOf("type=") >= 0) {
+          titleEl.innerHTML = "验证成功";
+          hsSimple.message("邮箱已验证，现在可以登录查看作业了。");
+        } else {
+          hsSimple.message("如果你刚注册，请点开邮箱里的验证链接；已经验证过就直接登录。");
+        }
+      })();
+    </script>
+  </body>
+</html>
+
+

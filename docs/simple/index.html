@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <作业 · 简版>作业 · 简版</作业 · 简版>
+    <link rel="stylesheet" href="app.css?v29" />
+    <script src="../assets/config.js?v29"></script>
+    <script src="app.js?v29"></script>
+  </head>  <body>
+    <header class="topbar">
+      <h1>作业</h1>
+      <div class="controls">
+        <a class="pill" href="timemachine.html"><span class="dot"></span>时光机</a>
+        <a class="pill" id="account-button" href="login.html"><span class="dot"></span><span id="account-label">登录</span></a>
+      </div>
+    </header>
+
+    <div class="banner" id="login-banner">
+      <span>还没有登录：登录后可以用时光机查看以前的作业，也才能发布或修改（仅限当天）。</span>
+      <a class="pill primary" href="login.html">登录 / 注册</a>
+    </div>
+
+    <p class="status" id="status">正在加载…</p>
+    <main class="board" id="board"></main>
+
+    <div class="fab-menu" id="fab-menu">
+      <a href="publish.html">发布作业</a>
+      <button type="button" id="menu-export">导出作业</button>
+      <button type="button" id="menu-account">个人中心</button>
+    </div>
+    <button class="fab" id="fab" aria-label="编辑">✏️</button>
+
+    <script>
+      (function () {
+        hsSimple.lowBar();
+        var rows = [];
+        var selectedId = null;
+        var canManage = false;
+        var currentDate = "";
+
+        function load() {
+          hsSimple.api("publish_batches?select=published_on&order=published_on.desc&limit=400")
+            .then(function (batches) {
+              var dates = [];
+              for (var i = 0; i < batches.length; i++) dates.push(batches[i].published_on);
+              if (!dates.length) { hsSimple.message("还没有发布过作业。"); return; }
+              var today = hsSimple.todayString();
+              currentDate = dates.indexOf(today) >= 0 ? today : dates[0];
+              loadDay(currentDate);
+            })
+            .catch(function (error) { hsSimple.message("读取发布记录失败：" + error.message, true); });
+        }
+
+        function loadDay(date) {
+          hsSimple.message("正在加载…");
+          hsSimple.api("homeworks?select=id,subject,content,content_html,tags,due_date,sort_order&published_on=eq." + date + "&order=subject.asc,sort_order.asc")
+            .then(function (data) {
+              var today = hsSimple.todayString();
+              var pending = [];
+              for (var i = 0; i < data.length; i++) {
+                if (!hsSimple.isExpired(data[i].due_date)) pending.push(data[i]);
+              }
+              rows = pending;
+              var session = hsSimple.session();
+              canManage = !!(session && hsSimple.canEdit(session.role) && date === today);
+              hsSimple.message(hsSimple.formatDate(date) + " · 共 " + pending.length + " 条作业" + (canManage ? " · 点击作业可修改或删除" : ""));
+              hsSimple.renderBoard(pending, { canManage: canManage, selectedId: selectedId, emptyText: "今天没有需要做的作业" });
+            })
+            .catch(function (error) { hsSimple.message("加载失败：" + error.message, true); });
+        }
+
+        function refresh() { loadDay(currentDate); }
+
+        var session = hsSimple.session();
+        if (session) {
+          document.getElementById("login-banner").style.display = "none";
+          document.getElementById("account-label").innerHTML = "个人中心";
+          document.getElementById("account-button").setAttribute("href", "#");
+          document.getElementById("account-button").onclick = function (event) {
+            event.preventDefault();
+            hsSimple.dialog({
+              title: "个人中心",
+              body: "<p>当前身份：<b>" + hsSimple.roleLabel(session.role) + "</b><br>" + hsSimple.escapeHtml(session.email || "") + "</p>",
+              actions: [
+                { label: "退出登录", onClick: function (close) { hsSimple.clearSession(); location.reload(); } },
+                { label: "关闭", primary: true }
+              ]
+            });
+          };
+        }
+
+        document.getElementById("board").onclick = function (event) {
+          var editId = event.target.getAttribute && event.target.getAttribute("data-edit");
+          var deleteId = event.target.getAttribute && event.target.getAttribute("data-delete");
+          var item = event.target;
+          while (item && item.className && item.className.indexOf("item") < 0) item = item.parentNode;
+          if (editId) { void editHomework(editId); return; }
+          if (deleteId) { void deleteHomework(deleteId); return; }
+          if (!item || !item.getAttribute("data-id")) return;
+          if (!canManage) {
+            hsSimple.dialog({
+              title: "仅管理员可修改作业",
+              body: "<p>当前身份是「" + hsSimple.roleLabel(session ? session.role : "user") + "」。只有发布者与管理员可以修改作业，而且只能修改当天发布的内容。</p>",
+              actions: [
+                { label: "我知道了" },
+                {
+                  label: "申请管理员",
+                  primary: true,
+                  onClick: function (close) {
+                    close();
+                    hsSimple.dialog({
+                      title: "申请作业管理员",
+                      body: '<p>管理员邮箱：<b>' + hsSimple.escapeHtml(hsSimple.config.adminEmail || "") + "</b></p><p>点下面的按钮会打开邮件应用，收件人与主题（申请作业管理员）已经填好。</p>",
+                      actions: [
+                        { label: "关闭" },
+                        {
+                          label: "打开「电子邮件」",
+                          primary: true,
+                          onClick: function (c2) {
+                            c2();
+                            location.href = "mailto:" + (hsSimple.config.adminEmail || "") + "?subject=" + encodeURIComponent("申请作业管理员");
+                          }
+                        }
+                      ]
+                    });
+                  }
+                }
+              ]
+            });
+            return;
+          }
+          selectedId = selectedId === item.getAttribute("data-id") ? null : item.getAttribute("data-id");
+          hsSimple.renderBoard(rows, { canManage: canManage, selectedId: selectedId });
+        };
+
+        function editHomework(id) {
+          var row = null;
+          for (var i = 0; i < rows.length; i++) if (String(rows[i].id) === String(id)) row = rows[i];
+          if (!row) return;
+          hsSimple.dialog({
+            title: "修改作业",
+            body:
+              '<label class="field"><span>科目</span><input id="edit-subject" value="' + hsSimple.escapeHtml(row.subject || "") + '" /></label>' +
+              '<label class="field"><span>期限（年-月-日）</span><input id="edit-due" value="' + hsSimple.escapeHtml(row.due_date || "") + '" /></label>' +
+              '<label class="field"><span>标签（逗号分隔）</span><input id="edit-tags" value="' + hsSimple.escapeHtml((row.tags || []).join(", ")) + '" /></label>' +
+              '<label class="field"><span>内容（纯文本）</span><textarea id="edit-content">' + hsSimple.escapeHtml(row.content || "") + "</textarea></label>" +
+              '<p class="status" id="edit-msg"></p>',
+            actions: [
+              { label: "取消" },
+              {
+                label: "保存",
+                primary: true,
+                onClick: function (close) {
+                  var due = document.getElementById("edit-due").value;
+                  var tags = document.getElementById("edit-tags").value.split(",").map(function (t) { return t.replace(/^\s+|\s+$/g, ""); }).filter(function (t) { return t; });
+                  hsSimple.api("homeworks?id=eq." + id, {
+                    method: "PATCH",
+                    body: {
+                      subject: document.getElementById("edit-subject").value || "其它",
+                      content: document.getElementById("edit-content").value,
+                      content_html: null,
+                      tags: tags,
+                      due_date: due || null,
+                      due_time: due ? due + "T00:00:00" : null
+                    }
+                  }).then(function () { close(); hsSimple.dialog({ title: "已保存", body: "<p>修改已生效。</p>", actions: [{ label: "好", primary: true }] }); refresh(); })
+                    .catch(function (error) { document.getElementById("edit-msg").innerHTML = "保存失败：" + hsSimple.escapeHtml(error.message); });
+                }
+              }
+            ]
+          });
+        }
+
+        function deleteHomework(id) {
+          hsSimple.dialog({
+            title: "删除这条作业？",
+            body: "<p>删除后无法恢复。只有当天发布的内容可以修改或删除。</p>",
+            actions: [
+              { label: "取消" },
+              {
+                label: "删除",
+                primary: true,
+                onClick: function (close) {
+                  hsSimple.api("homeworks?id=eq." + id, { method: "DELETE" })
+                    .then(function () { close(); refresh(); })
+                    .catch(function (error) { hsSimple.message("删除失败：" + error.message, true); });
+                }
+              }
+            ]
+          });
+        }
+
+        document.getElementById("fab").onclick = function () {
+          var menu = document.getElementById("fab-menu");
+          menu.className = menu.className.indexOf("open") >= 0 ? "fab-menu" : "fab-menu open";
+        };
+        document.getElementById("menu-export").onclick = function () {
+          var subjects = [];
+          var index = {};
+          for (var i = 0; i < rows.length; i++) {
+            var subject = rows[i].subject || "其它";
+            if (!index[subject]) { index[subject] = { subject: subject, homeworks: [] }; subjects.push(index[subject]); }
+            index[subject].homeworks.push({ content: rows[i].content, contentHtml: rows[i].content_html, tags: rows[i].tags || [], dueDate: rows[i].due_date });
+          }
+          var blob = new Blob([JSON.stringify({ format: "stickyhomeworks2.homeworks", publishedOn: currentDate, subjects: subjects }, null, 2)], { type: "application/json" });
+          var a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "作业-" + (currentDate || "latest") + ".json";
+          a.click();
+        };
+        document.getElementById("menu-account").onclick = function () {
+          location.href = session ? "index.html" : "login.html";
+        };
+
+        load();
+      })();
+    </script>
+  </body>
+</html>
+
+

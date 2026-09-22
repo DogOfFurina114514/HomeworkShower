@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <发布作业 · 作业简版>发布作业 · 作业简版</发布作业 · 作业简版>
+    <link rel="stylesheet" href="app.css?v29" />
+    <script src="../assets/config.js?v29"></script>
+    <script src="app.js?v29"></script>
+  </head>  <body>
+    <header class="topbar">
+      <h1>发布作业</h1>
+      <div class="controls"><a class="pill text" href="index.html">返回看板</a></div>
+    </header>
+    <div class="card">
+      <p class="status" id="status">正在检查权限…</p>
+      <div id="form" style="display:none">
+        <label class="field"><span>归属日期（只能是今天）</span><input id="date" readonly /></label>
+        <label class="field"><span>或直接粘贴 JSON</span><textarea id="json" placeholder="从桌面端「保存作业 → JSON」导出后粘到这里"></textarea></label>
+        <label class="field"><span>或选择 JSON 文件</span><input id="file" type="file" accept="application/json,.json" /></label>
+        <div class="dialog-actions"><button class="pill primary" id="submit">发布到这一天</button></div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        hsSimple.lowBar();
+        document.getElementById("date").value = hsSimple.todayString();
+        var session = hsSimple.session();
+        if (!session) {
+          hsSimple.message("请先登录（简版页面请到登录页登录）", true);
+          return;
+        }
+        if (!hsSimple.isPublisher(session.role)) {
+          hsSimple.message("只有「发布者」可以发布作业，当前身份是「" + hsSimple.roleLabel(session.role) + "」", true);
+          return;
+        }
+        hsSimple.message("在桌面端 StickyHomeworks2 里用「保存作业 → JSON」导出，然后在下面导入。同一天重复发布会覆盖当天记录。");
+        document.getElementById("form").style.display = "block";
+        document.getElementById("file").onchange = function () {
+          var file = this.files && this.files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function () { document.getElementById("json").value = String(reader.result || ""); };
+          reader.readAsText(file, "utf-8");
+        };
+        document.getElementById("submit").onclick = function () {
+          var payload;
+          try { payload = JSON.parse(document.getElementById("json").value); }
+          catch (error) { hsSimple.message("JSON 解析失败：" + error.message, true); return; }
+          hsSimple.message("正在发布…");
+          hsSimple.api("rpc/publish_homeworks", { method: "POST", body: { p_payload: payload, p_published_on: document.getElementById("date").value } })
+            .then(function (data) {
+              hsSimple.message("发布成功：" + document.getElementById("date").value + " 共 " + (data.homeworkCount || 0) + " 条作业 / " + (data.subjectCount || 0) + " 个科目");
+            })
+            .catch(function (error) { hsSimple.message("发布失败：" + error.message, true); });
+        };
+      })();
+    </script>
+  </body>
+</html>
+
+
