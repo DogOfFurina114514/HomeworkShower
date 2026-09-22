@@ -796,18 +796,19 @@ m3e-theme {
 }
 
 
-/* 选中态：不改变尺寸（放大让卡片内部溢出会冒出滚动条），只做背景与阴影，同样走 easeOutQuad 节奏 */
+/* 选中：整张卡片轻微放大（easeOutQuad）；卡片自身裁掉内部内容，避免冒出滚动条 */
 .homework-item {
   position: relative;
+  overflow: hidden;
 }
 
 .homework-item--selected {
+  transform: scale(1.02);
   --m3e-list-item-container-color: var(--md-sys-color-secondary-container, #cde7ed);
   --m3e-list-item-label-text-color: var(--md-sys-color-on-secondary-container, #334a50);
   --m3e-list-item-leading-color: var(--md-sys-color-on-secondary-container, #334a50);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 14%);
 }
-
 /* 按压：缩小一点（easeOutQuad），缩小不会溢出，所以不会有滚动条 */
 .homework-item--clickable:active {
   transform: scale(0.975);
@@ -841,4 +842,5 @@ m3e-theme {
 .masonry-columns--no-anim .homework-actions {
   animation: hs-fade 160ms ease-out both;
 }
+
 
