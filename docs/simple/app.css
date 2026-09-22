@@ -365,3 +365,17 @@ main.board {
 
 
 
+
+/* 自绘 SVG 图标：跟随文字颜色与大小 */
+.icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+.pill .icon { margin-inline-end: 6px; }
+
+.fab .icon { vertical-align: middle; }
+
+.low-browser-bar .icon { margin-inline-end: 4px; vertical-align: -4px; }
+

@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <作业 · 简版>作业 · 简版</作业 · 简版>
-    <link rel="stylesheet" href="app.css?v52" />
-    <script src="../assets/config.js?v52"></script>
-    <script src="app.js?v52"></script>
+    <link rel="stylesheet" href="app.css?v53" />
+    <script src="../assets/config.js?v53"></script>
+    <script src="app.js?v53"></script>
   </head>  <body>
     <header class="topbar">
       <h1>作业</h1>
@@ -29,7 +29,7 @@
       <button type="button" id="menu-export">导出作业</button>
       <button type="button" id="menu-account">个人中心</button>
     </div>
-    <button class="fab" id="fab" aria-label="编辑">✏️</button>
+    <button class="fab" id="fab" aria-label="编辑"></button>
 
     <script>
       (function () {
@@ -72,8 +72,9 @@
 
         function refresh() { loadDay(currentDate); }
 
-        var session = hsSimple.session();
-        if (session) {
+        hsSimple.refreshProfile().then(function () {
+          var session = hsSimple.session();
+          if (session) {
           document.getElementById("login-banner").style.display = "none";
           document.getElementById("account-label").innerHTML = "个人中心";
           document.getElementById("account-button").setAttribute("href", "#");
@@ -88,7 +89,8 @@
               ]
             });
           };
-        }
+          }
+        });
 
         document.getElementById("board").onclick = function (event) {
           var editId = event.target.getAttribute && event.target.getAttribute("data-edit");
@@ -191,6 +193,7 @@
           });
         }
 
+        document.getElementById("fab").innerHTML = hsSimple.icon("pencil", 26);
         document.getElementById("fab").onclick = function () {
           var menu = document.getElementById("fab-menu");
           menu.className = menu.className.indexOf("open") >= 0 ? "fab-menu" : "fab-menu open";
@@ -218,6 +221,9 @@
     </script>
   </body>
 </html>
+
+
+
 
 
 

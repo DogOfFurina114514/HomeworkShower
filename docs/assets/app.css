@@ -719,3 +719,10 @@ html.hs-booting body {
     display: block;
   }
 }
+
+/* 兜底页里自绘 SVG 图标的作用域（这两个页面是内联样式，这里只为 <svg> 兜底） */
+svg.icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}

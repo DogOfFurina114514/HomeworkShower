@@ -11,7 +11,30 @@
  */
 window.hsSimple = (function () {
   var config = window.HOMEWORK_SHOWER_CONFIG || {};
-  var STORAGE_KEY = (config.authStorageKey || "homework-shower-auth") + "-simple";
+  // 与完整版共用同一个键（supabase-js 也写在这里），这样两边登录状态互通
+  var STORAGE_KEY = config.authStorageKey || "homeworkshower.auth.v1";
+
+  /** 自绘 SVG 图标：简版不引入图标字体，保证各设备观感一致 */
+  var ICON_PATHS = {
+    pencil: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+    share: "M12 2 8 6h3v8h2V6h3l-4-4zM5 12H3v8a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8h-2v7H5v-7z",
+    clock: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 11H7v-2h4V6h2v7z",
+    account: "M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4 0-8 2-8 4v2h16v-2c0-2-4-4-8-4z",
+    calendar: "M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 8v9H5v-9h14z",
+    warn: "M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-7h-2v5h2V9z",
+    block: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM5.7 7.1l11.2 11.2A8 8 0 0 1 5.7 7.1zm1.4-1.4a8 8 0 0 1 11.2 11.2L7.1 5.7z",
+    back: "M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z"
+  };
+
+  function icon(name, size) {
+    var path = ICON_PATHS[name];
+    if (!path) return "";
+    var dimension = size || 20;
+    return (
+      '<svg class="icon" viewBox="0 0 24 24" width="' + dimension + '" height="' + dimension +
+      '" aria-hidden="true" focusable="false"><path fill="currentColor" d="' + path + '"/></svg>'
+    );
+  }
 
   function todayString() {
     var now = new Date();
@@ -34,23 +57,65 @@ window.hsSimple = (function () {
     return due ? String(due) < todayString() : false;
   }
 
-  /** 登录态：存 access_token / refresh_token / email / role */
+  /** 当前用户信息（内存缓存，由 refreshProfile 填充） */
+  var currentUser = null;
+
+  /** 读取 supabase-js 写下的登录态 */
   function session() {
     try {
       var raw = window.localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      var token = parsed.access_token || (parsed.currentSession && parsed.currentSession.access_token);
+      var user = parsed.user || (parsed.currentSession && parsed.currentSession.user);
+      if (!token || !user) return null;
+      return {
+        accessToken: token,
+        refreshToken: parsed.refresh_token || null,
+        userId: user.id,
+        email: user.email,
+        role: currentUser && currentUser.id === user.id ? currentUser.role : null,
+        banned: currentUser && currentUser.id === user.id ? currentUser.banned : false
+      };
     } catch (error) {
       return null;
     }
   }
 
-  function saveSession(data) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (error) {
-      /* 隐私模式下可能写不了，忽略 */
+  /** 用会话里的 token 查自己的角色（简版不依赖 supabase-js，直接走 REST） */
+  function refreshProfile() {
+    var current = session();
+    if (!current) {
+      currentUser = null;
+      return Promise.resolve(null);
     }
+    return fetch(config.supabaseUrl + "/rest/v1/profiles?select=id,role,banned&id=eq." + current.userId, {
+      headers: { apikey: config.supabaseKey, Authorization: "Bearer " + current.accessToken }
+    })
+      .then(function (response) { return response.ok ? response.json() : []; })
+      .then(function (rows) {
+        currentUser = rows && rows[0] ? rows[0] : { id: current.userId, role: "user", banned: false };
+        return currentUser;
+      })
+      .catch(function () { return null; });
   }
+
+  /** 登录：写回与 supabase-js 相同格式，保证完整版也能读到 */
+  function writeSession(data) {
+    var record = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      token_type: data.token_type || "bearer",
+      expires_in: data.expires_in,
+      expires_at: data.expires_at || Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
+      user: data.user
+    };
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+    } catch (error) {}
+  }
+
+
 
   function clearSession() {
     try {
@@ -129,16 +194,8 @@ window.hsSimple = (function () {
 
   /** 用 access_token 取自己的角色 */
   function loadRole(data) {
-    var payload = { access_token: data.access_token, refresh_token: data.refresh_token, email: data.user && data.user.email, role: "user" };
-    return fetch(config.supabaseUrl + "/rest/v1/profiles?select=role&id=eq." + data.user.id, {
-      headers: { apikey: config.supabaseKey, Authorization: "Bearer " + data.access_token }
-    })
-      .then(function (response) { return response.ok ? response.json() : []; })
-      .then(function (rows) {
-        payload.role = (rows && rows[0] && rows[0].role) || "user";
-        saveSession(payload);
-        return payload;
-      });
+    writeSession(data);
+    return refreshProfile().then(function () { return session(); });
   }
 
   function canEdit(role) {
@@ -266,7 +323,8 @@ window.hsSimple = (function () {
     escapeHtml: escapeHtml,
     isExpired: isExpired,
     session: session,
-    saveSession: saveSession,
+    refreshProfile: refreshProfile,
+    writeSession: writeSession,
     clearSession: clearSession,
     api: api,
     login: login,
@@ -274,12 +332,15 @@ window.hsSimple = (function () {
     canEdit: canEdit,
     isPublisher: isPublisher,
     roleLabel: roleLabel,
+    icon: icon,
     lowBar: lowBar,
     dialog: dialog,
     message: message,
     renderBoard: renderBoard
   };
 })();
+
+
 
 
 
