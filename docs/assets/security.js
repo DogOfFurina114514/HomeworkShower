@@ -143,6 +143,7 @@
 
   const deletionMessage = document.getElementById("deletion-message");
   const deletionStepSend = document.getElementById("deletion-step-send");
+  const deletionStepCode = document.getElementById("deletion-step-code");
   const deletionStepConfirm = document.getElementById("deletion-step-confirm");
   const deletionInput = document.getElementById("deletion-input");
 
@@ -159,13 +160,30 @@
     const { error } = await client.auth.reauthenticate();
     button.removeAttribute("disabled");
 
+    if (!error) {
+      if (deletionStepSend) deletionStepSend.hidden = true;
+      if (deletionStepCode) deletionStepCode.hidden = false;
+    }
     show(
       deletionMessage,
-      error
-        ? `发送失败：${error.message}`
-        : `验证邮件已发送到 ${email}：请点开邮件里的按钮确认是你本人操作，回来后这里会出现确认输入框。`,
+      error ? `发送失败：${error.message}` : `验证邮件已发送到 ${email}：请把邮件里的 6 位验证码填到下面。`,
       Boolean(error),
     );
+  }
+
+  /** 第 2 步：校验验证码（reauthentication 的 nonce），通过后才进入短语确认 */
+  async function submitDeletionCode() {
+    const token = (document.getElementById("deletion-code")?.value || "").trim();
+    if (!/^\d{6}$/.test(token)) return show(deletionMessage, "请输入邮件里的 6 位数字验证码。");
+    const button = document.getElementById("submit-deletion-code");
+    button.setAttribute("disabled", "");
+    show(deletionMessage, "正在校验…", false);
+    const { error } = await client.auth.verifyOtp({ type: "reauthentication", token });
+    button.removeAttribute("disabled");
+    if (error) return show(deletionMessage, `验证码不正确或已过期：${error.message}`);
+    if (deletionStepCode) deletionStepCode.hidden = true;
+    if (deletionStepConfirm) deletionStepConfirm.hidden = false;
+    show(deletionMessage, "邮箱已验证，请按下面的提示输入确认短语。", false);
   }
 
   /** 第 3 步：短语逐字一致才允许提交；提交后立刻全平台登出 */
@@ -229,6 +247,7 @@
     appealButton?.addEventListener("click", openAppeal);
     changePasswordButton.addEventListener("click", () => void changePassword());
     document.getElementById("request-deletion")?.addEventListener("click", () => void requestDeletion());
+    document.getElementById("submit-deletion-code")?.addEventListener("click", () => void submitDeletionCode());
     document.getElementById("confirm-deletion")?.addEventListener("click", () => void confirmDeletion());
     document.getElementById("cancel-deletion-request")?.addEventListener("click", () => void cancelDeletion());
 
@@ -245,6 +264,7 @@
     // 点了邮件里的验证链接回来（?deletion=confirm）→ 直接展开确认步骤
     if (params.get("deletion") === "confirm") {
       if (deletionStepSend) deletionStepSend.hidden = true;
+      if (deletionStepCode) deletionStepCode.hidden = true;
       if (deletionStepConfirm) deletionStepConfirm.hidden = false;
       show(deletionMessage, "邮箱已验证，请按下面的提示输入确认短语。", false);
       history.replaceState(null, "", location.pathname);
@@ -255,6 +275,7 @@
     }
   })();
 })();
+
 
 
 

@@ -38,13 +38,13 @@
         location.replace(location.pathname.replace(/[^/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
       })();
     </script>
-    <link rel="stylesheet" href="assets/app.css?v66" />
-    <link rel="icon" href="assets/icon.svg?v66" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v66" defer></script>
-    <script src="vendor/supabase.js?v66" defer></script>
-    <script src="assets/config.js?v66" defer></script>
-    <script src="assets/client.js?v66" defer></script>
-    <script src="assets/security.js?v66" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v67" />
+    <link rel="icon" href="assets/icon.svg?v67" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v67" defer></script>
+    <script src="vendor/supabase.js?v67" defer></script>
+    <script src="assets/config.js?v67" defer></script>
+    <script src="assets/client.js?v67" defer></script>
+    <script src="assets/security.js?v67" defer></script>
   </head>
 
   <body>
@@ -139,6 +139,17 @@
             <m3e-button variant="filled" id="request-deletion">申请注销，先验证邮箱</m3e-button>
           </div>
 
+          <div id="deletion-step-code" hidden>
+            <p class="hint">验证邮件里有 6 位验证码，请填入下面的输入框：</p>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="deletion-code">邮箱验证码</label>
+              <input id="deletion-code" inputmode="numeric" autocomplete="one-time-code" />
+            </m3e-form-field>
+            <div class="auth__actions">
+              <m3e-button variant="filled" id="submit-deletion-code">验证并继续</m3e-button>
+            </div>
+          </div>
+
           <div id="deletion-step-confirm" hidden>
             <p class="hint">
               邮箱已验证。请把下面这句话<strong>原样输入</strong>到输入框里（含标点），以确认你了解并同意：
@@ -184,6 +195,8 @@
     </script>
   </body>
 </html>
+
+
 
 
 
