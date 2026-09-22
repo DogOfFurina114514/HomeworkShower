@@ -702,3 +702,77 @@ button {
 .rich-surface {
   line-height: 1.55 !important;
 }
+
+/* ============================================================
+   动效（与桌面端观感一致）
+   - 科目组与卡片错峰上浮入场
+   - 卡片按压/悬停反馈
+   - 状态条、横幅淡入
+   全部走 easeOutQuart，和登录页切换动画同一套节奏
+   ============================================================ */
+
+@keyframes hs-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hs-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.subject-group {
+  animation: hs-rise 420ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.homework-item {
+  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation-delay: calc(var(--i, 0) * 40ms + 80ms);
+  transition:
+    background-color 200ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 180ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 200ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 可按压的卡片（有编辑权限时）才有按压反馈 */
+.homework-item--clickable:active {
+  transform: scale(0.985);
+}
+
+.homework-item--selected {
+  box-shadow: 0 2px 10px rgb(0 0 0 / 10%);
+}
+
+.status,
+.banner,
+.homework-empty-state {
+  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+/* 编辑/删除按钮出现时也带一点动效 */
+.homework-actions {
+  animation: hs-rise 220ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subject-group,
+  .homework-item,
+  .status,
+  .banner,
+  .homework-empty-state,
+  .homework-actions {
+    animation: none;
+    transition: none;
+  }
+}

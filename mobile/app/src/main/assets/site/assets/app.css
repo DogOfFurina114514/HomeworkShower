@@ -662,3 +662,117 @@ img,
   user-select: none;
   -webkit-touch-callout: none;
 }
+
+/* ============================================================
+   字体强制
+   1) 关掉移动端浏览器的字体放大（font boosting）——它会擅自放大正文、打乱行高；
+   2) 用 !important 钉死字体栈，避免浏览器"自定义字体/强制替换字体"设置覆盖；
+   3) 中文没有可自带的字体（一个中文字体好几 MB），所以栈里优先用各平台自带的中文字体，
+      但顺序固定，不让浏览器自己挑。
+   ============================================================ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body,
+m3e-theme {
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "MiSans",
+    "Source Han Sans SC", "Noto Sans CJK SC", Inter, ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* 表单控件在部分浏览器里不继承正文字体，这里一并钉死 */
+input,
+textarea,
+select,
+button {
+  font-family: inherit !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* 作业正文与富文本：行高也固定，避免浏览器按字体重新计算导致错位 */
+.homework-text,
+.rich-surface {
+  line-height: 1.55 !important;
+}
+
+/* ============================================================
+   动效（与桌面端观感一致）
+   - 科目组与卡片错峰上浮入场
+   - 卡片按压/悬停反馈
+   - 状态条、横幅淡入
+   全部走 easeOutQuart，和登录页切换动画同一套节奏
+   ============================================================ */
+
+@keyframes hs-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hs-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.subject-group {
+  animation: hs-rise 420ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.homework-item {
+  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation-delay: calc(var(--i, 0) * 40ms + 80ms);
+  transition:
+    background-color 200ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 180ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 200ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 可按压的卡片（有编辑权限时）才有按压反馈 */
+.homework-item--clickable:active {
+  transform: scale(0.985);
+}
+
+.homework-item--selected {
+  box-shadow: 0 2px 10px rgb(0 0 0 / 10%);
+}
+
+.status,
+.banner,
+.homework-empty-state {
+  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+/* 编辑/删除按钮出现时也带一点动效 */
+.homework-actions {
+  animation: hs-rise 220ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subject-group,
+  .homework-item,
+  .status,
+  .banner,
+  .homework-empty-state,
+  .homework-actions {
+    animation: none;
+    transition: none;
+  }
+}

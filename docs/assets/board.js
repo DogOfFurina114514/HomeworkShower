@@ -116,7 +116,7 @@
             </div>`
           : "";
         return `
-          <m3e-list-action class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${canManage ? " homework-item--clickable" : ""}" data-id="${homework.id}">
+          <m3e-list-action style="--i: ${homeworks.indexOf(homework)}" class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${canManage ? " homework-item--clickable" : ""}" data-id="${homework.id}">
             <span class="homework-content">
               <span class="homework-marker" aria-hidden="true"></span>
               <span class="homework-text">${content}</span>
@@ -127,7 +127,7 @@
       }).join("");
 
       sections.push(`
-        <section class="subject-group">
+        <section class="subject-group" style="--i: ${sections.length}">
           <m3e-heading variant="headline" size="small" level="2">${hs.escapeHtml(subject)}</m3e-heading>
           <m3e-list class="subject-homework-list" variant="segmented">${items}</m3e-list>
         </section>`);
@@ -721,6 +721,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 

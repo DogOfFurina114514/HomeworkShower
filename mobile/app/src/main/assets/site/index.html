@@ -4,13 +4,80 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>作业</title>
-    <link rel="stylesheet" href="assets/app.css?v20" />
-    <link rel="icon" href="assets/icon.svg?v20" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v20" defer></script>
-    <script src="vendor/supabase.js?v20" defer></script>
-    <script src="assets/config.js?v20" defer></script>
-    <script src="assets/client.js?v20" defer></script>
-    <script src="assets/board.js?v20" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v25" />
+    <link rel="icon" href="assets/icon.svg?v25" type="image/svg+xml" />
+    <script>
+      // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
+      //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
+      //  - Safari < 16.4：连 attachInternals 都没有。
+      // M3E 组件内部直接调用 internals.states.add/delete，缺了就抛 TypeError 把组件打挂。
+      // ElementInternals 实例通常不可扩展（defineProperty 会失败），所以这里用 Proxy 包一层，
+      // 并对完全没有该 API 的浏览器给出最小实现。
+      (function () {
+        if (typeof Element === "undefined") return;
+
+        var stateMap = new WeakMap();
+        function statesOf(target) {
+          var set = stateMap.get(target);
+          if (!set) {
+            set = new Set();
+            stateMap.set(target, set);
+          }
+          return set;
+        }
+
+        function wrap(internals) {
+          if (!internals) return internals;
+          if (internals.states) return internals;
+          try {
+            return new Proxy(internals, {
+              get: function (target, prop) {
+                if (prop === "states") return statesOf(target);
+                var value = Reflect.get(target, prop, target);
+                return typeof value === "function" ? value.bind(target) : value;
+              },
+            });
+          } catch (error) {
+            try {
+              Object.defineProperty(internals, "states", { value: statesOf(internals), configurable: true });
+            } catch (ignored) {
+              /* 兜不住也不影响其它功能 */
+            }
+            return internals;
+          }
+        }
+
+        if (typeof Element.prototype.attachInternals === "function") {
+          var original = Element.prototype.attachInternals;
+          Element.prototype.attachInternals = function () {
+            return wrap(original.apply(this, arguments));
+          };
+        } else {
+          Element.prototype.attachInternals = function () {
+            return wrap({
+              states: null,
+              form: null,
+              labels: [],
+              role: null,
+              ariaLabel: null,
+              ariaLabelledByElements: null,
+              setFormValue: function () {},
+              setValidity: function () { return true; },
+              checkValidity: function () { return true; },
+              reportValidity: function () { return true; },
+              willValidate: false,
+              validity: { valid: true },
+              validationMessage: "",
+            });
+          };
+        }
+      })();
+    </script>
+    <script src="vendor/m3e.js?v25" defer></script>
+    <script src="vendor/supabase.js?v25" defer></script>
+    <script src="assets/config.js?v25" defer></script>
+    <script src="assets/client.js?v25" defer></script>
+    <script src="assets/board.js?v25" defer></script>
   </head>
 
   <body>
@@ -139,6 +206,11 @@
     </m3e-theme>
   </body>
 </html>
+
+
+
+
+
 
 
 
