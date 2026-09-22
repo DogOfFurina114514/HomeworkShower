@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>账号已注销 · 作业</title>
-    <link rel="icon" href="assets/icon.svg?v74" type="image/svg+xml" />
-    <script src="assets/config.js?v74"></script>
+    <link rel="icon" href="assets/icon.svg?v75" type="image/svg+xml" />
+    <script src="assets/config.js?v75"></script>
     <!--
       注销相关页面：不加载 M3E、不加载 supabase，样式内联手写，
       任何浏览器都能打开；用 ?state=requested 区分"申请已提交"与"已注销"。
@@ -69,7 +69,6 @@
       <h1 id="title">注销申请已提交</h1>
       <p id="line1"></p>
       <p id="line2"></p>
-      <p class="muted" id="line3"></p>
       <div class="actions">
         <a class="pill" id="go-home" href="./">回到主页</a>
         <a class="pill ghost" id="appeal" href="#">联系管理员</a>
@@ -95,15 +94,11 @@
             "你已经从所有设备退出登录，账号将在 <strong>3 天后</strong>进入已注销状态。";
           document.getElementById("line2").innerHTML =
             "在进入已注销状态之前，只要再用这个账号登录一次，注销就会自动取消 —— 我们随时欢迎你回来。";
-          document.getElementById("line3").innerHTML = notified
-            ? "取消注销的入口也在刚才那封邮件里。如果那不是你本人的操作，请尽快点击邮件中的按钮。"
-            : "通知邮件发送失败了 —— 不过不影响注销本身：在 3 天内用这个账号登录一次，同样可以取消注销。";
         } else {
           document.getElementById("title").innerHTML = "账号已注销";
           document.getElementById("line1").innerHTML = "这个账号已经注销，无法再登录使用。";
           document.getElementById("line2").innerHTML =
             "数据会在保留期结束后删除。如果你认为这是一次误操作，或者想申请恢复，请联系管理员。";
-          document.getElementById("line3").innerHTML = "此页面可以安全关闭。";
         }
 
         var origin = location.origin || location.protocol + "//" + location.host;
@@ -118,6 +113,8 @@
     </script>
   </body>
 </html>
+
+
 
 
 
