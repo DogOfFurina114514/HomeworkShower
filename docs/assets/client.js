@@ -85,15 +85,19 @@
     const user = userData?.user;
     if (!user) return null;
     const { data } = await withTimeout(
-      client.from("profiles").select("role,email").eq("id", user.id).maybeSingle(),
+      client.from("profiles").select("role,email,banned").eq("id", user.id).maybeSingle(),
       10000,
       "读取角色",
     );
-    return {
+    const profile = {
       user,
       email: data?.email || user.email || "",
       role: data?.role || "user",
+      banned: Boolean(data?.banned),
     };
+    // 封禁账号：任何页面都跳到封禁提示页
+    if (profile.banned) bannedRedirect();
+    return profile;
   }
 
   /** 未登录直接跳登录页，并记住来路。 */
@@ -107,7 +111,18 @@
     return session;
   }
 
+  /** 被封禁：跳到封禁页，并且不允许通过退出登录绕过 */
+  function bannedRedirect() {
+    if (location.pathname.indexOf("ban.html") >= 0) return;
+    location.replace("ban.html");
+  }
+
   async function signOut() {
+    const profile = await getProfile().catch(() => null);
+    if (profile && profile.banned) {
+      bannedRedirect();
+      return;
+    }
     await client.auth.signOut();
     location.replace("login.html");
   }
@@ -200,6 +215,7 @@
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();
+
 
 
 
