@@ -1016,3 +1016,21 @@ m3e-theme {
   flex-wrap: wrap;
   gap: 2px;
 }
+
+/* 用户列表：宽度交给弹窗决定，避免比内容区还宽而生成滚动条 */
+.users-list {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-height: 60vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.user-row {
+  min-width: 0;
+}
+
+.user-row__info {
+  min-width: 0;
+}
