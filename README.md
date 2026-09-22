@@ -2,7 +2,7 @@
 
 同学打开网页就能看到今天的作业。作业由桌面端 **StickyHomeworks2** 导出后发布上来，同一天重复发布会覆盖当天内容。
 
-在线地址：**https://dogofurina114514.github.io/HomeworkShower/**
+在线地址：**https://dogoffurina114514.github.io/HomeworkShower/**
 
 ---
 
@@ -214,3 +214,4 @@ ban / deleted → 纯手写页（封禁 / 注销说明 + 联系管理员）
 | `advance-account-deletions` | 每天 03:15 | 满 3 天的注销申请标记为已注销；满 60 天的真正删除 |
 
 这两个任务也顺带保证了项目**每天都有数据库活动**，免费计划不会因闲置 7 天而被暂停。
+

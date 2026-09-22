@@ -24,7 +24,7 @@ if (!token || !ref) {
 }
 
 const SITE = "HomeworkShower";
-const SITE_URL = "https://dogofurina114514.github.io/HomeworkShower/";
+const SITE_URL = "https://dogoffurina114514.github.io/HomeworkShower/";
 
 const TEMPLATE_NAMES = [
   "confirmation",
@@ -72,3 +72,4 @@ const response = await fetch(`https://api.supabase.com/v1/projects/${ref}/config
 
 const text = await response.text();
 console.log(response.ok ? `已应用认证配置到 ${ref}（包含 ${TEMPLATE_NAMES.length} 套邮件模板）` : `失败 ${response.status}: ${text.slice(0, 500)}`);
+

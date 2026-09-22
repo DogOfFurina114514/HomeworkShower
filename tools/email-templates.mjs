@@ -17,7 +17,7 @@ const OUT_DIR = join(ROOT, "supabase", "email-templates");
 
 const SITE = "HomeworkShower";
 const BRAND = "作业";
-const SITE_URL = "https://dogofurina114514.github.io/HomeworkShower/";
+const SITE_URL = "https://dogoffurina114514.github.io/HomeworkShower/";
 
 const C = {
   bg: "#f5fafc",
@@ -205,3 +205,4 @@ if (process.argv.includes("--apply")) {
   const text = await response.text();
   console.log(response.ok ? `已应用到项目 ${ref}` : `应用失败 ${response.status}: ${text.slice(0, 400)}`);
 }
+
