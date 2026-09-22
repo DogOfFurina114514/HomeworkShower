@@ -6,7 +6,28 @@
     <title>邮箱验证 · 作业</title>
     <link rel="stylesheet" href="assets/app.css?v22" />
     <link rel="icon" href="assets/icon.svg?v22" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v22" defer></script>
+    <script>
+      // 老浏览器（iOS Safari < 17.4、Chrome < 90）没有 ElementInternals.states（CSS 自定义状态），
+      // M3E 组件内部会直接对它调 .add/.delete 从而抛 TypeError 导致组件崩掉。
+      // 这里补一个最小实现（一个 Set），让组件能正常跑；不支持自定义状态的浏览器只是少了个状态选择器，
+      // 组件自身的 class/属性逻辑不受影响。
+      (function () {
+        if (typeof Element === "undefined" || typeof Element.prototype.attachInternals !== "function") return;
+        var original = Element.prototype.attachInternals;
+        Element.prototype.attachInternals = function () {
+          var internals = original.apply(this, arguments);
+          try {
+            if (internals && !internals.states) {
+              Object.defineProperty(internals, "states", { value: new Set(), configurable: true });
+            }
+          } catch (error) {
+            /* 实在补不上就算了，不影响其它功能 */
+          }
+          return internals;
+        };
+      })();
+    </script>
+    <script src="vendor/m3e.js?v23" defer></script>
     <script src="vendor/supabase.js?v22" defer></script>
     <script src="assets/config.js?v22" defer></script>
     <script src="assets/client.js?v22" defer></script>
@@ -35,6 +56,7 @@
     </m3e-theme>
   </body>
 </html>
+
 
 
 
