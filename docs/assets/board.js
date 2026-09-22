@@ -454,6 +454,21 @@ const duePickerEl = document.getElementById("edit-due-picker");
       document.getElementById("edit-save")?.addEventListener("click", () => void saveEdit());
       document.getElementById("edit-cancel")?.addEventListener("click", () => editDialog.hide());
 
+      // 期限：与应用同款 m3e-datepicker，点输入框任意处都能唤起日历
+      {
+        const dueInput = document.getElementById("edit-due-input");
+        const duePickerCtl = document.getElementById("edit-due-picker");
+        if (dueInput && duePickerCtl) {
+          duePickerCtl.addEventListener("change", () => {
+            const picked = duePickerCtl.date;
+            dueInput.value = picked
+              ? `${picked.getFullYear()} 年 ${picked.getMonth() + 1} 月 ${picked.getDate()} 日`
+              : "";
+          });
+          dueInput.addEventListener("click", () => void duePickerCtl.show(dueInput, dueInput));
+        }
+      }
+
       // 富文本工具栏
       editDialog.querySelector(".rich-toolbar")?.addEventListener("click", (event) => {
         const button = event.target.closest("[data-cmd]");
@@ -706,6 +721,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
