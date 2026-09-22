@@ -27,6 +27,8 @@
 
   let profile = null;
   let pendingEmail = "";
+  let pendingPassword = "";
+  const passwordStepCode = document.getElementById("password-step-code");
 
   function show(el, text, isError = true) {
     if (!el) return;
@@ -116,23 +118,47 @@
     show(emailMessage, error ? `重发失败：${error.message}` : "验证邮件已重新发送，请查收（也看看垃圾箱）。", Boolean(error));
   }
 
-  async function changePassword() {
+  /** 更改密码：先发验证码，再在页面上校验，通过后直接设置新密码（不用邮件链接） */
+  async function sendPasswordCode() {
     const next = newPasswordInput?.value || "";
     const confirm = confirmPasswordInput?.value || "";
     if (next.length < 8) return show(passwordMessage, "密码至少 8 位。");
     if (next !== confirm) return show(passwordMessage, "两次输入的密码不一致。");
 
-    changePasswordButton.setAttribute("disabled", "");
-    show(passwordMessage, "正在发送验证邮件…", false);
-    const redirectTo = new URL("auth.html", location.href).href;
-    const { error } = await client.auth.resetPasswordForEmail(profile?.email || "", { redirectTo });
-    changePasswordButton.removeAttribute("disabled");
+    pendingPassword = next;
+    const button = document.getElementById("change-password");
+    button.setAttribute("disabled", "");
+    show(passwordMessage, "正在发送验证码…", false);
+    const { error } = await client.auth.resetPasswordForEmail(profile?.email || "", {
+      redirectTo: new URL("security.html", location.href).href,
+    });
+    button.removeAttribute("disabled");
+    if (error) return show(passwordMessage, `发送失败：${error.message}`);
 
-    show(
-      passwordMessage,
-      error ? `发送失败：${error.message}` : `确认邮件已发送到 ${profile?.email || "你的邮箱"}，点开邮件里的链接后即可设置新密码。`,
-      Boolean(error),
-    );
+    if (passwordStepCode) passwordStepCode.hidden = false;
+    show(passwordMessage, `验证码已发送到 ${profile?.email || "你的邮箱"}，请填入下面的输入框。`, false);
+  }
+
+  /** 校验验证码（recovery）→ 通过后直接改密码 */
+  async function confirmPasswordCode() {
+    const token = (document.getElementById("password-code")?.value || "").trim();
+    if (!/^\d{6,8}$/.test(token)) return show(passwordMessage, "请输入邮件里的数字验证码。");
+    const button = document.getElementById("submit-password-code");
+    button.setAttribute("disabled", "");
+    show(passwordMessage, "正在校验…", false);
+    const { error } = await client.auth.verifyOtp({ email: profile?.email || "", token, type: "recovery" });
+    if (error) {
+      button.removeAttribute("disabled");
+      return show(passwordMessage, `验证码不正确或已过期：${error.message}`);
+    }
+    const { error: updateError } = await client.auth.updateUser({ password: pendingPassword });
+    button.removeAttribute("disabled");
+    if (updateError) return show(passwordMessage, `设置新密码失败：${updateError.message}`);
+    pendingPassword = "";
+    if (passwordStepCode) passwordStepCode.hidden = true;
+    if (newPasswordInput) newPasswordInput.value = "";
+    if (confirmPasswordInput) confirmPasswordInput.value = "";
+    show(passwordMessage, "密码已更新，下次请用新密码登录。", false);
   }
 
 
@@ -246,7 +272,8 @@
     changeEmailButton.addEventListener("click", () => void changeEmail());
     resendButton?.addEventListener("click", () => void resendEmail());
     appealButton?.addEventListener("click", openAppeal);
-    changePasswordButton.addEventListener("click", () => void changePassword());
+    changePasswordButton.addEventListener("click", () => void sendPasswordCode());
+    document.getElementById("submit-password-code")?.addEventListener("click", () => void confirmPasswordCode());
     document.getElementById("request-deletion")?.addEventListener("click", () => void requestDeletion());
     document.getElementById("submit-deletion-code")?.addEventListener("click", () => void submitDeletionCode());
     document.getElementById("confirm-deletion")?.addEventListener("click", () => void confirmDeletion());
@@ -276,6 +303,7 @@
     }
   })();
 })();
+
 
 
 

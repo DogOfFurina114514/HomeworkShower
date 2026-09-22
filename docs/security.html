@@ -38,13 +38,13 @@
         location.replace(location.pathname.replace(/[^/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
       })();
     </script>
-    <link rel="stylesheet" href="assets/app.css?v71" />
-    <link rel="icon" href="assets/icon.svg?v71" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v71" defer></script>
-    <script src="vendor/supabase.js?v71" defer></script>
-    <script src="assets/config.js?v71" defer></script>
-    <script src="assets/client.js?v71" defer></script>
-    <script src="assets/security.js?v71" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v72" />
+    <link rel="icon" href="assets/icon.svg?v72" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v72" defer></script>
+    <script src="vendor/supabase.js?v72" defer></script>
+    <script src="assets/config.js?v72" defer></script>
+    <script src="assets/client.js?v72" defer></script>
+    <script src="assets/security.js?v72" defer></script>
   </head>
 
   <body>
@@ -107,7 +107,7 @@
         <section class="auth__card">
           <m3e-heading variant="title" size="large" level="2">更改密码</m3e-heading>
           <p class="hint">
-            同样需要邮箱验证：提交后会向你的邮箱发送确认邮件，点开邮件里的链接即可设置新密码。
+            同样需要邮箱验证：提交后会向你的邮箱发送数字验证码，在下面填入验证码即可设置新密码。
           </p>
 
           <m3e-form-field variant="outlined">
@@ -123,7 +123,18 @@
           <p class="status" id="password-message" hidden></p>
 
           <div class="auth__actions">
-            <m3e-button variant="filled" id="change-password">发送验证邮件到当前邮箱</m3e-button>
+            <m3e-button variant="filled" id="change-password">发送验证码到当前邮箱</m3e-button>
+          </div>
+
+          <div id="password-step-code" hidden>
+            <p class="hint">邮件里有数字验证码，填入下面即可设置新密码：</p>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="password-code">邮箱验证码</label>
+              <input id="password-code" inputmode="numeric" autocomplete="one-time-code" />
+            </m3e-form-field>
+            <div class="auth__actions">
+              <m3e-button variant="filled" id="submit-password-code">校验并设置新密码</m3e-button>
+            </div>
           </div>
         </section>
         <section class="auth__card">
@@ -195,6 +206,8 @@
     </script>
   </body>
 </html>
+
+
 
 
 

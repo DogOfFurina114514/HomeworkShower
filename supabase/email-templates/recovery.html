@@ -3,7 +3,6 @@
 <body style="margin:0;padding:0;">
 <div class="text-only" style="display:none;max-height:0;overflow:hidden;opacity:0;">
 你的验证码是：{{ .Token }}
-
 在页面里填入这个验证码即可完成验证。如果不是你本人操作，忽略这封邮件即可。
 </div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background:#f5fafc;">
@@ -15,12 +14,7 @@
       <tr><td align="center" style="padding:0 0 20px;">
           <div style="display:inline-block;padding:16px 26px;border:1px dashed #6f797b;border-radius:14px;background:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:30px;font-weight:600;letter-spacing:6px;color:#006877;">{{ .Token }}</div>
         </td></tr>
-      <tr><td style="font-size:13px;line-height:1.7;color:#3f484a;padding-bottom:18px;">验证码有有效期，请尽快使用。如果你在页面上点了"重新发送"，以最新收到的验证码为准。</td></tr>
-      <tr><td align="center" style="padding:0 0 20px;">
-          <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 30px;border-radius:999px;background:#006877;color:#ffffff;font-size:16px;font-weight:500;text-decoration:none;">也可以点这里继续</a>
-        </td></tr>
-        <tr><td style="font-size:13px;line-height:1.6;color:#3f484a;padding-bottom:6px;">如果按钮点不动，把下面这段链接复制到浏览器打开：</td></tr>
-        <tr><td style="font-size:12px;line-height:1.5;color:#006877;word-break:break-all;padding-bottom:20px;">{{ .ConfirmationURL }}</td></tr>
+      <tr><td style="font-size:13px;line-height:1.7;color:#3f484a;padding-bottom:18px;">验证码有有效期，请尽快使用；如果在页面上点了"重新发送"，以最新收到的验证码为准。</td></tr>
       <tr><td style="font-size:12px;line-height:1.7;color:#6f797b;border-top:1px solid #bfc8cb;padding-top:16px;">如果不是你本人操作，忽略这封邮件即可，你的账号不会有任何变化。<br />此邮件由系统自动发送，无需回复。</td></tr>
     </table>
     <div style="max-width:480px;font-size:12px;color:#6f797b;padding-top:14px;font-family:'Segoe UI','Microsoft YaHei',system-ui,sans-serif;">
