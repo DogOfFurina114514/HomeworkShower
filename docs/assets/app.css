@@ -979,3 +979,41 @@ m3e-theme {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* ---------- 管理用户列表 ---------- */
+.users-list {
+  display: grid;
+  gap: 4px;
+  min-width: min(520px, 82vw);
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.user-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+}
+
+.user-row__info {
+  flex: 1 1 180px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.user-row__info strong {
+  font-size: 15px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.user-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}

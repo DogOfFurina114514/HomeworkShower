@@ -43,8 +43,8 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>作业</title>
-    <link rel="stylesheet" href="assets/app.css?v44" />
-    <link rel="icon" href="assets/icon.svg?v44" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v45" />
+    <link rel="icon" href="assets/icon.svg?v45" type="image/svg+xml" />
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -112,11 +112,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v44" defer></script>
-    <script src="vendor/supabase.js?v44" defer></script>
-    <script src="assets/config.js?v44" defer></script>
-    <script src="assets/client.js?v44" defer></script>
-    <script src="assets/board.js?v44" defer></script>
+    <script src="vendor/m3e.js?v45" defer></script>
+    <script src="vendor/supabase.js?v45" defer></script>
+    <script src="assets/config.js?v45" defer></script>
+    <script src="assets/client.js?v45" defer></script>
+    <script src="assets/board.js?v45" defer></script>
   </head>
 
   <body>
@@ -140,6 +140,7 @@
               </div>
               <span class="role-chip" id="account-role">用户</span>
               <m3e-button variant="text" id="publish-link" hidden>发布作业</m3e-button>
+              <m3e-button variant="text" id="manage-users-button" hidden>管理用户</m3e-button>
               <m3e-button variant="text" id="logout-button">退出登录</m3e-button>
             </div>
           </div>
@@ -156,6 +157,15 @@
       <main class="homework-board" id="board">
         <div class="homework-empty-state"><m3e-icon variant="outlined" name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
       </main>
+      <m3e-dialog id="users-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">管理用户</m3e-heading>
+        <div id="users-list" class="users-list"><p class="hint">正在加载…</p></div>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="users-close">关闭</m3e-button>
+        </div>
+      </m3e-dialog>
+
+
       <m3e-dialog id="edit-dialog" dismissible>
         <m3e-heading slot="header" variant="headline" size="small" level="2">修改作业</m3e-heading>
         <div class="edit-form">
@@ -245,6 +255,8 @@
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 

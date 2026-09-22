@@ -403,6 +403,8 @@
       accountEmail.textContent = profile.email;
       accountRole.textContent = hs.roleLabel(profile.role);
       if (publishLink) publishLink.hidden = !hs.isPublisher(profile);
+      const manageUsersButton = document.getElementById("manage-users-button");
+      if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(profile);
 
       accountButton.addEventListener("click", () => {
         accountPanel.hidden = !accountPanel.hidden;
@@ -655,6 +657,68 @@ const duePickerEl = document.getElementById("edit-due-picker");
       }
     });
 
+
+    // ---------- 管理用户（仅发布者） ----------
+    const usersDialog = document.getElementById("users-dialog");
+    const usersList = document.getElementById("users-list");
+
+    async function loadUsers() {
+      if (!usersList) return;
+      usersList.innerHTML = '<p class="hint">正在加载…</p>';
+      const { data, error } = await client.rpc("admin_list_users");
+      if (error) {
+        usersList.innerHTML = `<p class="status status--error">${hs.escapeHtml(error.message)}</p>`;
+        return;
+      }
+      const users = data || [];
+      if (!users.length) {
+        usersList.innerHTML = '<p class="hint">还没有其他用户。</p>';
+        return;
+      }
+      usersList.innerHTML = users
+        .map((user) => {
+          const isPublisherRow = user.role === "publisher";
+          const roleAction = user.role === "admin" ? "user" : "admin";
+          return `
+            <div class="user-row">
+              <div class="user-row__info">
+                <strong>${hs.escapeHtml(user.email || "（无邮箱）")}</strong>
+                <span class="role-chip">${hs.roleLabel(user.role)}${user.banned ? " · 已封禁" : ""}</span>
+              </div>
+              ${isPublisherRow
+                ? '<span class="hint">不可修改</span>'
+                : `<div class="user-row__actions">
+                     <m3e-button variant="text" data-uid="${user.id}" data-act="role" data-role="${roleAction}">${user.role === "admin" ? "移除管理员" : "设为管理员"}</m3e-button>
+                     <m3e-button variant="text" data-uid="${user.id}" data-act="ban" data-ban="${user.banned ? "false" : "true"}">${user.banned ? "解封" : "封禁"}</m3e-button>
+                   </div>`}
+            </div>`;
+        })
+        .join("");
+
+      usersList.querySelectorAll("[data-act]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          button.setAttribute("disabled", "");
+          const { error: actionError } =
+            button.dataset.act === "role"
+              ? await client.rpc("admin_set_role", { p_user_id: button.dataset.uid, p_role: button.dataset.role })
+              : await client.rpc("admin_set_banned", { p_user_id: button.dataset.uid, p_banned: button.dataset.ban === "true" });
+          button.removeAttribute("disabled");
+          if (actionError) {
+            hs.toast(actionError.message);
+            return;
+          }
+          hs.toast("已更新");
+          await loadUsers();
+        });
+      });
+    }
+
+    document.getElementById("manage-users-button")?.addEventListener("click", () => {
+      usersDialog?.show();
+      void loadUsers();
+    });
+    document.getElementById("users-close")?.addEventListener("click", () => usersDialog?.hide());
+
     // ---------- 右下角编辑按钮 ----------
     const fabHost = document.getElementById("fab-host");
     const permissionDialog = document.getElementById("permission-dialog");
@@ -807,6 +871,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
