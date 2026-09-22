@@ -2,6 +2,23 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      /* 老浏览器检测：M3E 组件库需要较新的 API，缺了就自动切到不依赖组件库的简版页面。
+         这段本身用 ES5 写，保证在老浏览器上也能执行。 */
+      (function () {
+        var missing =
+          typeof window.Proxy === "undefined" ||
+          typeof window.customElements === "undefined" ||
+          typeof Element.prototype.attachInternals !== "function" ||
+          typeof Document.prototype.adoptedStyleSheets === "undefined" ||
+          typeof CSSStyleSheet === "undefined" ||
+          typeof CSSStyleSheet.prototype.replaceSync !== "function";
+        if (!missing) return;
+        if (location.pathname.indexOf("simple.html") >= 0) return;
+        var target = location.pathname.replace(/[^\/]*$/, "simple.html");
+        location.replace(target + "?from=fallback");
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>邮箱验证 · 作业</title>
     <link rel="stylesheet" href="assets/app.css?v27" />
@@ -102,6 +119,7 @@
     </m3e-theme>
   </body>
 </html>
+
 
 
 

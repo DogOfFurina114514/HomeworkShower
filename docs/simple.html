@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>作业 · 简版</title>
+    <link rel="icon" href="assets/icon.svg?v27" type="image/svg+xml" />
+    <style>
+      /* 简版页面：不依赖任何组件库、不使用现代语法，供老浏览器（如 iOS 12 的 iPhone 5S）使用 */
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f5fafc;
+        color: #171d1e;
+        font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        padding: 12px 16px;
+        background: #f5fafc;
+        border-bottom: 1px solid #bfc8cb;
+      }
+      h1 { margin: 0 0 10px; font-size: 22px; }
+      .tip {
+        margin: 0 16px 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #ffdad6;
+        color: #410002;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .tip a { color: #006877; }
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        font-size: 15px;
+      }
+      .bar input[type="date"] {
+        font: inherit;
+        padding: 8px 10px;
+        border: 1px solid #6f797b;
+        border-radius: 10px;
+        background: #eff4f6;
+      }
+      .status {
+        margin: 0 16px 12px;
+        padding: 10px 14px;
+        border: 1px solid #bfc8cb;
+        border-radius: 12px;
+        background: #eff4f6;
+        font-size: 14px;
+        color: #3f484a;
+      }
+      main { padding: 0 16px 48px; }
+      .group { margin: 0 0 28px; }
+      .group h2 { margin: 0 0 8px; font-size: 19px; }
+      ul { list-style: none; margin: 0; padding: 0; }
+      li {
+        position: relative;
+        margin: 0 0 2px;
+        padding: 12px 14px 12px 26px;
+        border-radius: 10px;
+        background: #eff4f6;
+        font-size: 17px;
+        line-height: 1.55;
+        word-break: break-word;
+      }
+      li:before {
+        content: "";
+        position: absolute;
+        left: 12px;
+        top: 21px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #006877;
+      }
+      li.expired { color: #ba1a1a; }
+      li.expired:before { background: #ba1a1a; }
+      li img { max-width: 100%; height: auto; border-radius: 8px; }
+      li .tags { display: block; margin-top: 6px; }
+      li .tag {
+        display: inline-block;
+        margin: 0 4px 4px 0;
+        padding: 2px 10px;
+        border: 1px solid #bfc8cb;
+        border-radius: 999px;
+        font-size: 12px;
+        color: #3f484a;
+      }
+      .empty { padding: 40px 0; text-align: center; color: #3f484a; }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <h1>作业</h1>
+      <div class="bar">
+        <span>看哪一天：</span>
+        <input type="date" id="date-picker" />
+      </div>
+    </header>
+
+    <p class="tip" id="tip" style="display: none">
+      你用的是较老的浏览器，这里显示的是<b>简版页面</b>（只读、无动画）。
+      想用完整功能（登录、时光机、修改作业），请升级系统或换用较新的浏览器。
+      <a href="index.html">仍要尝试完整版</a>
+    </p>
+
+    <p class="status" id="status">正在加载…</p>
+    <main id="board"></main>
+
+    <script src="assets/config.js?v27"></script>
+    <script>
+      /* 全部用 ES5 写法，保证 iOS 12 也能跑；直接用 fetch 调 Supabase REST（匿名只读） */
+      (function () {
+        var config = window.HOMEWORK_SHOWER_CONFIG;
+        var boardEl = document.getElementById("board");
+        var statusEl = document.getElementById("status");
+        var datePicker = document.getElementById("date-picker");
+        var availableDates = [];
+        var today = todayString();
+
+        if (!config || !config.supabaseUrl) {
+          statusEl.innerHTML = "配置没有加载成功，请刷新重试。";
+          return;
+        }
+
+        if (window.location.search.indexOf("full=1") === -1) {
+          document.getElementById("tip").style.display = "block";
+        }
+
+        function todayString() {
+          var now = new Date();
+          var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+          return now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+        }
+
+        function api(path) {
+          return fetch(config.supabaseUrl + "/rest/v1/" + path, {
+            headers: {
+              apikey: config.supabaseKey,
+              Authorization: "Bearer " + config.supabaseKey
+            }
+          }).then(function (response) {
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            return response.json();
+          });
+        }
+
+        function escapeHtml(text) {
+          return String(text === null || text === undefined ? "" : text).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+
+        function formatDate(value) {
+          var parts = String(value).split("-");
+          return parts[0] + " 年 " + Number(parts[1]) + " 月 " + Number(parts[2]) + " 日";
+        }
+
+        function isExpired(due) {
+          return due ? String(due) < today : false;
+        }
+
+        function render(rows, date) {
+          if (!rows.length) {
+            boardEl.innerHTML = '<p class="empty">这一天没有作业</p>';
+            return;
+          }
+          var groups = [];
+          var index = {};
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var subject = (row.subject || "其它").replace(/^\s+|\s+$/g, "") || "其它";
+            if (!index[subject]) {
+              index[subject] = { subject: subject, items: [] };
+              groups.push(index[subject]);
+            }
+            index[subject].items.push(row);
+          }
+
+          var html = "";
+          for (var g = 0; g < groups.length; g++) {
+            html += '<section class="group"><h2>' + escapeHtml(groups[g].subject) + "</h2><ul>";
+            for (var k = 0; k < groups[g].items.length; k++) {
+              var item = groups[g].items[k];
+              var expired = isExpired(item.due_date);
+              var content = item.content_html
+                ? item.content_html
+                : escapeHtml(item.content).replace(/\n/g, "<br>");
+              var tags = "";
+              if (item.tags && item.tags.length) {
+                tags = '<span class="tags">';
+                for (var t = 0; t < item.tags.length; t++) {
+                  tags += '<span class="tag">' + escapeHtml(item.tags[t]) + "</span>";
+                }
+                tags += "</span>";
+              }
+              html += '<li class="' + (expired ? "expired" : "") + '">' + content + tags + "</li>";
+            }
+            html += "</ul></section>";
+          }
+          boardEl.innerHTML = html;
+        }
+
+        function loadDate(date) {
+          statusEl.innerHTML = "正在加载…";
+          api(
+            "homeworks?select=subject,content,content_html,tags,due_date,sort_order&published_on=eq." +
+              date +
+              "&order=subject.asc,sort_order.asc"
+          )
+            .then(function (rows) {
+              statusEl.innerHTML = formatDate(date) + " · 共 " + rows.length + " 条作业";
+              render(rows, date);
+            })
+            .catch(function (error) {
+              statusEl.innerHTML = "加载失败：" + escapeHtml(error.message);
+            });
+        }
+
+        api("publish_batches?select=published_on&order=published_on.desc&limit=400")
+          .then(function (rows) {
+            for (var i = 0; i < rows.length; i++) availableDates.push(rows[i].published_on);
+            if (!availableDates.length) {
+              statusEl.innerHTML = "还没有发布过作业。";
+              return;
+            }
+            datePicker.min = availableDates[availableDates.length - 1];
+            datePicker.max = availableDates[0] > today ? availableDates[0] : today;
+            var initial = availableDates.indexOf(today) >= 0 ? today : availableDates[0];
+            datePicker.value = initial;
+            loadDate(initial);
+          })
+          .catch(function (error) {
+            statusEl.innerHTML = "读取发布记录失败：" + escapeHtml(error.message);
+          });
+
+        datePicker.addEventListener("change", function () {
+          if (datePicker.value) {
+            if (availableDates.indexOf(datePicker.value) < 0) {
+              statusEl.innerHTML = formatDate(datePicker.value) + " 没有作业记录";
+              boardEl.innerHTML = "";
+              return;
+            }
+            loadDate(datePicker.value);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
