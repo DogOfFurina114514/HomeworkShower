@@ -1056,7 +1056,13 @@
       if (profile && profile.deletion_requested_at && page !== "auth") {
         // 3 天内登录 = 取消注销
         api("rpc/cancel_account_deletion", { method: "POST", body: {} })
-          .then(function () { message("已为你取消注销申请，欢迎回来", false); })
+          .then(function () {
+            dialog({
+              title: "欢迎回来",
+              body: "<p>检测到你在这段时间内登录了，注销申请已经自动取消，账号与作业都保持原样。</p>",
+              actions: [{ label: "知道了", primary: true }]
+            });
+          })
           .catch(function () {});
       }
       (pages[page] || pageIndex)();
@@ -1074,6 +1080,8 @@
     message: message
   };
 })();
+
+
 
 
 

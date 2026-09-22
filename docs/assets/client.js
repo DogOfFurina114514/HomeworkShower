@@ -111,7 +111,7 @@
       void client
         .rpc("cancel_account_deletion")
         .then(({ data }) => {
-          if (data?.canceled) toast("已为你取消注销申请，欢迎回来");
+          if (data?.canceled) showWelcomeBack();
         })
         .catch(() => {});
       profile.deletionRequestedAt = null;
@@ -217,6 +217,31 @@
     fatal(reason instanceof Error ? reason.message : String(reason));
   });
 
+
+  /** 登录后自动取消注销时的弹窗提示（M3E 对话框；组件未就绪时退回轻提示） */
+  function showWelcomeBack() {
+    try {
+      if (!window.customElements || !window.customElements.get("m3e-dialog")) {
+        toast("已为你取消注销申请，欢迎回来");
+        return;
+      }
+      const dialog = document.createElement("m3e-dialog");
+      dialog.setAttribute("dismissible", "");
+      dialog.innerHTML =
+        '<m3e-heading slot="header" variant="headline" size="small" level="2">欢迎回来</m3e-heading>' +
+        "<p>检测到你在这段时间内登录了，注销申请已经自动取消，账号与作业都保持原样。</p>" +
+        '<div slot="actions" end><m3e-button variant="filled">知道了</m3e-button></div>';
+      document.body.appendChild(dialog);
+      dialog.querySelector("m3e-button")?.addEventListener("click", () => {
+        dialog.hide();
+        window.setTimeout(() => dialog.remove(), 300);
+      });
+      void dialog.show();
+    } catch (error) {
+      toast("已为你取消注销申请，欢迎回来");
+    }
+  }
+
   window.hs = {
     client,
     config,
@@ -235,6 +260,7 @@
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();
+
 
 
 
