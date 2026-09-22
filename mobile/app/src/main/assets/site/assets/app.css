@@ -776,3 +776,51 @@ button {
     transition: none;
   }
 }
+
+/* ============================================================
+   弹窗动效
+   M3E 组件的动效会跟随系统「移除动画」设置，被关掉时弹窗会硬邦邦地出现。
+   这里给放进弹窗的内容补一层动画：元素从 display:none 变为显示时会重新播放动画，
+   所以每次打开弹窗都会走一遍。
+   ============================================================ */
+
+@keyframes hs-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+m3e-dialog > * {
+  animation: hs-dialog-in 240ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+m3e-dialog > *:nth-child(2) {
+  animation-delay: 30ms;
+}
+
+m3e-dialog > *:nth-child(3) {
+  animation-delay: 60ms;
+}
+
+m3e-dialog > *:nth-child(n + 4) {
+  animation-delay: 90ms;
+}
+
+/* 遮罩淡入（组件内的遮罩拿不到，这里让页面本身在被遮住时有个过渡） */
+m3e-theme {
+  transition: filter 200ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 右下角按钮弹出菜单时的缩放反馈 */
+#fab-host m3e-fab {
+  transition: transform 200ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#fab-host m3e-fab:active {
+  transform: scale(0.94);
+}
