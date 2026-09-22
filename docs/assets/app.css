@@ -868,3 +868,36 @@ html.hs-booting body {
 
 
 
+
+/* ============================================================
+   看板分栏（最终版）：CSS 多栏，宽度自适应
+   选中卡片时按钮在文档流内向下展开，卡片变高，浏览器自动重排各栏。
+   ============================================================ */
+
+.masonry-columns {
+  display: block !important;
+  column-width: 350px !important;
+  column-gap: 8px !important;
+}
+
+.masonry-column {
+  display: block;
+}
+
+.subject-group {
+  break-inside: avoid;
+  margin: 0 0 36px;
+}
+
+/* 未选中时按钮不占高度；选中后展开，卡片顺势变高 */
+.homework-item {
+  overflow: visible;
+}
+
+.homework-item--selected {
+  transform: none;
+  --m3e-list-item-container-color: var(--md-sys-color-secondary-container, #cde7ed);
+  --m3e-list-item-label-text-color: var(--md-sys-color-on-secondary-container, #334a50);
+  --m3e-list-item-leading-color: var(--md-sys-color-on-secondary-container, #334a50);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+}
