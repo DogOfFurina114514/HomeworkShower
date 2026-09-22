@@ -85,7 +85,7 @@
     const user = userData?.user;
     if (!user) return null;
     const { data } = await withTimeout(
-      client.from("profiles").select("role,email,banned").eq("id", user.id).maybeSingle(),
+      client.from("profiles").select("role,email,banned,deletion_requested_at,deleted_at").eq("id", user.id).maybeSingle(),
       10000,
       "读取角色",
     );
@@ -94,9 +94,29 @@
       email: data?.email || user.email || "",
       role: data?.role || "user",
       banned: Boolean(data?.banned),
+      deletionRequestedAt: data?.deletion_requested_at || null,
+      deletedAt: data?.deleted_at || null,
     };
     // 封禁账号：任何页面都跳到封禁提示页
     if (profile.banned) bannedRedirect();
+
+    // 已注销：不再允许使用，送到注销说明页
+    if (profile.deletedAt) {
+      if (location.pathname.indexOf("deleted.html") < 0) location.replace("deleted.html");
+      return null;
+    }
+
+    // 注销申请中：按约定"3 天内登录 = 取消注销"
+    if (profile.deletionRequestedAt) {
+      void client
+        .rpc("cancel_account_deletion")
+        .then(({ data }) => {
+          if (data?.canceled) toast("已为你取消注销申请，欢迎回来");
+        })
+        .catch(() => {});
+      profile.deletionRequestedAt = null;
+    }
+
     return profile;
   }
 
@@ -215,6 +235,7 @@
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();
+
 
 
 

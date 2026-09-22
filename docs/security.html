@@ -38,13 +38,13 @@
         location.replace(location.pathname.replace(/[^/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
       })();
     </script>
-    <link rel="stylesheet" href="assets/app.css?v60" />
-    <link rel="icon" href="assets/icon.svg?v60" type="image/svg+xml" />
-    <script src="vendor/m3e.js?v60" defer></script>
-    <script src="vendor/supabase.js?v60" defer></script>
-    <script src="assets/config.js?v60" defer></script>
-    <script src="assets/client.js?v60" defer></script>
-    <script src="assets/security.js?v60" defer></script>
+    <link rel="stylesheet" href="assets/app.css?v61" />
+    <link rel="icon" href="assets/icon.svg?v61" type="image/svg+xml" />
+    <script src="vendor/m3e.js?v61" defer></script>
+    <script src="vendor/supabase.js?v61" defer></script>
+    <script src="assets/config.js?v61" defer></script>
+    <script src="assets/client.js?v61" defer></script>
+    <script src="assets/security.js?v61" defer></script>
   </head>
 
   <body>
@@ -115,6 +115,36 @@
             <m3e-button variant="filled" id="change-password">发送验证邮件到当前邮箱</m3e-button>
           </div>
         </section>
+        <section class="auth__card">
+          <m3e-heading variant="title" size="large" level="2">注销账号</m3e-heading>
+          <p class="hint">
+            注销是不可逆的操作。为了防止误操作，需要先完成邮箱验证，然后手动输入一句确认短语。
+            提交后你会从所有设备退出登录，账号将在 3 天后进入已注销状态。
+          </p>
+
+          <p class="status" id="deletion-message" hidden></p>
+
+          <div class="auth__actions" id="deletion-step-send">
+            <m3e-button variant="filled" id="request-deletion">申请注销，先验证邮箱</m3e-button>
+          </div>
+
+          <div id="deletion-step-confirm" hidden>
+            <p class="hint">
+              邮箱已验证。请把下面这句话<strong>原样输入</strong>到输入框里（含标点），以确认你了解并同意：
+            </p>
+            <p class="status" id="deletion-phrase">
+              我确认注销账号，并允许服务器将我的账号数据继续存放60天
+            </p>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="deletion-input">在此输入上面那句话</label>
+              <input id="deletion-input" autocomplete="off" />
+            </m3e-form-field>
+            <div class="auth__actions">
+              <m3e-button variant="filled" id="confirm-deletion">确认注销</m3e-button>
+              <m3e-button variant="text" id="cancel-deletion-request">我改主意了，取消</m3e-button>
+            </div>
+          </div>
+        </section>
       </main>
     </m3e-theme>
 
@@ -125,3 +155,5 @@
     </script>
   </body>
 </html>
+
+

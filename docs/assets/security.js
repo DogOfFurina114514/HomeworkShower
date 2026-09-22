@@ -138,6 +138,72 @@
     );
   }
 
+
+  /* ---------------------------------------------------------- 注销账号 */
+
+  /** 与页面展示完全一致的确认短语（含标点，逐字比对） */
+  const DELETION_PHRASE = "我确认注销账号，并允许服务器将我的账号数据继续存放60天";
+
+  const deletionMessage = document.getElementById("deletion-message");
+  const deletionStepSend = document.getElementById("deletion-step-send");
+  const deletionStepConfirm = document.getElementById("deletion-step-confirm");
+  const deletionInput = document.getElementById("deletion-input");
+
+  /** 第 1 步：发验证邮件（Magic link），点开后才允许进入确认步骤 */
+  async function requestDeletion() {
+    const email = profile?.email || "";
+    if (!email) return show(deletionMessage, "没有拿到邮箱地址，请重新登录后再试。");
+
+    const button = document.getElementById("request-deletion");
+    button.setAttribute("disabled", "");
+    show(deletionMessage, "正在发送验证邮件…", false);
+    const redirectTo = new URL("security.html?deletion=confirm", location.href).href;
+    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+    button.removeAttribute("disabled");
+
+    show(
+      deletionMessage,
+      error
+        ? `发送失败：${error.message}`
+        : `验证邮件已发送到 ${email}：请点开邮件里的按钮（也能顺便取消注销）。回来后这里会出现确认输入框。`,
+      Boolean(error),
+    );
+  }
+
+  /** 第 3 步：短语逐字一致才允许提交；提交后立刻全平台登出 */
+  async function confirmDeletion() {
+    const typed = (deletionInput?.value || "").trim();
+    if (typed !== DELETION_PHRASE) {
+      return show(deletionMessage, "输入的内容与确认短语不一致，请原样输入（注意标点）。");
+    }
+
+    const button = document.getElementById("confirm-deletion");
+    button.setAttribute("disabled", "");
+    show(deletionMessage, "正在提交注销申请…", false);
+    const { error } = await client.rpc("request_account_deletion");
+    if (error) {
+      button.removeAttribute("disabled");
+      return show(deletionMessage, `提交失败：${error.message}`);
+    }
+
+    // 按需求：提交后即在所有地方退出登录
+    try {
+      await client.auth.signOut({ scope: "global" });
+    } catch (ignored) {
+      await client.auth.signOut();
+    }
+    location.replace("deleted.html?state=requested");
+  }
+
+  /** 反悔：清掉申请（也用于 3 天内回来时的手动取消） */
+  async function cancelDeletion() {
+    const { error } = await client.rpc("cancel_account_deletion");
+    if (error) return show(deletionMessage, `取消失败：${error.message}`);
+    show(deletionMessage, "已取消注销申请，账号保持正常。", false);
+    if (deletionStepConfirm) deletionStepConfirm.hidden = true;
+    if (deletionStepSend) deletionStepSend.hidden = false;
+  }
+
   void (async () => {
     const session = await hs.requireSession();
     if (!session) return;
@@ -151,6 +217,23 @@
     resendButton?.addEventListener("click", () => void resendEmail());
     appealButton?.addEventListener("click", openAppeal);
     changePasswordButton.addEventListener("click", () => void changePassword());
+    document.getElementById("request-deletion")?.addEventListener("click", () => void requestDeletion());
+    document.getElementById("confirm-deletion")?.addEventListener("click", () => void confirmDeletion());
+    document.getElementById("cancel-deletion-request")?.addEventListener("click", () => void cancelDeletion());
+
+    // 点了邮件里的验证链接回来（?deletion=confirm）→ 直接展开确认步骤
+    const params = new URLSearchParams(location.search);
+    if (params.get("deletion") === "confirm") {
+      if (deletionStepSend) deletionStepSend.hidden = true;
+      if (deletionStepConfirm) deletionStepConfirm.hidden = false;
+      show(deletionMessage, "邮箱已验证，请按下面的提示输入确认短语。", false);
+      history.replaceState(null, "", location.pathname);
+    }
+    if (params.get("deletion") === "cancelled") {
+      show(deletionMessage, "已取消注销，欢迎回来。", false);
+      history.replaceState(null, "", location.pathname);
+    }
   })();
 })();
+
 
