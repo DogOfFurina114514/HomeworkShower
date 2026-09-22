@@ -938,3 +938,18 @@ m3e-theme {
   /* 未选中：不占高度、不可点 */
   display: none;
 }
+
+/* 固定分栏：用 flex 列承载 JS 分配好的科目（覆盖上面的 CSS 多栏） */
+.masonry-columns {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  column-width: auto !important;
+  column-count: auto !important;
+}
+
+.masonry-column {
+  display: block !important;
+  flex: 1 1 0 !important;
+  min-width: 0;
+}

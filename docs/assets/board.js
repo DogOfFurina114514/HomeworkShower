@@ -137,6 +137,7 @@
     }
 
     boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
+    layoutColumns();
     skipEnterAnimation = false;
   }
 
@@ -317,6 +318,41 @@
     window.clearTimeout(layoutColumns.timer);
     layoutColumns.timer = window.setTimeout(() => {
       if (!boardEl.querySelector(".masonry-columns")) return;
+    }, 150);
+  });
+
+
+  /**
+   * 固定分栏：按容器宽度算出列数，科目按顺序轮流分配到各列。
+   * 与 CSS 多栏的区别：分配结果固定，卡片变高只影响自己这一列，
+   * 不会让别的科目被挤到下一排。
+   */
+  function layoutColumns() {
+    const wrap = boardEl.querySelector(".masonry-columns");
+    if (!wrap) return;
+    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
+    if (!groups.length) return;
+
+    const width = boardEl.clientWidth || window.innerWidth || 1024;
+    const count = Math.max(1, Math.min(groups.length, Math.floor((width - 48) / 358) || 1));
+
+    wrap.innerHTML = "";
+    const columns = [];
+    for (let i = 0; i < count; i += 1) {
+      const column = document.createElement("div");
+      column.className = "masonry-column";
+      wrap.appendChild(column);
+      columns.push(column);
+    }
+    groups.forEach((group, index) => {
+      columns[index % count].appendChild(group);
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    window.clearTimeout(layoutColumns.timer);
+    layoutColumns.timer = window.setTimeout(() => {
+      if (boardEl.querySelector(".masonry-columns")) layoutColumns();
     }, 150);
   });
 
@@ -771,6 +807,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
