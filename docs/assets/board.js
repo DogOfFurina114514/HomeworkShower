@@ -444,6 +444,10 @@
     }
 
     function openEdit(id) {
+      if (!canManage) {
+        hs.toast("你的修改权限已被撤销");
+        return;
+      }
       const row = findRow(id);
       if (!row || !editDialog) return;
       document.getElementById("edit-subject").value = row.subject || "";
@@ -464,7 +468,7 @@
     }
 
     async function saveEdit() {
-      if (!editDialog) return;
+      if (!editDialog || !canManage) return;
       const id = editDialog.dataset.id;
       const subject = document.getElementById("edit-subject").value.trim() || "其它";
 const duePickerEl = document.getElementById("edit-due-picker");
@@ -507,6 +511,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
     }
 
     function openDelete(id) {
+      if (!canManage) {
+        hs.toast("你的修改权限已被撤销");
+        return;
+      }
       if (!deleteDialog) return;
       setDialogMessage("delete-message", "");
       deleteDialog.dataset.id = id;
@@ -658,6 +666,39 @@ const duePickerEl = document.getElementById("edit-due-picker");
     });
 
 
+    // ---------- 权限实时核对 ----------
+    /**
+     * 角色可能被管理员随时改掉：定时、回到页面、以及每次操作前都重新核对，
+     * 避免"撤销管理员后不刷新仍能继续修改"。
+     */
+    async function syncPermissions() {
+      if (mode !== "latest" || !currentDate) return;
+      try {
+        const latest = await hs.getProfile();
+        if (!latest) return;
+        const nextCanManage = Boolean(hs.canEditToday(latest) && currentDate === todayString());
+        const changed = !profile || latest.role !== profile.role || nextCanManage !== canManage;
+        profile = latest;
+        if (!changed) return;
+
+        canManage = nextCanManage;
+        if (!canManage) selectedId = null;
+        if (accountRole) accountRole.textContent = hs.roleLabel(latest.role);
+        const manageUsersButton = document.getElementById("manage-users-button");
+        if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(latest);
+        if (publishLink) publishLink.hidden = !hs.isPublisher(latest);
+        renderBoard(currentRows);
+        hs.toast(nextCanManage ? "权限已更新" : "你的修改权限已被撤销");
+      } catch (error) {
+        /* 网络抖动忽略，下次再核对 */
+      }
+    }
+
+    window.setInterval(() => void syncPermissions(), 30000);
+    window.addEventListener("focus", () => void syncPermissions());
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) void syncPermissions();
+    });
     // ---------- 管理用户（仅发布者） ----------
     const usersDialog = document.getElementById("users-dialog");
     const usersList = document.getElementById("users-list");
@@ -871,6 +912,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
