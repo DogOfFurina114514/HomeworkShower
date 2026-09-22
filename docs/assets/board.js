@@ -137,7 +137,6 @@
     }
 
     boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
-    layoutColumns();
     skipEnterAnimation = false;
   }
 
@@ -318,7 +317,6 @@
     window.clearTimeout(layoutColumns.timer);
     layoutColumns.timer = window.setTimeout(() => {
       if (!boardEl.querySelector(".masonry-columns")) return;
-      layoutColumns();
     }, 150);
   });
 
@@ -773,6 +771,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 

@@ -814,23 +814,20 @@ m3e-theme {
 
 /* 修改/删除按钮：绝对定位浮在右下角，不占布局；随选中淡入并轻微放大 */
 .homework-actions {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
   display: flex;
+  justify-content: flex-end;
   gap: 2px;
+  max-height: 0;
   opacity: 0;
-  transform: scale(0.92);
-  pointer-events: none;
+  overflow: hidden;
   transition:
-    opacity 180ms cubic-bezier(0.5, 1, 0.89, 1),
-    transform 200ms cubic-bezier(0.5, 1, 0.89, 1);
+    max-height 220ms cubic-bezier(0.5, 1, 0.89, 1),
+    opacity 160ms cubic-bezier(0.5, 1, 0.89, 1);
 }
 
 .homework-item--selected .homework-actions {
+  max-height: 64px;
   opacity: 1;
-  transform: none;
-  pointer-events: auto;
 }
 .masonry-columns--no-anim .subject-group,
 .masonry-columns--no-anim .homework-item {
@@ -838,7 +835,15 @@ m3e-theme {
 }
 
 .masonry-columns--no-anim .homework-actions {
-  animation: hs-fade 160ms ease-out both;
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height 220ms cubic-bezier(0.5, 1, 0.89, 1),
+    opacity 160ms cubic-bezier(0.5, 1, 0.89, 1);
 }
 
 
@@ -862,26 +867,4 @@ html.hs-booting body {
 }
 
 
-/* ============================================================
-   看板分栏：由 JS 按列高分配（同桌面端），这里只负责排布。
-   放在文件末尾，覆盖上面遗留的 CSS 多栏规则。
-   ============================================================ */
 
-.masonry-columns {
-  display: flex !important;
-  align-items: flex-start;
-  gap: 8px;
-  column-width: auto !important;
-  column-count: auto !important;
-}
-
-.masonry-column {
-  display: block;
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-/* 分栏后科目组之间只需要下边距 */
-.masonry-column > .subject-group:last-child {
-  margin-bottom: 0;
-}
