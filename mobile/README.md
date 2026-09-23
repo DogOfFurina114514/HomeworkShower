@@ -61,3 +61,45 @@ pwsh -File mobile/sync-assets.ps1
   在浏览器里点完后，回到 App 用邮箱密码登录即可；
 - 手机端登录态与浏览器相互独立（不同存储空间）。
 
+
+---
+
+## 应用内更新（规格，实现中）
+
+版本号规则：`年份.大功能.小补丁`，打包号 = `年份×10000 + 大功能×100 + 小补丁`
+（例：`26.0.0` → `260000`）。最前面一位每年变，第二位为大功能，第三位为小补丁。
+
+### 检查顺序
+
+1. **两个更新同时检查**（热更新与本体更新并发）；
+2. 两者都优先请求 `https://dogoffurina114514.github.io/HomeworkShower/version.json`；
+3. 拉不到（离线/被墙）→ **回退 Supabase**（`app_web_release` / `app_web_manifest` / `app_releases`）；
+4. **两处都失败 → 开屏直接显示「网络错误」**，不进主界面（连 Supabase 都不通的话，进去也看不到作业）；
+5. 无更新则**静默**。
+
+### 热更新（网页，增量）
+
+- 用 `manifest.json`（GitHub）或 `app_web_manifest`（Supabase）比对本地各文件哈希，**只下载变化的文件**；
+- 每个文件依次尝试：`gh.dpik.top` → `gh.llkk.cc` → 主站；
+- **原子性**：先下到临时目录 → 全部成功并校验后一次性替换 → **最后才写版本号**。
+  任何一步失败都保持旧版不动，绝不出现"更了一半却显示最新"。
+
+### 本体更新（下载安装包）
+
+- 比较 `apkVersionCode`（来自 `version.json` 或 `app_releases`）；
+- APK 地址 = `apkUrlTemplate` 替换版本号，镜像前缀依次尝试：`gh.dpik.top/` → `gh.llkk.cc/` → 直连（空串）；
+- 下载完成后调用系统安装器。
+
+### 弹窗（原生 Android，M3 风格）
+
+- **本体更新弹窗在上，热更新弹窗在下**；
+- 说明文字取自 `apkNotes`；
+- 可选更新（`apkMandatory = false`）：按钮为「立即更新」+「稍后」；
+- **强制更新（`apkMandatory = true`）：按钮为「立即更新」+「退出」**
+  （没有"稍后"，用户只能更新或退出 App）。
+
+### 发布约定
+
+- **只有框架程序（APK）更新时才发 Release**，文件名 `HomeworkShower_<版本>.apk`，tag 用版本号（如 `26.0.0`）；
+- 网页更新**只**需要：改 `docs/` → `node tools/web-manifest.mjs`（写 `docs/manifest.json` 并同步 Supabase）→ 改 `docs/version.json` 的 `webVersion/webVersionCode`；
+- Supabase 侧每 10 分钟自动跟随 GitHub，忘记手动同步也不会落后。
