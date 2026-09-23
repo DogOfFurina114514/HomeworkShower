@@ -699,8 +699,18 @@ const duePickerEl = document.getElementById("edit-due-picker");
       }
     }
 
+    // 交互即查（点一下就核对权限，节流 2 秒）+ 30 秒轮询兜底
+    let lastSync = 0;
+    function syncThrottled() {
+      const now = Date.now();
+      if (now - lastSync < 2000) return;
+      lastSync = now;
+      void syncPermissions();
+    }
     window.setInterval(() => void syncPermissions(), 30000);
     window.addEventListener("focus", () => void syncPermissions());
+    document.addEventListener("pointerdown", syncThrottled);
+    document.addEventListener("keydown", syncThrottled);
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) void syncPermissions();
     });
@@ -920,6 +930,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 
