@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <link rel="icon" href="assets/icon.svg?v78" type="image/svg+xml" />
+    <link rel="icon" href="assets/icon.svg?v79" type="image/svg+xml" />
     <title>账户已封禁 · 作业</title>
     <!-- 封禁页：不加载任何库，红底提示，任何浏览器都能打开 -->
-    <script src="assets/config.js?v78"></script>
+    <script src="assets/config.js?v79"></script>
     <style>
       * { box-sizing: border-box; }
       body {
@@ -72,15 +72,31 @@
           var token = session && (session.access_token || (session.currentSession && session.currentSession.access_token));
           var uid = session && session.user && session.user.id;
           if (!token || !uid) { goHome(); return; }
-          // 只有"明确查到未被封禁"才回主页；查不到/出错一律留在封禁页，避免来回跳转
-          fetch(config.supabaseUrl + "/rest/v1/profiles?select=banned&id=eq." + uid, {
-            headers: { apikey: config.supabaseKey, Authorization: "Bearer " + token }
-          })
-            .then(function (response) { return response.ok ? response.json() : null; })
-            .then(function (rows) {
-              if (rows && rows.length && rows[0].banned === false) goHome();
+          // 只有"明确查到未被封禁"才回主页；查不到/出错一律留在封禁页，避免来回跳转。
+          // 并且持续复查：管理员解封后这里会自动放行，不需要用户手动刷新。
+          function check() {
+            return fetch(config.supabaseUrl + "/rest/v1/profiles?select=banned&id=eq." + uid, {
+              headers: { apikey: config.supabaseKey, Authorization: "Bearer " + token }
             })
-            .catch(function () { /* 留在封禁页 */ });
+              .then(function (response) { return response.ok ? response.json() : null; })
+              .then(function (rows) {
+                if (rows && rows.length && rows[0].banned === false) {
+                  goHome();
+                  return true;
+                }
+                return false;
+              })
+              .catch(function () { return false; });
+          }
+
+          check().then(function (done) {
+            if (done) return;
+            // 每 15 秒复查一次；切回页面时也立刻复查
+            window.setInterval(check, 15000);
+            document.addEventListener("visibilitychange", function () {
+              if (!document.hidden) check();
+            });
+          });
         } catch (error) {
           /* 解析失败也留在封禁页 */
         }
@@ -119,6 +135,8 @@
     </script>
   </body>
 </html>
+
+
 
 
 
