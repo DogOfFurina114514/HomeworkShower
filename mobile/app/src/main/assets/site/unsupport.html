@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>设备不支持 · 作业</title>
+    <link rel="icon" href="assets/icon.svg?v77" type="image/svg+xml" />
+    <!--
+      设备不支持页：不加载 M3E、不加载 supabase、不做任何依赖检测，
+      样式全部内联手写，保证任何浏览器都能打开。
+      ?page=xxx.html 指定原页面，用于跳转到同名简版；缺失或非法则回主页。
+    -->
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #f5fafc;
+        color: #171d1e;
+        font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      .card {
+        width: 100%;
+        max-width: 460px;
+        padding: 28px 26px;
+        border: 1px solid #bfc8cb;
+        border-radius: 24px;
+        background: #eff4f6;
+      }
+      .warn {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 0 0 16px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: #ffdad6;
+        color: #410002;
+        font-size: 14px;
+        line-height: 1.65;
+      }
+      h1 { margin: 0 0 10px; font-size: 22px; font-weight: 500; }
+      p { margin: 0 0 10px; font-size: 15px; line-height: 1.7; color: #3f484a; word-break: break-all; }
+      .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+      a.pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 10px 20px;
+        border-radius: 21px;
+        background: #006877;
+        color: #fff;
+        font-size: 15px;
+        text-decoration: none;
+      }
+      a.pill.ghost { background: transparent; color: #006877; }
+    </style>
+  </head>
+
+  <body>
+    <main class="card">
+      <div class="warn">
+        <span><svg class="icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-7h-2v5h2V9z"/></svg></span>
+        <span id="warn-text">你的设备不能正确渲染新版页面。</span>
+      </div>
+      <h1>已切换到兼容模式</h1>
+      <p>下面可以打开功能与布局一致、但不需要这些特性的简版页面。</p>
+      <p id="where"></p>
+      <div class="actions">
+        <a class="pill" id="go-simple" href="#">去往简版</a>
+      </div>
+    </main>
+
+    <script>
+      /* ES5 写法，老浏览器可用；白名单校验参数，缺失或非法一律回主页 */
+      (function () {
+        var ALLOWED = ["index.html", "timemachine.html", "login.html", "publish.html", "auth.html"];
+        var origin = location.origin || location.protocol + "//" + location.host;
+        var parts = location.pathname.split("/").filter(function (item) { return !!item; });
+        var base = "/" + (parts[0] || "") + "/";
+        var home = origin + base;
+var page = "";
+        var match = String(location.search).match(/[?&]page=([^&]+)/);
+        if (match) {
+          page = decodeURIComponent(match[1]).replace(/^.*\//, "");
+        }
+        var valid = false;
+        for (var i = 0; i < ALLOWED.length; i++) {
+          if (ALLOWED[i] === page) valid = true;
+        }
+        if (!valid) page = "index.html";
+
+        var simpleUrl = home + "simple/" + page;
+        document.getElementById("go-simple").setAttribute("href", simpleUrl);
+        document.getElementById("where").innerHTML = "即将前往：" + simpleUrl;
+      })();
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

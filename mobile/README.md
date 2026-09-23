@@ -57,6 +57,7 @@ pwsh -File mobile/sync-assets.ps1
 
 ## 注意
 
-- 邮件验证链接仍然指向网页端 `https://dogofurina114514.github.io/HomeworkShower/auth.html`，
+- 邮件验证链接仍然指向网页端 `https://dogoffurina114514.github.io/HomeworkShower/auth.html`，
   在浏览器里点完后，回到 App 用邮箱密码登录即可；
 - 手机端登录态与浏览器相互独立（不同存储空间）。
+

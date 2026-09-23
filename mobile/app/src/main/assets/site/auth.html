@@ -2,10 +2,49 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      /* 启动遮罩：M3E 升级完成（或最多等 4 秒）后再显示页面，避免组件未就绪时样式露馅 */
+      (function () {
+        var root = document.documentElement;
+        root.className += " hs-booting";
+        function ready() { root.className = root.className.replace(/\s*hs-booting/, ""); }
+        var tries = 0;
+        (function wait() {
+          if (window.customElements && window.customElements.get("m3e-dialog")) { ready(); return; }
+          if (++tries > 40) { ready(); return; }
+          window.setTimeout(wait, 100);
+        })();
+      })();
+    </script>
+    <script>
+      /* 老浏览器检测：M3E 依赖若干较新的 API，缺了才切到不依赖组件库的简版页面。
+         注意 attachInternals 挂在 HTMLElement.prototype（不是 Element.prototype）。
+         地址上带 ?full=1 时强制走完整版，作为逃生口。 */
+      (function () {
+        if (location.search.indexOf("full=1") >= 0) return;
+        var ok = false;
+        try {
+          ok =
+            typeof window.Proxy !== "undefined" &&
+            typeof window.customElements !== "undefined" &&
+            typeof HTMLElement !== "undefined" &&
+            typeof HTMLElement.prototype.attachInternals === "function" &&
+            typeof CSSStyleSheet !== "undefined" &&
+            typeof CSSStyleSheet.prototype.replaceSync === "function" &&
+            "adoptedStyleSheets" in Document.prototype;
+        } catch (error) {
+          ok = false;
+        }
+        if (ok) return;
+        if (location.pathname.indexOf("/simple/") >= 0) return;
+        var name = location.pathname.replace(/.*\//, "") || "index.html";
+        location.replace(location.pathname.replace(/[^\/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>邮箱验证 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v27" />
-    <link rel="icon" href="assets/icon.svg?v27" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v77" />
+    <link rel="icon" href="assets/icon.svg?v77" type="image/svg+xml" />
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -73,11 +112,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v27" defer></script>
-    <script src="vendor/supabase.js?v27" defer></script>
-    <script src="assets/config.js?v27" defer></script>
-    <script src="assets/client.js?v27" defer></script>
-    <script src="assets/auth.js?v27" defer></script>
+    <script src="vendor/m3e.js?v77" defer></script>
+    <script src="vendor/supabase.js?v77" defer></script>
+    <script src="assets/config.js?v77" defer></script>
+    <script src="assets/client.js?v77" defer></script>
+    <script src="assets/auth.js?v77" defer></script>
   </head>
 
   <body>
@@ -102,6 +141,55 @@
     </m3e-theme>
   </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

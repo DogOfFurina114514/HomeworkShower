@@ -85,15 +85,39 @@
     const user = userData?.user;
     if (!user) return null;
     const { data } = await withTimeout(
-      client.from("profiles").select("role,email").eq("id", user.id).maybeSingle(),
+      client.from("profiles").select("role,email,banned,deletion_requested_at,deleted_at").eq("id", user.id).maybeSingle(),
       10000,
       "读取角色",
     );
-    return {
+    const profile = {
       user,
       email: data?.email || user.email || "",
       role: data?.role || "user",
+      banned: Boolean(data?.banned),
+      deletionRequestedAt: data?.deletion_requested_at || null,
+      deletedAt: data?.deleted_at || null,
     };
+    // 封禁账号：任何页面都跳到封禁提示页
+    if (profile.banned) bannedRedirect();
+
+    // 已注销：不再允许使用，送到注销说明页
+    if (profile.deletedAt) {
+      if (location.pathname.indexOf("deleted.html") < 0) location.replace("deleted.html");
+      return null;
+    }
+
+    // 注销申请中：按约定"3 天内登录 = 取消注销"
+    if (profile.deletionRequestedAt) {
+      void client
+        .rpc("cancel_account_deletion")
+        .then(({ data }) => {
+          if (data?.canceled) showWelcomeBack();
+        })
+        .catch(() => {});
+      profile.deletionRequestedAt = null;
+    }
+
+    return profile;
   }
 
   /** 未登录直接跳登录页，并记住来路。 */
@@ -107,7 +131,18 @@
     return session;
   }
 
+  /** 被封禁：跳到封禁页，并且不允许通过退出登录绕过 */
+  function bannedRedirect() {
+    if (location.pathname.indexOf("ban.html") >= 0) return;
+    location.replace("ban.html");
+  }
+
   async function signOut() {
+    const profile = await getProfile().catch(() => null);
+    if (profile && profile.banned) {
+      bannedRedirect();
+      return;
+    }
     await client.auth.signOut();
     location.replace("login.html");
   }
@@ -182,6 +217,36 @@
     fatal(reason instanceof Error ? reason.message : String(reason));
   });
 
+
+  /** 登录后自动取消注销时的弹窗提示（M3E 对话框；组件未就绪时退回轻提示） */
+  function showWelcomeBack() {
+    try {
+      if (!window.customElements || !window.customElements.get("m3e-dialog")) {
+        toast("已为你取消注销申请，欢迎回来");
+        return;
+      }
+      const dialog = document.createElement("m3e-dialog");
+      // 自定义元素是异步升级的：立刻调用 .show() 会因为方法还不存在而失败，
+      // 这里先把它标记为已升级，再显示。
+      if (window.customElements && typeof window.customElements.upgrade === "function") {
+        window.customElements.upgrade(dialog);
+      }
+      dialog.setAttribute("dismissible", "");
+      dialog.innerHTML =
+        '<m3e-heading slot="header" variant="headline" size="small" level="2">欢迎回来</m3e-heading>' +
+        "<p>检测到你在这段时间内登录了，注销申请已经自动取消，账号与作业都保持原样。</p>" +
+        '<div slot="actions" end><m3e-button variant="filled">知道了</m3e-button></div>';
+      document.body.appendChild(dialog);
+      dialog.querySelector("m3e-button")?.addEventListener("click", () => {
+        dialog.hide();
+        window.setTimeout(() => dialog.remove(), 300);
+      });
+      void dialog.show();
+    } catch (error) {
+      toast("已为你取消注销申请，欢迎回来");
+    }
+  }
+
   window.hs = {
     client,
     config,
@@ -200,4 +265,10 @@
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();
+
+
+
+
+
+
 

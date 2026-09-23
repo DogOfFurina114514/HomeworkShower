@@ -1,17 +1,27 @@
-/*
- * 样式与桌面端 StickyHomeworks2 对齐：
- * - 组件用同一套 M3E（vendor/m3e.js），颜色由 <m3e-theme color="#22D1EC"> 生成
- * - 作业看板的规则直接取自桌面端 src/styles/homework-board.css
- * - 顶部只保留精简操作区（没有应用栏、没有编辑按钮）
- */
+/* ============================================================================
+ * HomeworkShower 网页端样式表（单一来源，不再追加补丁）
+ *
+ *   1. 基础与字体        7. 登录注册
+ *   2. 顶栏与个人中心     8. 发布页
+ *   3. 看板与分栏        9. 富文本编辑器
+ *   4. 作业卡片         10. 弹窗与表单字段
+ *   5. 状态/横幅/占位    11. 用户管理
+ *   6. 右下角编辑按钮    12. 兜底页与手机适配
+ * ========================================================================= */
+
+/* ---------------------------------------------------------------- 1. 基础 */
 
 * {
   box-sizing: border-box;
 }
 
-/* hidden 必须压过组件自身的 display（m3e-* 与 .field 都会设 display） */
 [hidden] {
   display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html,
@@ -20,8 +30,22 @@ body {
   min-height: 100%;
   background: var(--md-sys-color-background, #f5fafc);
   color: var(--md-sys-color-on-background, #171d1e);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
+}
+
+html,
+body,
+m3e-theme {
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "MiSans",
+    "Source Han Sans SC", "Noto Sans CJK SC", Inter, ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-synthesis: none;
+}
+
+input,
+textarea,
+select,
+button {
+  font-family: inherit !important;
 }
 
 m3e-theme {
@@ -29,12 +53,26 @@ m3e-theme {
   min-height: 100dvh;
 }
 
-/* ---------------- 顶部操作区 ---------------- */
+/* 组件升级前先藏起来，避免弹窗内容裸奔 */
+m3e-dialog:not(:defined),
+m3e-fab:not(:defined),
+m3e-fab-menu:not(:defined),
+m3e-datepicker:not(:defined),
+m3e-snackbar:not(:defined) {
+  display: none !important;
+}
+
+/* 启动遮罩：组件就绪后由页面脚本撤掉 */
+html.hs-booting body {
+  visibility: hidden;
+}
+
+/* ------------------------------------------------- 2. 顶栏与个人中心 */
 
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -52,6 +90,7 @@ m3e-theme {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .account {
@@ -62,7 +101,7 @@ m3e-theme {
   position: absolute;
   inset-inline-end: 0;
   top: calc(100% + 8px);
-  z-index: 20;
+  z-index: 25;
   min-width: 320px;
   display: grid;
   gap: 8px;
@@ -96,24 +135,54 @@ m3e-theme {
   color: var(--md-sys-color-on-surface-variant, #3f484a);
 }
 
-/* ---------------- 作业看板（规则取自桌面端） ---------------- */
-
-.homework-board {
-  padding: 24px 20px 72px;
+#date-field {
+  min-width: 190px;
 }
 
+/* ---------------------------------------------------- 3. 看板与分栏 */
+
+.homework-board {
+  padding: 24px 20px 96px;
+}
+
+/* 列由 JS 固定分配：卡片变高只影响自己这一列 */
 .masonry-columns {
-  column-width: 350px;
-  column-gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .masonry-column {
   display: block;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+@keyframes hs-rise {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hs-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .subject-group {
-  break-inside: avoid;
   margin: 0 0 36px;
+  /* backwards：动画播完交回普通样式，不永久覆盖后续状态 */
+  animation: hs-rise 420ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
 }
 
 .subject-group > m3e-heading {
@@ -131,9 +200,18 @@ m3e-theme {
   --m3e-segmented-list-item-container-shape: 0;
 }
 
+/* ------------------------------------------------------- 4. 作业卡片 */
+
 .homework-item {
+  position: relative;
   min-width: 0;
   width: 100%;
+  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 40ms + 80ms);
+  transition:
+    background-color 200ms ease-out,
+    transform 220ms cubic-bezier(0.5, 1, 0.89, 1),
+    box-shadow 200ms ease-out;
   --m3e-list-item-container-color: var(--md-sys-color-surface-container-low, #eff4f6);
   --m3e-list-item-label-text-color: var(--md-sys-color-on-surface, #171d1e);
   --m3e-list-item-supporting-text-color: var(--md-sys-color-on-surface-variant, #3f484a);
@@ -141,6 +219,26 @@ m3e-theme {
   --m3e-list-item-between-space: 0.75rem;
   --m3e-list-item-padding-block: 0.75rem;
   --m3e-list-item-padding-inline: 0.9rem;
+}
+
+.homework-item--clickable {
+  cursor: pointer;
+}
+
+.homework-item--clickable:active {
+  transform: scale(0.975);
+}
+
+.homework-item--selected {
+  --m3e-list-item-container-color: var(--md-sys-color-secondary-container, #cde7ed);
+  --m3e-list-item-label-text-color: var(--md-sys-color-on-secondary-container, #334a50);
+  --m3e-list-item-leading-color: var(--md-sys-color-on-secondary-container, #334a50);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+}
+
+.homework-item--expired {
+  --m3e-list-item-label-text-color: var(--md-sys-color-error, #ba1a1a);
+  --m3e-list-item-leading-color: var(--md-sys-color-error, #ba1a1a);
 }
 
 .homework-content {
@@ -165,7 +263,6 @@ m3e-theme {
   word-break: break-word;
 }
 
-/* 富文本正文里的 p 自带外边距，会让圆点与首行错位、卡片虚高 */
 .homework-text :where(p, h1, h2, h3, h4, h5, h6, pre, blockquote) {
   margin: 0;
   max-width: 100%;
@@ -180,12 +277,14 @@ m3e-theme {
 .homework-text img {
   max-width: 100%;
   height: auto;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 .homework-text a {
   color: inherit;
   text-decoration: underline;
-  text-decoration-thickness: 0.08em;
   text-underline-offset: 0.15em;
 }
 
@@ -200,11 +299,6 @@ m3e-theme {
   background: currentColor;
 }
 
-.homework-item--expired {
-  --m3e-list-item-label-text-color: var(--md-sys-color-error, #ba1a1a);
-  --m3e-list-item-leading-color: var(--md-sys-color-error, #ba1a1a);
-}
-
 .homework-tags {
   display: flex;
   flex-wrap: wrap;
@@ -212,25 +306,43 @@ m3e-theme {
   padding-block-start: 0.35rem;
 }
 
-.homework-tags m3e-chip {
-  --m3e-outlined-chip-outline-color: var(--md-sys-color-outline-variant, #bfc8cb);
+/* 展开/收起：常驻文档流（display:none 无法参与过渡） */
+.homework-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    max-height 240ms cubic-bezier(0.5, 1, 0.89, 1),
+    opacity 180ms cubic-bezier(0.5, 1, 0.89, 1);
 }
 
-.homework-empty-state {
-  display: grid;
-  min-height: 14rem;
-  place-content: center;
-  justify-items: center;
-  gap: 0.75rem;
+.homework-item--selected .homework-actions {
+  max-height: 72px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ------------------------------------------- 5. 状态 / 横幅 / 空状态 */
+
+.status {
+  margin: 16px 20px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
   color: var(--md-sys-color-on-surface-variant, #3f484a);
-  text-align: center;
+  font-size: 14px;
+  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
 }
 
-.homework-empty-state > m3e-icon {
-  font-size: 3rem;
+.status--error {
+  border-color: var(--md-sys-color-error, #ba1a1a);
+  color: var(--md-sys-color-error, #ba1a1a);
 }
-
-/* ---------------- 未登录提示横幅 ---------------- */
 
 .banner {
   display: flex;
@@ -241,6 +353,7 @@ m3e-theme {
   background: var(--md-sys-color-error-container, #ffdad6);
   color: var(--md-sys-color-on-error-container, #410002);
   border-bottom: 1px solid var(--md-sys-color-error, #ba1a1a);
+  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
 }
 
 .banner__text {
@@ -249,7 +362,6 @@ m3e-theme {
   line-height: 1.6;
 }
 
-/* 出错时把原因直接显示在页面顶部（方便截图反馈） */
 .banner--fatal {
   position: sticky;
   top: 0;
@@ -259,24 +371,70 @@ m3e-theme {
   word-break: break-all;
 }
 
-/* ---------------- 状态条 ---------------- */
-
-.status {
-  margin: 16px 20px 0;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
-  background: var(--md-sys-color-surface-container-low, #eff4f6);
+.homework-empty-state {
+  display: grid;
+  min-height: 14rem;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
   color: var(--md-sys-color-on-surface-variant, #3f484a);
-  font-size: 14px;
+  text-align: center;
+  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) backwards;
 }
 
-.status--error {
-  border-color: var(--md-sys-color-error, #ba1a1a);
-  color: var(--md-sys-color-error, #ba1a1a);
+.homework-empty-state > m3e-icon {
+  font-size: 3rem;
 }
 
-/* ---------------- 登录 / 注册 ---------------- */
+.homework-board--prompt {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - 11rem);
+}
+
+.homework-empty-state--prompt m3e-icon {
+  --m3e-icon-size: 3rem;
+  color: var(--md-sys-color-primary, #006877);
+}
+
+/* 图片被清理后的原位占位块 */
+.image-expired {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 140px;
+  margin: 6px 0;
+  padding: 16px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-high, #e3e9eb);
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  text-align: center;
+  font-size: 13px;
+}
+
+.image-expired m3e-icon {
+  --m3e-icon-size: 2.5rem;
+  color: var(--md-sys-color-outline, #6f797b);
+}
+
+/* ------------------------------------------------ 6. 右下角编辑按钮 */
+
+#fab-host {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  left: auto;
+  top: auto;
+  z-index: 30;
+}
+
+#fab-menu {
+  z-index: 40;
+}
+
+/* --------------------------------------------------------- 7. 登录注册 */
 
 .auth {
   min-height: 100dvh;
@@ -319,7 +477,8 @@ m3e-theme {
 .auth__pane {
   display: grid;
   gap: 16px;
-  padding-block-start: 10px;
+  /* 给浮动标签留空间，避免被内容区裁掉 */
+  padding-block-start: 12px;
   transition:
     opacity 280ms cubic-bezier(0.25, 1, 0.5, 1),
     transform 280ms cubic-bezier(0.25, 1, 0.5, 1);
@@ -341,6 +500,7 @@ m3e-theme {
 .auth__actions {
   display: grid;
   gap: 10px;
+  width: 100%;
 }
 
 .hint {
@@ -350,12 +510,11 @@ m3e-theme {
   color: var(--md-sys-color-on-surface-variant, #3f484a);
 }
 
-.auth__card m3e-form-field,
-.publish m3e-form-field {
+.auth__card m3e-form-field {
   width: 100%;
 }
 
-/* ---------------- 发布页 ---------------- */
+/* ----------------------------------------------------------- 8. 发布页 */
 
 .publish {
   max-width: 900px;
@@ -368,7 +527,7 @@ m3e-theme {
 .publish__row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 16px;
 }
 
@@ -378,6 +537,8 @@ m3e-theme {
 
 .publish m3e-form-field {
   min-width: 0;
+  /* 浮动标签需要上方空间 */
+  padding-block-start: 10px;
 }
 
 .publish__actions {
@@ -386,109 +547,14 @@ m3e-theme {
   gap: 8px;
 }
 
-}
-
-@media (max-width: 600px) {
-  .topbar {
-    padding: 10px 14px;
-  }
-
-  .homework-board {
-    padding: 16px 14px 96px;
-  }
-
-  .masonry-columns {
-    column-width: auto;
-    column-count: 1;
-  }
-}
-
-
-
-
-
-
-/* ---------------- 作业项：选中态与编辑/删除 ---------------- */
-
-.homework-item--selected {
-  --m3e-list-item-container-color: var(--md-sys-color-secondary-container, #cde7ed);
-  --m3e-list-item-label-text-color: var(--md-sys-color-on-secondary-container, #334a50);
-  --m3e-list-item-leading-color: var(--md-sys-color-on-secondary-container, #334a50);
-}
-
-.homework-item--clickable {
-  cursor: pointer;
-}
-
-.homework-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  padding-block-start: 0.25rem;
-}
-
-/* ---------------- 时光机：日期选择触发器 ---------------- */
-
-
-.date-trigger:hover {
-  filter: brightness(0.97);
-}
-
-/* 原生日期输入只用来弹出系统选择器：不显示、不接受直接输入 */
-
-/* 兜底：环境不支持 showPicker 时，把原生输入框显示出来供点击 */
-
-/* 未选日期时，提示居中（标题下移）；选中后正常顶端排列 */
-.homework-board--prompt {
-  display: grid;
-  place-items: center;
-  min-height: calc(100dvh - 11rem);
-}
-
-.homework-empty-state--prompt m3e-icon {
-  --m3e-icon-size: 3rem;
-  color: var(--md-sys-color-primary, #006877);
-}
-
-/* ---------------- 修改作业对话框 ---------------- */
+/* --------------------------------------------------- 9. 富文本编辑器 */
 
 .edit-form {
   display: grid;
   gap: 14px;
-  min-width: min(420px, 78vw);
+  /* 对话框内容区会裁掉首个浮动标签，留足空间 */
+  padding-block-start: 22px;
 }
-
-.form-row {
-  display: grid;
-  gap: 6px;
-}
-
-.form-row > span {
-  font-size: 13px;
-  color: var(--md-sys-color-on-surface-variant, #3f484a);
-}
-
-.form-row input,
-.form-row textarea {
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 12px;
-  border: 1px solid var(--md-sys-color-outline, #6f797b);
-  border-radius: 8px;
-  background: var(--md-sys-color-surface-container-low, #eff4f6);
-  color: var(--md-sys-color-on-surface, #171d1e);
-  font: inherit;
-}
-
-.form-row textarea {
-  min-height: 96px;
-  resize: vertical;
-}
-
-
-
-/* ---------------- 富文本编辑器（内容编辑） ---------------- */
 
 .rich-editor {
   border: 1px solid var(--md-sys-color-outline, #6f797b);
@@ -511,14 +577,9 @@ m3e-theme {
   overflow: auto;
   padding: 10px 12px;
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--md-sys-color-on-surface, #171d1e);
   overflow-wrap: anywhere;
-}
-
-.rich-surface:focus-visible {
-  outline: 2px solid var(--md-sys-color-primary, #006877);
-  outline-offset: -2px;
 }
 
 .rich-surface :where(p, h1, h2, h3, h4, h5, h6) {
@@ -534,97 +595,97 @@ m3e-theme {
   color: var(--md-sys-color-primary, #006877);
 }
 
-
-/* 顶栏日期字段：与桌面端同款 m3e-datepicker */
-#date-field {
-  min-width: 190px;
-}
-
-.rich-image-input {
-  display: none;
-}
-
 .rich-surface img {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
 }
 
-/* 图片被清理后的占位块：灰底 + 裂图图标 + 文字 */
-.image-expired {
+.rich-image-input {
+  display: none;
+}
+
+/* --------------------------------------------- 10. 弹窗与表单字段 */
+
+.form-row {
   display: grid;
-  place-items: center;
   gap: 6px;
-  width: 100%;
-  min-height: 140px;
-  padding: 16px;
-  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
-  border-radius: 12px;
-  background: var(--md-sys-color-surface-container-high, #e3e9eb);
-  color: var(--md-sys-color-on-surface-variant, #3f484a);
-  text-align: center;
+}
+
+.form-row > span {
   font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
 }
 
-.image-expired m3e-icon {
-  --m3e-icon-size: 2.5rem;
-  color: var(--md-sys-color-outline, #6f797b);
+.form-row input,
+.form-row textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--md-sys-color-outline, #6f797b);
+  border-radius: 10px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+  color: var(--md-sys-color-on-surface, #171d1e);
+  font: inherit;
 }
 
-.homework-text .image-expired {
-  margin: 6px 0;
+.form-row textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
-/* ---------------- 右下角编辑按钮 ---------------- */
-
-#fab-host {
-  position: fixed;
-  right: 2rem;
-  bottom: 2rem;
-  z-index: 30;
-}
-
-#fab-menu {
-  z-index: 40;
-}
-
-@media (max-width: 600px) {
-  #fab-host {
-    right: 1.25rem;
-    bottom: 1.25rem;
-  }
-}
-
-/* 对话框里第一个输入框的浮动标签需要空间，否则被内容区裁掉 */
-.edit-form {
-  padding-block-start: 10px;
-}
-
-/* 手机 WebView：禁掉长按图片的原生菜单与拖拽（壳里也会拦一层） */
-img,
-.homework-text img,
-.rich-surface img {
-  -webkit-touch-callout: none;
-  -webkit-user-drag: none;
+/* 日期框文字不允许被选中 */
+#date-input,
+#edit-due-input,
+#publish-date,
+.form-row input[readonly] {
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 
-/* 手机端安全区：避免被刘海/手势条压住 */
-@media (max-width: 600px) {
-  .topbar {
-    padding-top: max(10px, env(safe-area-inset-top));
-  }
+/* --------------------------------------------------------- 11. 用户管理 */
 
-  #fab-host {
-    bottom: max(1.25rem, env(safe-area-inset-bottom));
-  }
-
-  .homework-board {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom));
-  }
+.users-list {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-height: 60vh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-/* ---------------- 404 页面 ---------------- */
+.user-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+}
+
+.user-row__info {
+  flex: 1 1 180px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.user-row__info strong {
+  font-size: 15px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.user-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+/* ------------------------------------------------- 12. 兜底页与适配 */
 
 .not-found {
   justify-items: center;
@@ -633,179 +694,92 @@ img,
 }
 
 .not-found m3e-heading:first-of-type {
-  color: var(--md-sys-color-primary, #006877);
   line-height: 1;
+  color: var(--md-sys-color-primary, #006877);
 }
 
-.not-found .auth__actions {
+@media (max-width: 600px) {
+  .topbar {
+    padding: 10px 14px;
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  .homework-board {
+    padding: 16px 14px calc(96px + env(safe-area-inset-bottom));
+  }
+
+  #fab-host {
+    right: 1.25rem;
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  /* 手机：单列 */
+  .masonry-columns,
+  .masonry-column {
+    display: block;
+  }
+}
+
+/* 兜底页里自绘 SVG 图标的作用域（这两个页面是内联样式，这里只为 <svg> 兜底） */
+svg.icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+/* 表单字段统一占满一行。
+   重写样式表时漏掉了这条，导致发布页/弹窗里的输入框缩成内容大小。 */
+m3e-form-field {
   width: 100%;
-  margin-block-start: 6px;
+  min-width: 0;
+  display: block;
 }
 
-/* 浮动标签需要上方空间；textarea 不加占位文字，标签就会正常上浮 */
-.publish m3e-form-field {
-  padding-block-start: 8px;
+m3e-form-field input,
+m3e-form-field textarea {
+  width: 100%;
 }
 
-/* 日期框里的文字不允许被选中（点一下只唤起日历） */
-.date-native,
-#date-input,
-#edit-due-input,
-.publish #publish-date,
-.form-row input[readonly] {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
+/* ---------- 安全中心：居中的窄栏布局（此前误用了发布页的 900px 布局） ---------- */
+.security {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 24px 20px 72px;
+  display: grid;
+  gap: 16px;
 }
 
-/* ============================================================
-   字体强制
-   1) 关掉移动端浏览器的字体放大（font boosting）——它会擅自放大正文、打乱行高；
-   2) 用 !important 钉死字体栈，避免浏览器"自定义字体/强制替换字体"设置覆盖；
-   3) 中文没有可自带的字体（一个中文字体好几 MB），所以栈里优先用各平台自带的中文字体，
-      但顺序固定，不让浏览器自己挑。
-   ============================================================ */
-
-html {
-  -webkit-text-size-adjust: 100%;
-  -moz-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+.security > .status {
+  margin: 0;
 }
 
-html,
-body,
-m3e-theme {
-  font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "MiSans",
-    "Source Han Sans SC", "Noto Sans CJK SC", Inter, ui-sans-serif, system-ui,
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+.security .auth__card {
+  width: 100%;
 }
 
-/* 表单控件在部分浏览器里不继承正文字体，这里一并钉死 */
-input,
-textarea,
-select,
-button {
-  font-family: inherit !important;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+/* 弹窗内容里第一个表单字段：留出浮动标签的空间（否则标签上沿被内容区裁掉）。
+   用 margin 而不是 padding —— 标签是跟着字段一起移动的。 */
+m3e-dialog > m3e-form-field:first-of-type,
+m3e-dialog .edit-form > m3e-form-field:first-child {
+  margin-block-start: 18px;
 }
 
-/* 作业正文与富文本：行高也固定，避免浏览器按字体重新计算导致错位 */
-.homework-text,
-.rich-surface {
-  line-height: 1.55 !important;
+/* 顶栏控件在桌面端保持一排：日期框在左，两个按钮在右 */
+.topbar__title {
+  min-width: 0;
 }
 
-/* ============================================================
-   动效（与桌面端观感一致）
-   - 科目组与卡片错峰上浮入场
-   - 卡片按压/悬停反馈
-   - 状态条、横幅淡入
-   全部走 easeOutQuart，和登录页切换动画同一套节奏
-   ============================================================ */
+.topbar__controls {
+  flex-wrap: nowrap;
+}
 
-@keyframes hs-rise {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.985);
+#date-field {
+  min-width: 150px;
+}
+
+/* 手机上窄，仍允许换行 */
+@media (max-width: 700px) {
+  .topbar__controls {
+    flex-wrap: wrap;
   }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes hs-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.subject-group {
-  animation: hs-rise 420ms cubic-bezier(0.25, 1, 0.5, 1) both;
-  animation-delay: calc(var(--i, 0) * 60ms);
-}
-
-.homework-item {
-  animation: hs-rise 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
-  animation-delay: calc(var(--i, 0) * 40ms + 80ms);
-  transition:
-    background-color 200ms cubic-bezier(0.25, 1, 0.5, 1),
-    transform 180ms cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 200ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* 可按压的卡片（有编辑权限时）才有按压反馈 */
-.homework-item--clickable:active {
-  transform: scale(0.985);
-}
-
-.homework-item--selected {
-  box-shadow: 0 2px 10px rgb(0 0 0 / 10%);
-}
-
-.status,
-.banner,
-.homework-empty-state {
-  animation: hs-fade 260ms cubic-bezier(0.25, 1, 0.5, 1) both;
-}
-
-/* 编辑/删除按钮出现时也带一点动效 */
-.homework-actions {
-  animation: hs-rise 220ms cubic-bezier(0.25, 1, 0.5, 1) both;
-}
-
-}
-
-/* ============================================================
-   弹窗动效
-   M3E 组件的动效会跟随系统「移除动画」设置，被关掉时弹窗会硬邦邦地出现。
-   这里给放进弹窗的内容补一层动画：元素从 display:none 变为显示时会重新播放动画，
-   所以每次打开弹窗都会走一遍。
-   ============================================================ */
-
-@keyframes hs-dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-m3e-dialog > * {
-  animation: hs-dialog-in 240ms cubic-bezier(0.25, 1, 0.5, 1) both;
-}
-
-m3e-dialog > *:nth-child(2) {
-  animation-delay: 30ms;
-}
-
-m3e-dialog > *:nth-child(3) {
-  animation-delay: 60ms;
-}
-
-m3e-dialog > *:nth-child(n + 4) {
-  animation-delay: 90ms;
-}
-
-/* 遮罩淡入（组件内的遮罩拿不到，这里让页面本身在被遮住时有个过渡） */
-m3e-theme {
-  transition: filter 200ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* 右下角按钮弹出菜单时的缩放反馈 */
-#fab-host m3e-fab {
-  transition: transform 200ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-#fab-host m3e-fab:active {
-  transform: scale(0.94);
 }

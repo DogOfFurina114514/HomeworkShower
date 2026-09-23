@@ -80,6 +80,9 @@
     showStatus("");
   }
 
+/** 选中导致的局部重绘：跳过入场动画，只让卡片自己缩放 */
+  let skipEnterAnimation = false;
+
   function renderBoard(rows) {
     if (!rows.length) {
       renderEmpty(mode === "latest" ? "今天没有需要做的作业" : "这一天没有作业");
@@ -108,12 +111,12 @@
               .map((tag) => `<m3e-chip variant="outlined">${hs.escapeHtml(tag)}</m3e-chip>`)
               .join("")}</div>`
           : "";
-        // 只有发布者/管理员、且看的是当天，才在选中后给出修改与删除
-        const actions = selected && canManage
-          ? `<div slot="supporting-text" class="homework-actions">
+        // 操作按钮常驻卡片内（绝对定位浮在右下角，不占布局），选中时用 CSS 淡入
+        const actions = canManage
+          ? `<span class="homework-actions">
               <m3e-icon-button data-action="edit" data-id="${homework.id}" aria-label="修改作业" title="修改作业"><m3e-icon variant="outlined" name="edit"></m3e-icon></m3e-icon-button>
               <m3e-icon-button data-action="delete" data-id="${homework.id}" aria-label="删除作业" title="删除作业"><m3e-icon variant="outlined" name="delete"></m3e-icon></m3e-icon-button>
-            </div>`
+            </span>`
           : "";
         return `
           <m3e-list-action style="--i: ${homeworks.indexOf(homework)}" class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${canManage ? " homework-item--clickable" : ""}" data-id="${homework.id}">
@@ -133,7 +136,9 @@
         </section>`);
     }
 
-    boardEl.innerHTML = `<div class="masonry-columns">${sections.join("")}</div>`;
+    boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
+    layoutColumns();
+    skipEnterAnimation = false;
   }
 
   async function loadDates() {
@@ -274,6 +279,83 @@
     });
   }
 
+
+  /**
+   * 瀑布流分栏：按列高把科目组放进最矮的一列（和桌面端同样的做法）。
+   * 用 flex 列而不是 CSS 多栏 —— 多栏会把卡片裁在栏内，选中放大就会溢出并在列上生成滚动条。
+   */
+  function layoutColumns() {
+    const wrap = boardEl.querySelector(".masonry-columns");
+    if (!wrap) return;
+    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
+    if (!groups.length) return;
+
+    const width = wrap.clientWidth || 0;
+    const count = Math.max(1, Math.min(groups.length, Math.floor(width / 358) || 1));
+
+    wrap.innerHTML = "";
+    wrap.style.display = "flex";
+    wrap.style.gap = "8px";
+    wrap.style.alignItems = "flex-start";
+
+    const columns = [];
+    for (let i = 0; i < count; i += 1) {
+      const column = document.createElement("div");
+      column.className = "masonry-column";
+      wrap.appendChild(column);
+      columns.push({ element: column, height: 0 });
+    }
+
+    for (const group of groups) {
+      let target = columns[0];
+      for (const column of columns) if (column.height < target.height) target = column;
+      target.element.appendChild(group);
+      target.height += group.offsetHeight;
+    }
+  }
+
+  window.addEventListener("resize", () => {
+    window.clearTimeout(layoutColumns.timer);
+    layoutColumns.timer = window.setTimeout(() => {
+      if (!boardEl.querySelector(".masonry-columns")) return;
+    }, 150);
+  });
+
+
+  /**
+   * 固定分栏：按容器宽度算出列数，科目按顺序轮流分配到各列。
+   * 与 CSS 多栏的区别：分配结果固定，卡片变高只影响自己这一列，
+   * 不会让别的科目被挤到下一排。
+   */
+  function layoutColumns() {
+    const wrap = boardEl.querySelector(".masonry-columns");
+    if (!wrap) return;
+    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
+    if (!groups.length) return;
+
+    const width = boardEl.clientWidth || window.innerWidth || 1024;
+    const count = Math.max(1, Math.min(groups.length, Math.floor((width - 48) / 358) || 1));
+
+    wrap.innerHTML = "";
+    const columns = [];
+    for (let i = 0; i < count; i += 1) {
+      const column = document.createElement("div");
+      column.className = "masonry-column";
+      wrap.appendChild(column);
+      columns.push(column);
+    }
+    groups.forEach((group, index) => {
+      columns[index % count].appendChild(group);
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    window.clearTimeout(layoutColumns.timer);
+    layoutColumns.timer = window.setTimeout(() => {
+      if (boardEl.querySelector(".masonry-columns")) layoutColumns();
+    }, 150);
+  });
+
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
     if (!window.hs || !window.hs.client) {
@@ -321,6 +403,13 @@
       accountEmail.textContent = profile.email;
       accountRole.textContent = hs.roleLabel(profile.role);
       if (publishLink) publishLink.hidden = !hs.isPublisher(profile);
+      const manageUsersButton = document.getElementById("manage-users-button");
+      if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(profile);
+      const securityLink = document.getElementById("security-link");
+      if (securityLink) {
+        securityLink.hidden = false;
+        securityLink.addEventListener("click", () => location.assign("security.html"));
+      }
 
       accountButton.addEventListener("click", () => {
         accountPanel.hidden = !accountPanel.hidden;
@@ -360,6 +449,10 @@
     }
 
     function openEdit(id) {
+      if (!canManage) {
+        hs.toast("你的修改权限已被撤销");
+        return;
+      }
       const row = findRow(id);
       if (!row || !editDialog) return;
       document.getElementById("edit-subject").value = row.subject || "";
@@ -380,7 +473,7 @@
     }
 
     async function saveEdit() {
-      if (!editDialog) return;
+      if (!editDialog || !canManage) return;
       const id = editDialog.dataset.id;
       const subject = document.getElementById("edit-subject").value.trim() || "其它";
 const duePickerEl = document.getElementById("edit-due-picker");
@@ -423,6 +516,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
     }
 
     function openDelete(id) {
+      if (!canManage) {
+        hs.toast("你的修改权限已被撤销");
+        return;
+      }
       if (!deleteDialog) return;
       setDialogMessage("delete-message", "");
       deleteDialog.dataset.id = id;
@@ -564,10 +661,109 @@ const duePickerEl = document.getElementById("edit-due-picker");
         hs.toast("只能修改当天发布的作业");
         return;
       }
-      // 再点一下取消选中，和桌面端一致
-      selectedId = selectedId === item.dataset.id ? null : item.dataset.id;
-      renderBoard(currentRows);
+      // 只切 class：不重绘 → 多栏布局不重排、过渡能真正播放
+      const nextId = selectedId === item.dataset.id ? null : item.dataset.id;
+      selectedId = nextId;
+      const items = boardEl.querySelectorAll(".homework-item");
+      for (const node of items) {
+        node.classList.toggle("homework-item--selected", nextId !== null && node.dataset.id === nextId);
+      }
     });
+
+
+    // ---------- 权限实时核对 ----------
+    /**
+     * 角色可能被管理员随时改掉：定时、回到页面、以及每次操作前都重新核对，
+     * 避免"撤销管理员后不刷新仍能继续修改"。
+     */
+    async function syncPermissions() {
+      if (mode !== "latest" || !currentDate) return;
+      try {
+        const latest = await hs.getProfile();
+        if (!latest) return;
+        const nextCanManage = Boolean(hs.canEditToday(latest) && currentDate === todayString());
+        const changed = !profile || latest.role !== profile.role || nextCanManage !== canManage;
+        profile = latest;
+        if (!changed) return;
+
+        canManage = nextCanManage;
+        if (!canManage) selectedId = null;
+        if (accountRole) accountRole.textContent = hs.roleLabel(latest.role);
+        const manageUsersButton = document.getElementById("manage-users-button");
+        if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(latest);
+        if (publishLink) publishLink.hidden = !hs.isPublisher(latest);
+        renderBoard(currentRows);
+        hs.toast(nextCanManage ? "权限已更新" : "你的修改权限已被撤销");
+      } catch (error) {
+        /* 网络抖动忽略，下次再核对 */
+      }
+    }
+
+    window.setInterval(() => void syncPermissions(), 30000);
+    window.addEventListener("focus", () => void syncPermissions());
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) void syncPermissions();
+    });
+    // ---------- 管理用户（仅发布者） ----------
+    const usersDialog = document.getElementById("users-dialog");
+    const usersList = document.getElementById("users-list");
+
+    async function loadUsers() {
+      if (!usersList) return;
+      usersList.innerHTML = '<p class="hint">正在加载…</p>';
+      const { data, error } = await client.rpc("admin_list_users");
+      if (error) {
+        usersList.innerHTML = `<p class="status status--error">${hs.escapeHtml(error.message)}</p>`;
+        return;
+      }
+      const users = data || [];
+      if (!users.length) {
+        usersList.innerHTML = '<p class="hint">还没有其他用户。</p>';
+        return;
+      }
+      usersList.innerHTML = users
+        .map((user) => {
+          const isPublisherRow = user.role === "publisher";
+          const roleAction = user.role === "admin" ? "user" : "admin";
+          return `
+            <div class="user-row">
+              <div class="user-row__info">
+                <strong>${hs.escapeHtml(user.email || "（无邮箱）")}</strong>
+                <span class="role-chip">${hs.roleLabel(user.role)}${user.banned ? " · 已封禁" : ""}</span>
+              </div>
+              ${isPublisherRow
+                ? '<span class="hint">不可修改</span>'
+                : `<div class="user-row__actions">
+                     <m3e-button variant="text" data-uid="${user.id}" data-act="role" data-role="${roleAction}">${user.role === "admin" ? "移除管理员" : "设为管理员"}</m3e-button>
+                     <m3e-button variant="text" data-uid="${user.id}" data-act="ban" data-ban="${user.banned ? "false" : "true"}">${user.banned ? "解封" : "封禁"}</m3e-button>
+                   </div>`}
+            </div>`;
+        })
+        .join("");
+
+      usersList.querySelectorAll("[data-act]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          button.setAttribute("disabled", "");
+          const { error: actionError } =
+            button.dataset.act === "role"
+              ? await client.rpc("admin_set_role", { p_user_id: button.dataset.uid, p_role: button.dataset.role })
+              : await client.rpc("admin_set_banned", { p_user_id: button.dataset.uid, p_banned: button.dataset.ban === "true" });
+          button.removeAttribute("disabled");
+          if (actionError) {
+            hs.toast(actionError.message);
+            return;
+          }
+          hs.toast("已更新");
+          await loadUsers();
+        });
+      });
+    }
+
+    document.getElementById("manage-users-button")?.addEventListener("click", () => {
+      usersDialog?.show();
+      void loadUsers();
+    });
+    document.getElementById("users-close")?.addEventListener("click", () => usersDialog?.hide());
 
     // ---------- 右下角编辑按钮 ----------
     const fabHost = document.getElementById("fab-host");
@@ -610,10 +806,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
             </m3e-fab-menu-trigger>
           </m3e-fab>
           <m3e-fab-menu id="fab-menu" variant="primary">
-            <m3e-fab-menu-item id="fab-publish">
+            ${hs.isPublisher(profile) ? `<m3e-fab-menu-item id="fab-publish">
               <m3e-icon variant="outlined" slot="icon" name="upload_file"></m3e-icon>
               发布作业
-            </m3e-fab-menu-item>
+            </m3e-fab-menu-item>` : ""}
             <m3e-fab-menu-item id="fab-save">
               <m3e-icon variant="outlined" slot="icon" name="ios_share"></m3e-icon>
               导出作业
@@ -721,6 +917,15 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" href="assets/icon.svg?v77" type="image/svg+xml" />
+    <title>账户已封禁 · 作业</title>
+    <!-- 封禁页：不加载任何库，红底提示，任何浏览器都能打开 -->
+    <script src="assets/config.js?v77"></script>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #ba1a1a;
+        color: #ffffff;
+        font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      .card {
+        width: 100%;
+        max-width: 460px;
+        padding: 30px 26px;
+        border-radius: 24px;
+        background: rgba(0, 0, 0, 0.18);
+        text-align: center;
+      }
+      .icon { font-size: 52px; line-height: 1; }
+      h1 { margin: 14px 0 12px; font-size: 24px; font-weight: 600; }
+      p { margin: 0 0 10px; font-size: 15px; line-height: 1.75; color: #ffe9e9; }
+      .hint { font-size: 13px; color: #ffd4d4; }
+      .mail {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 16px;
+        padding: 12px 22px;
+        border-radius: 22px;
+        background: #ffffff;
+        color: #ba1a1a;
+        font-size: 15px;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="card">
+      <div class="icon"><svg class="icon" viewBox="0 0 24 24" width="56" height="56" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM5.7 7.1l11.2 11.2A8 8 0 0 1 5.7 7.1zm1.4-1.4a8 8 0 0 1 11.2 11.2L7.1 5.7z"/></svg></div>
+      <h1>账户已被封禁</h1>
+      <p>这个账号已被管理员封禁，暂时无法使用发布、修改等功能。</p>
+      <p class="hint">如有疑问，可以通过下面的方式联系管理员申请解封。</p>
+      <a class="mail" id="contact" href="#">联系管理员</a>
+    </main>
+
+    <script>
+      /* 未封禁的人访问这个页面 → 直接回主页；只有确实被封禁的账号才留在封禁页 */
+      (function () {
+        var parts = location.pathname.split("/").filter(function (item) { return !!item; });
+        var home = (location.origin || location.protocol + "//" + location.host) + "/" + (parts[0] || "") + "/";
+        function goHome() { location.replace(home); }
+        try {
+          var config = window.HOMEWORK_SHOWER_CONFIG || {};
+          // 必须用与完整版一致的存储键（config.authStorageKey），否则读不到会话
+          var raw = window.localStorage.getItem(config.authStorageKey || "homeworkshower.auth.v1");
+          if (!raw) { goHome(); return; }
+          var session = JSON.parse(raw);
+          var token = session && (session.access_token || (session.currentSession && session.currentSession.access_token));
+          var uid = session && session.user && session.user.id;
+          if (!token || !uid) { goHome(); return; }
+          // 只有"明确查到未被封禁"才回主页；查不到/出错一律留在封禁页，避免来回跳转
+          fetch(config.supabaseUrl + "/rest/v1/profiles?select=banned&id=eq." + uid, {
+            headers: { apikey: config.supabaseKey, Authorization: "Bearer " + token }
+          })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (rows) {
+              if (rows && rows.length && rows[0].banned === false) goHome();
+            })
+            .catch(function () { /* 留在封禁页 */ });
+        } catch (error) {
+          /* 解析失败也留在封禁页 */
+        }
+      })();
+    </script>    <script>
+      /* ES5 写法；顺便把登出按钮彻底废掉：封禁状态下不允许自行退出 */
+      (function () {
+        try {
+          // 清掉客户端会话里的可写能力，但保留登录态（防止靠退出登录绕过）
+          var key = null;
+          for (var i = 0; i < window.localStorage.length; i++) {
+            var name = window.localStorage.key(i);
+            if (name && name.indexOf("auth") >= 0) { key = name; break; }
+          }
+          if (key) {
+            var raw = window.localStorage.getItem(key);
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              if (parsed && parsed.user) parsed.banned = true;
+              window.localStorage.setItem(key, JSON.stringify(parsed));
+            }
+          }
+        } catch (error) {}
+
+        var email = "";
+        try {
+          var config = window.HOMEWORK_SHOWER_CONFIG;
+          email = (config && config.adminEmail) || "";
+        } catch (error) {}
+        if (!email) email = "wu__20111229@outlook.com";
+        document.getElementById("contact").setAttribute(
+          "href",
+          "mailto:" + email + "?subject=" + encodeURIComponent("申请解封账号")
+        );
+      })();
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
