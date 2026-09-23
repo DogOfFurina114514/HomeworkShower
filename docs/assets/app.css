@@ -763,3 +763,23 @@ m3e-dialog > m3e-form-field:first-of-type,
 m3e-dialog .edit-form > m3e-form-field:first-child {
   margin-block-start: 18px;
 }
+
+/* 顶栏控件在桌面端保持一排：日期框在左，两个按钮在右 */
+.topbar__title {
+  min-width: 0;
+}
+
+.topbar__controls {
+  flex-wrap: nowrap;
+}
+
+#date-field {
+  min-width: 150px;
+}
+
+/* 手机上窄，仍允许换行 */
+@media (max-width: 700px) {
+  .topbar__controls {
+    flex-wrap: wrap;
+  }
+}
