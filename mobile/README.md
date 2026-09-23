@@ -103,3 +103,14 @@ pwsh -File mobile/sync-assets.ps1
 - **只有框架程序（APK）更新时才发 Release**，文件名 `HomeworkShower_<版本>.apk`，tag 用版本号（如 `26.0.0`）；
 - 网页更新**只**需要：改 `docs/` → `node tools/web-manifest.mjs`（写 `docs/manifest.json` 并同步 Supabase）→ 改 `docs/version.json` 的 `webVersion/webVersionCode`；
 - Supabase 侧每 10 分钟自动跟随 GitHub，忘记手动同步也不会落后。
+
+### 强制更新的"累积性"（重要）
+
+判定强制与否**不能只看最新一版**，要看**本地版本之后有没有出现过强制版本**：
+
+- `version.json` 里的 `apkMandatorySince` = **历史最高强制版本号**（`0` 表示从未有过强制版本）；
+- 判定规则：`本地 version_code < apkMandatorySince` → **强制更新**（弹窗左键为「退出」）；
+- 反例说明：用户处于 `1` 版本 → 发布了必须更新的 `2` 版本 → 现在最新是 `3` 版本（本身是可选更新）；
+  此时用户的 `1 < apkMandatorySince(=2 的版本号)` → **仍然强制**更新到最新（`3`），不能跳过 `2`；
+- 用 Supabase 校验同一规则时：查 `app_releases?mandatory=eq.true&order=version_code.desc&limit=1`，
+  取到的 `version_code` 即 `apkMandatorySince`。

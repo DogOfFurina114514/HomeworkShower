@@ -26,5 +26,7 @@
     "webReleaseTable": "app_web_release",
     "webManifestTable": "app_web_manifest",
     "appReleaseTable": "app_releases"
-  }
+  },
+  "apkMandatorySince": 0,
+  "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
 }
