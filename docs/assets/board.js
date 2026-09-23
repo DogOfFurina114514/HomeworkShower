@@ -912,12 +912,19 @@ const duePickerEl = document.getElementById("edit-due-picker");
         });
       }
 
-      // 点字段任意处都能打开日历（应用里只有右侧图标能点，这里放宽）
+      // 点输入框也能唤出日历。浮层锚点是 m3e-form-field（m3e-datepicker-toggle 内部
+      // 就是 this.control.toggle(this.parentElement, this.closest("m3e-form-field"))），
+      // 所以必须复用它的点击逻辑；自己调 picker.show() 会传错锚点，日历会飘到窗口顶上。
       if (dateField && picker) {
-        dateField.addEventListener("click", (event) => {
-          if (event.target.closest("m3e-datepicker-toggle")) return;
-          void picker.show(dateField, dateField);
-        });
+        const toggle = dateField.querySelector("m3e-datepicker-toggle");
+        const iconButton = dateField.querySelector('m3e-icon-button[slot="suffix"]');
+        const input = dateField.querySelector("input");
+        if (toggle && iconButton && input) {
+          input.addEventListener("click", (event) => {
+            if (event.target.closest("m3e-icon-button")) return;
+            iconButton.click();
+          });
+        }
       }
 
       // 每次打开都从「请选择一个日期」开始，不按地址栏里的 date 自动加载
