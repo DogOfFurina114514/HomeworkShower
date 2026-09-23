@@ -851,3 +851,32 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   outline-offset: 2px;
   border-radius: 6px;
 }
+
+/* 顶栏日期字段微调：三段内容不要挤在一起 */
+.date-field {
+  gap: 10px;
+  padding: 0 8px 0 14px;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+}
+
+.date-field__label {
+  font-size: 13px;
+}
+
+.date-field input {
+  width: 92px;
+  min-width: 0;
+}
+
+.date-field input::placeholder {
+  color: var(--md-sys-color-on-surface-variant, #6f797b);
+  font-size: 14px;
+}
+
+/* 图标按钮保持 32px，不把 40px 的容器撑高 */
+.date-field m3e-icon-button {
+  --m3e-icon-button-size: 32px;
+  flex: 0 0 auto;
+}

@@ -1,0 +1,32 @@
+{
+  "webVersion": "26.0.0",
+  "webVersionCode": 260000,
+  "updatedAt": "2026-09-23T22:30:00+08:00",
+  "entry": "index.html",
+  "note": "版本号规则：26.0.0 = 年份(26).大功能(0).小补丁(0)，打包号 260000。App 端读取本文件判断是否需要热更新。",
+  "sources": [
+    "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
+    "https://gh.llkk.cc/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
+    "https://dogoffurina114514.github.io/HomeworkShower/"
+  ],
+  "apkMirrors": [
+    "https://gh.dpik.top/",
+    "https://gh.llkk.cc/",
+    ""
+  ],
+  "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
+  "apkVersion": "26.0.0",
+  "apkVersionCode": 260000,
+  "apkMandatory": false,
+  "apkNotes": "首个热更新版本：新增安全中心（改邮箱/改密码/注销账号）、用户管理与封禁、简版与降级链路。",
+  "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
+  "fallback": {
+    "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
+    "supabaseKey": "sb_publishable_woB0DFosxaxHE1101sjfHA_Bt0SJMxG",
+    "webReleaseTable": "app_web_release",
+    "webManifestTable": "app_web_manifest",
+    "appReleaseTable": "app_releases"
+  },
+  "apkMandatorySince": 0,
+  "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
+}
