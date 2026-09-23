@@ -813,3 +813,41 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 .topbar__controls m3e-form-field input {
   width: 100%;
 }
+
+/* 顶栏日期字段（扁平版）：不用 m3e-form-field，避免它自带标签与辅助行把顶栏顶高 */
+.date-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  height: 40px;
+  padding: 0 6px 0 14px;
+  border: 1px solid var(--md-sys-color-outline, #6f797b);
+  border-radius: 20px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+}
+
+.date-field__label {
+  font-size: 13px;
+  white-space: nowrap;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+}
+
+.date-field input {
+  width: 104px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  color: var(--md-sys-color-on-surface, #171d1e);
+  padding: 0;
+}
+
+.date-field input:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary, #006877);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

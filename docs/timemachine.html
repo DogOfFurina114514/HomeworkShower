@@ -43,8 +43,8 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>时光机 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v82" />
-    <link rel="icon" href="assets/icon.svg?v82" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v83" />
+    <link rel="icon" href="assets/icon.svg?v83" type="image/svg+xml" />
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -112,11 +112,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v82" defer></script>
-    <script src="vendor/supabase.js?v82" defer></script>
-    <script src="assets/config.js?v82" defer></script>
-    <script src="assets/client.js?v82" defer></script>
-    <script src="assets/board.js?v82" defer></script>
+    <script src="vendor/m3e.js?v83" defer></script>
+    <script src="vendor/supabase.js?v83" defer></script>
+    <script src="assets/config.js?v83" defer></script>
+    <script src="assets/client.js?v83" defer></script>
+    <script src="assets/board.js?v83" defer></script>
   </head>
 
   <body data-board-mode="date">
@@ -124,14 +124,14 @@
       <header class="topbar">
         <m3e-heading class="topbar__title" variant="title" size="large" level="1" id="site-title">作业 · 时光机</m3e-heading>
         <div class="topbar__controls">
-          <m3e-form-field variant="outlined" id="date-field">
-            <label slot="label" for="date-input">发布日期</label>
+          <div class="date-field" id="date-field">
+            <span class="date-field__label">发布日期</span>
             <input id="date-input" readonly placeholder="点这里选择" autocomplete="off" />
-            <m3e-icon-button slot="suffix" aria-label="选择发布日期">
+            <m3e-icon-button aria-label="选择发布日期">
               <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
               <m3e-datepicker-toggle for="date-picker"></m3e-datepicker-toggle>
             </m3e-icon-button>
-          </m3e-form-field>
+          </div>
           <m3e-datepicker id="date-picker" variant="auto" label="选择发布日期" previous-month-label="上个月" next-month-label="下个月" previous-year-label="上一年" next-year-label="下一年" clear-label="清除" confirm-label="确定" dismiss-label="取消"></m3e-datepicker>
           <m3e-button variant="text" id="back-button">
             <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
@@ -260,6 +260,8 @@
     </m3e-theme>
   </body>
 </html>
+
+
 
 
 
