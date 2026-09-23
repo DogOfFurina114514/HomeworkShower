@@ -135,10 +135,11 @@ html.hs-booting body {
   color: var(--md-sys-color-on-surface-variant, #3f484a);
 }
 
+/* 宽度要放得下完整日期「2026 年 9 月 23 日」（约 130px）+ 后缀日历按钮 */
 #date-field {
-  width: 186px;
-  min-width: 186px;
-  max-width: 186px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
 }
 
 /* ---------------------------------------------------- 3. 看板与分栏 */
@@ -777,8 +778,8 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 
 #date-field {
   flex: 0 0 auto;
-  width: 186px;
-  min-width: 186px;
+  width: 260px;
+  min-width: 260px;
 }
 
 /* 手机上窄，仍允许换行 */
@@ -809,9 +810,9 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 .topbar__controls m3e-form-field,
 #date-field {
   flex: 0 0 auto;
-  width: 186px;
-  min-width: 186px;
-  max-width: 186px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
 }
 
 .topbar__controls m3e-form-field input {
