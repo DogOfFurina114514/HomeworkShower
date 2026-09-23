@@ -797,6 +797,9 @@ const duePickerEl = document.getElementById("edit-due-picker");
       location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     }
 
+    // 把右下角按钮移出 <m3e-theme>：主题元素会建立包含块，导致 fixed 定位跟着页面滚动"飞"
+    if (fabHost && fabHost.parentElement !== document.body) document.body.appendChild(fabHost);
+
     if (fabHost && mode === "latest") {
       if (profile && hs.canEditToday(profile)) {
         fabHost.innerHTML = `
@@ -917,6 +920,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
+
 
 
 

@@ -783,3 +783,19 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
     flex-wrap: wrap;
   }
 }
+
+/* 右下角按钮：脱离可能建立包含块的祖先，避免点击时随页面"飞" */
+#fab-host {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  left: auto;
+  top: auto;
+  z-index: 30;
+  contain: layout paint;
+  transform: none;
+}
+
+#fab-host m3e-fab {
+  transform: none;
+}
