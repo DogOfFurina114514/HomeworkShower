@@ -799,3 +799,17 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 #fab-host m3e-fab {
   transform: none;
 }
+
+/* 顶栏里的日期字段：不要吃掉整行（全局 m3e-form-field 是 width:100%，
+   在 nowrap 的控件区里会被撑开） */
+.topbar__controls m3e-form-field,
+#date-field {
+  flex: 0 0 auto;
+  width: 178px;
+  min-width: 178px;
+  max-width: 178px;
+}
+
+.topbar__controls m3e-form-field input {
+  width: 100%;
+}
