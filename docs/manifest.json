@@ -15,8 +15,8 @@
     },
     {
       "path": "assets/app.css",
-      "hash": "714dca4b82a0fc21a6218ee15fb2f7421e3e942bc12c38e8a80df1e864d371a5",
-      "bytes": 18010
+      "hash": "5223775061142ca300c1c5d8e60ae0bb44ff9d05166eab333d78661601ea1cdd",
+      "bytes": 18462
     },
     {
       "path": "assets/auth.js",
@@ -25,8 +25,8 @@
     },
     {
       "path": "assets/board.js",
-      "hash": "5662a54e9b32490c237dc13ba3653aeeab4baa971b00279f6f9ceb9d6708e612",
-      "bytes": 38750
+      "hash": "d23ff48153d79adaafa59e467e8149df179e3e1ba3ee79221574c0de89f09fc0",
+      "bytes": 40043
     },
     {
       "path": "assets/client.js",
