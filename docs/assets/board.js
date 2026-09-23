@@ -435,10 +435,6 @@
 
     showStatus("正在读取登录状态…");
 
-    // 日期字段只在这里绑定一次：后面分支再早 return（未登录、没有作业记录）
-    // 都不会影响它，"点任意处打开日历"因此永远有效。
-    setupDateField();
-
     // 主界面未登录也能看；时光机必须登录
     let session = null;
     try {
@@ -970,6 +966,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
     await loadLatest();
   }
+
+  // 日期字段在这里就绑好（不放进 init 的 await 之后）：M3E 组件升级和会话检查
+  // 都要花时间，绑晚了开屏这几秒点日期框会没反应。
+  setupDateField();
 
   void init();
 })();
