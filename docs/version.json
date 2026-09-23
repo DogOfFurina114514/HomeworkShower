@@ -1,0 +1,12 @@
+{
+  "webVersion": "26.0.0",
+  "webVersionCode": 260000,
+  "updatedAt": "2026-09-23T22:20:00+08:00",
+  "entry": "index.html",
+  "note": "版本号规则：26.0.0 = 年份(26).大功能(0).小补丁(0)，打包号 260000。App 端读取本文件判断是否需要热更新。",
+  "sources": [
+    "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
+    "https://gh.llkk.cc/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
+    "https://dogoffurina114514.github.io/HomeworkShower/"
+  ]
+}
