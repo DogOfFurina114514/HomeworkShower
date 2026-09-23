@@ -819,12 +819,16 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 }
 
 /* 顶栏日期字段：回到 M3E 原生外形（outlined + 浮动标签 + 后缀日历按钮）。
-   这个外形必须留着 —— m3e-datepicker-toggle 打开日历时，浮层的锚点就是
-   this.closest("m3e-form-field")，拆掉它日历会失去锚点、飘到窗口顶上。 */
+   这个外形必须留着 —— m3e-datepicker-toggle 打开日历时，浮层的锚点是
+   this.closest("m3e-form-field")，拆掉它日历会失去锚点、飘到窗口顶上。
+   高度用 M3E 自己的密度变量压：它的内容是
+   min-height: calc(3.5rem + max(-3, --md-sys-density-scale) * 0.25rem)，
+   密度 -2 正好把 56px 压到 48px。直接砍 height 会让内部 56px 的标签/轮廓
+   溢到边框外面（标签浮在边框线上、看着"格外高"）。 */
 #date-field {
-  height: 44px;
-  block-size: 44px;
-  --m3e-form-field-height: 44px;
+  --md-sys-density-scale: -2;
+  height: 48px;
+  block-size: 48px;
 }
 
 /* 辅助行（subscript）即使隐藏，也仍然占着高度，直接不参与布局 */
@@ -839,8 +843,16 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   text-overflow: ellipsis;
 }
 
-/* 后缀的日历按钮收小一点，别把 44px 的字段撑开 */
+/* 后缀的日历按钮收小一点，别把字段撑开 */
 #date-field m3e-icon-button {
   --m3e-icon-button-size: 32px;
+}
+
+/* 手机上顶栏会换行，收一点内边距，别让它显得格外高 */
+@media (max-width: 700px) {
+  .topbar {
+    padding: 8px 14px;
+    gap: 8px;
+  }
 }
 
