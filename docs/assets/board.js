@@ -358,40 +358,6 @@
 
 
   /**
-   * 瀑布流分栏：按列高把科目组放进最矮的一列（和桌面端同样的做法）。
-   * 用 flex 列而不是 CSS 多栏 —— 多栏会把卡片裁在栏内，选中放大就会溢出并在列上生成滚动条。
-   */
-  function layoutColumns() {
-    const wrap = boardEl.querySelector(".masonry-columns");
-    if (!wrap) return;
-    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
-    if (!groups.length) return;
-
-    const width = wrap.clientWidth || 0;
-    const count = Math.max(1, Math.min(groups.length, Math.floor(width / 358) || 1));
-
-    wrap.innerHTML = "";
-    wrap.style.display = "flex";
-    wrap.style.gap = "8px";
-    wrap.style.alignItems = "flex-start";
-
-    const columns = [];
-    for (let i = 0; i < count; i += 1) {
-      const column = document.createElement("div");
-      column.className = "masonry-column";
-      wrap.appendChild(column);
-      columns.push({ element: column, height: 0 });
-    }
-
-    for (const group of groups) {
-      let target = columns[0];
-      for (const column of columns) if (column.height < target.height) target = column;
-      target.element.appendChild(group);
-      target.height += group.offsetHeight;
-    }
-  }
-
-  /**
    * 只在**宽度**变化时重排。
    *
    * 手机上向下滑会隐藏地址栏、向上滑又显示，innerHeight 一直在变，
