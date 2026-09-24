@@ -108,11 +108,20 @@ class MainActivity : Activity() {
             setPadding(dp(28), 0, dp(28), dp(24))
         }
 
-        // 中间：环形进度（检查/下载中）或状态图标
-        val indicatorSize = dp(56)
-        if (loading) {
-            content.addView(M3RingView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(indicatorSize, indicatorSize)
+        // 正在下载/更新时用 M3 的波浪进度条；只是检查时用形状变换动画
+        var wavyProgress: M3WavyProgressView? = null
+        if (percent >= 0) {
+            wavyProgress = M3WavyProgressView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(30)
+                )
+                setProgress(percent / 100f)
+                start()
+            }
+        } else if (loading) {
+            content.addView(M3ShapeShifterView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(64), dp(64))
                 start()
             })
         } else {
@@ -129,7 +138,7 @@ class MainActivity : Activity() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
             setTextColor(Color.parseColor("#171D1E"))
             gravity = Gravity.CENTER
-            setPadding(0, dp(18), 0, 0)
+            setPadding(0, if (wavyProgress != null) dp(8) else dp(18), 0, 0)
         })
 
         if (detail != null) {
@@ -188,7 +197,7 @@ class MainActivity : Activity() {
             content.addView(row)
         }
 
-        // 整页：标题固定左上，内容垂直居中
+        // 整页：标题固定左上，正文在剩余空间里垂直居中
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
@@ -201,6 +210,17 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.START
         })
+
+        // 波浪进度条要占满宽度，所以放在有内边距的内容区外面
+        if (wavyProgress != null) {
+            page.addView(
+                wavyProgress,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)).apply {
+                    topMargin = dp(10)
+                }
+            )
+        }
+
         page.addView(
             content,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
@@ -271,26 +291,30 @@ class MainActivity : Activity() {
     }
 
     /**
-     * M3 风格的环形进度：一段圆弧持续旋转。
-     * 完全没有动画的"正在检查更新…"会让人以为卡死了，所以这里必须动起来。
+     * M3 的"形状变换"加载指示器：一个图形一边旋转一边在
+     * 圆 → 圆角方 → 胶囊 之间连续变形（用极坐标插值，过渡是平滑的）。
+     * 比单纯的转圈更现代，也是 M3 expressive 的招牌动效。
      */
-    private class M3RingView(context: android.content.Context) : View(context) {
+    private class M3ShapeShifterView(context: android.content.Context) : View(context) {
         private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            // 纯描边：形状变化看得更清楚，也更接近 M3 的加载指示器样子
             style = android.graphics.Paint.Style.STROKE
             strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
             color = Color.parseColor("#006877")
         }
-        private var angle = 0f
+        private val path = android.graphics.Path()
+        private var phase = 0f
         private var animator: android.animation.ValueAnimator? = null
 
         fun start() {
             if (animator != null) return
-            animator = android.animation.ValueAnimator.ofFloat(0f, 360f).apply {
-                duration = 1400L
+            animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 2400L
                 repeatCount = android.animation.ValueAnimator.INFINITE
                 interpolator = LinearInterpolator()
                 addUpdateListener {
-                    angle = it.animatedValue as Float
+                    phase = it.animatedValue as Float
                     invalidate()
                 }
                 start()
@@ -310,17 +334,147 @@ class MainActivity : Activity() {
 
         override fun onDraw(canvas: android.graphics.Canvas) {
             super.onDraw(canvas)
-            val stroke = dp(4).toFloat()
+            val size = minOf(width, height).toFloat()
+            if (size <= 0f) return
+            val cx = width / 2f
+            val cy = height / 2f
+            // 留出描边宽度，别被视图边缘裁掉
+            val stroke = size * 0.09f
             paint.strokeWidth = stroke
-            val inset = stroke / 2f + dp(2)
-            val size = (minOf(width, height) - inset * 2).toFloat()
-            val box = android.graphics.RectF(inset, inset, inset + size, inset + size)
-            // 底圈
-            paint.alpha = 40
-            canvas.drawArc(box, 0f, 360f, false, paint)
-            // 转动的那一段（约 100 度）
-            paint.alpha = 255
-            canvas.drawArc(box, angle, 100f, false, paint)
+            val base = (size - stroke) * 0.36f
+
+            // 三段形状：圆 → 圆角方 → 胶囊，循环插值
+            val t = phase * 3f
+            val index = t.toInt() % 3
+            val k = t - t.toInt()
+            val eased = k * k * (3 - 2 * k)     // smoothstep，衔接处不会有突跳
+
+            val startShape = SHAPES[index]
+            val endShape = SHAPES[(index + 1) % 3]
+
+            path.reset()
+            val steps = 64
+            for (i in 0..steps) {
+                val angle = (i.toFloat() / steps) * (Math.PI * 2).toFloat()
+                val p0 = pointOnShape(startShape, angle, base)
+                val p1 = pointOnShape(endShape, angle, base)
+                val x = cx + p0.first + (p1.first - p0.first) * eased
+                val y = cy + p0.second + (p1.second - p0.second) * eased
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            path.close()
+            // 整体缓慢自转，让变形更有生命感
+            canvas.save()
+            canvas.rotate(phase * 360f, cx, cy)
+            canvas.drawPath(path, paint)
+            canvas.restore()
+        }
+
+        /** 形状 = 半径按角度的调制方式 */
+        private fun pointOnShape(shape: Int, angle: Float, base: Float): Pair<Float, Float> {
+            val cos = kotlin.math.cos(angle)
+            val sin = kotlin.math.sin(angle)
+            return when (shape) {
+                // 0 圆
+                0 -> Pair(base * cos, base * sin)
+                // 1 圆角方（超椭圆，n 越大越方）
+                1 -> {
+                    val n = 4.0
+                    val denom = Math.pow(
+                        Math.pow(kotlin.math.abs(cos).toDouble(), n) +
+                            Math.pow(kotlin.math.abs(sin).toDouble(), n),
+                        1.0 / n
+                    ).toFloat()
+                    val r = if (denom <= 0f) base else base / denom
+                    Pair(r * cos, r * sin)
+                }
+                // 2 胶囊（横向拉长）
+                else -> Pair(base * 1.25f * cos, base * 0.72f * sin)
+            }
+        }
+
+        private companion object {
+            val SHAPES = intArrayOf(0, 1, 2)
+        }
+    }
+
+    /**
+     * M3 的波浪形（wavy）线性进度条：一条正弦波在轨道里流动，
+     * 用来表示"正在下载/正在更新"这类有进度但不确定速度的过程。
+     */
+    private class M3WavyProgressView(context: android.content.Context) : View(context) {
+        private val trackPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.STROKE
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            color = Color.parseColor("#D3DDE0")
+        }
+        private val wavePaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.STROKE
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            color = Color.parseColor("#006877")
+        }
+        private val path = android.graphics.Path()
+        private var progress = 0f          // 0..1，小于 0 表示不确定进度
+        private var phase = 0f
+        private var animator: android.animation.ValueAnimator? = null
+
+        fun setProgress(value: Float) {
+            progress = value
+            invalidate()
+        }
+
+        fun start() {
+            if (animator != null) return
+            animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 1200L
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                interpolator = LinearInterpolator()
+                addUpdateListener {
+                    phase = it.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            start()
+        }
+
+        override fun onDetachedFromWindow() {
+            animator?.cancel()
+            animator = null
+            super.onDetachedFromWindow()
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+            val stroke = dp(6).toFloat()
+            trackPaint.strokeWidth = stroke
+            wavePaint.strokeWidth = stroke
+            val cy = height / 2f
+            val left = stroke
+            val right = width - stroke
+            val span = right - left
+            if (span <= 0f) return
+
+            // 轨道
+            canvas.drawLine(left, cy, right, cy, trackPaint)
+
+            // 波浪：一段正弦，沿 x 平移
+            val amplitude = height * 0.28f
+            val waves = 4f
+            val filledWidth = if (progress >= 0f) span * progress.coerceIn(0f, 1f) else span
+            path.reset()
+            val steps = 80
+            for (i in 0..steps) {
+                val x = left + filledWidth * (i.toFloat() / steps)
+                val offset = ((x - left) / span) * waves * 2f * Math.PI.toFloat() + phase * 2f * Math.PI.toFloat()
+                val y = cy + kotlin.math.sin(offset.toDouble()).toFloat() * amplitude
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            canvas.drawPath(path, wavePaint)
         }
 
         private fun dp(value: Int): Int = TypedValue.applyDimension(

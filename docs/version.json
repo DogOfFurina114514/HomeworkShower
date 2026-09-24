@@ -15,10 +15,10 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.1",
-  "apkVersionCode": 260001,
+  "apkVersion": "26.0.2",
+  "apkVersionCode": 260002,
   "apkMandatory": false,
-  "apkNotes": "开屏更新提示改为独立界面（带环形进度动画），不再弹窗；编辑菜单新增「新建作业」；图片可点击放大并能下载/保存到手机；登录注册页加返回按钮；修复编辑按钮阴影被裁、日历浮层错位等问题。",
+  "apkNotes": "开屏检查更新改用形状变换动画（旋转并在圆/圆角方/胶囊间变形），下载安装包改用 M3 波浪进度条；图片悬停只轻微上浮，放大后可跟随鼠标做电子收藏卡式倾斜。",
   "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",

@@ -301,16 +301,14 @@ html.hs-booting body {
 }
 
 /**
- * 桌面端鼠标悬停在图片上：图片自己做一个伪 3D 上浮
- * （透视 + 轻微仰角 + 放大 + 投影），和卡片的整体反馈互不干扰。
- * 只在真的有指针悬停能力的设备上启用，触摸设备看不到 hover 会一直"卡"在浮起状态。
+ * 桌面端鼠标悬停在图片上：轻轻上浮一点点就好
+ * （之前那版透视+仰角+投影太花哨）。
+ * 只在真的有指针悬停的设备上启用，触摸设备看不到 hover 会一直"卡"在浮起状态。
  */
 @media (hover: hover) and (pointer: fine) {
   .homework-text img:hover {
-    transform: perspective(760px) rotateX(7deg) translateY(-6px) scale(1.025);
-    box-shadow:
-      0 14px 26px rgb(0 0 0 / 20%),
-      0 4px 8px rgb(0 0 0 / 12%);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgb(0 0 0 / 14%);
   }
 }
 
@@ -497,6 +495,8 @@ html body button {
   padding: 24px;
   background: rgb(12 18 20 / 88%);
   backdrop-filter: blur(2px);
+  /* 让放大后的图片能做"电子收藏卡"那种跟随鼠标的轻微立体倾斜 */
+  perspective: 1200px;
 }
 
 .lightbox[hidden] {
@@ -510,6 +510,8 @@ html body button {
   object-fit: contain;
   border-radius: 12px;
   background: #fff;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
 }
 
 .lightbox__actions {

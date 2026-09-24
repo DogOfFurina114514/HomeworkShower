@@ -756,9 +756,88 @@ const duePickerEl = document.getElementById("edit-due-picker");
     let lightboxCleanup = null;
 
     /**
-     * 打开灯箱：让图片从它在卡片里的位置"飞"到屏幕中间放大。
-     * 做法是先把浮层里的图片按原图位置与大小摆好（禁用过渡），
-     * 下一帧再放开过渡并回到居中放大的终态。
+     * 是不是"真有鼠标"的设备。
+     *
+     * 只看媒体查询 + 有没有触摸事件：手机上 ontouchstart 一定存在，
+     * 而且媒体查询会报 hover: none，所以手机（含手机浏览器打开网页）拿不到这个效果。
+     * 不使用 navigator.maxTouchPoints —— 无头浏览器/个别桌面浏览器会给出很大的值，
+     * 会把桌面误判成触屏。
+     */
+    function hasFinePointer() {
+      if ("ontouchstart" in window) return false;
+      for (const query of ["(hover: hover) and (pointer: fine)", "(any-hover: hover) and (any-pointer: fine)"]) {
+        if (window.matchMedia && window.matchMedia(query).matches) return true;
+      }
+      return false;
+    }
+
+    /**
+     * "电子收藏卡"式跟随倾斜：鼠标在图片里时，鼠标所在的那一角朝屏幕外翘起来
+     * （也就是离用户更近），鼠标移出就回到正面。
+     *
+     * 只在真有鼠标的设备上启用 —— 手机（包括手机浏览器打开网页）没有 hover，
+     * 装了会一直"卡"在某个角度。
+     */
+    function attachCardTilt() {
+      if (!hasFinePointer()) return () => {};
+
+      const MAX_TILT = 8; // 度；再大就假了
+      const LIFT = 6;     // 抬起多少像素
+      let frame = 0;
+      let px = 0.5;
+      let py = 0.5;
+
+      const apply = () => {
+        frame = 0;
+        // 鼠标在中心时是 0，越靠边角度越大
+        const rotateY = (px - 0.5) * 2 * MAX_TILT;
+        const rotateX = (0.5 - py) * 2 * MAX_TILT;
+        lightboxImage.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(${LIFT}px)`;
+      };
+
+      const setNeutral = () => {
+        lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
+      };
+
+      const onMove = (event) => {
+        const rect = lightboxImage.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const inside =
+          event.clientX >= rect.left && event.clientX <= rect.right &&
+          event.clientY >= rect.top && event.clientY <= rect.bottom;
+        if (!inside) {
+          setNeutral();
+          return;
+        }
+        px = (event.clientX - rect.left) / rect.width;
+        py = (event.clientY - rect.top) / rect.height;
+        if (!frame) frame = requestAnimationFrame(apply);
+      };
+
+      const onLeave = () => {
+        if (frame) {
+          cancelAnimationFrame(frame);
+          frame = 0;
+        }
+        setNeutral();
+      };
+
+      // 鼠标在浮层任意位置都算（图片外的按钮区域同样复位）
+      lightboxEl.addEventListener("pointermove", onMove);
+      lightboxEl.addEventListener("pointerleave", onLeave);
+
+      return () => {
+        if (frame) cancelAnimationFrame(frame);
+        lightboxEl.removeEventListener("pointermove", onMove);
+        lightboxEl.removeEventListener("pointerleave", onLeave);
+      };
+    }
+
+    /**
+     * 打开灯箱：
+     *   1. 图片从它在卡片里的位置"飞"到屏幕中间放大（用 clip-path 裁剪展开，
+     *      这样图片本身不用变形，也就不和后面的 3D 倾斜打架）；
+     *   2. 落地后开启跟随鼠标的倾斜。
      */
     function openLightbox(image) {
       if (!lightboxEl || !lightboxImage) return;
@@ -768,43 +847,49 @@ const duePickerEl = document.getElementById("edit-due-picker");
       lightboxEl.hidden = false;
       lightboxImage.src = lightboxSrc;
       lightboxImage.alt = image.alt || "放大的图片";
-      lightboxImage.style.transition = "none";
-      lightboxImage.style.transform = "none";
+      lightboxImage.style.transition = "";
+      lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
 
       const animate = () => {
         const to = lightboxImage.getBoundingClientRect();
         const fromWidth = from.width || to.width;
         const fromHeight = from.height || to.height;
-        if (to.width <= 0 || to.height <= 0 || fromWidth <= 0 || fromHeight <= 0) {
-          lightboxImage.style.transition = "";
-          lightboxImage.style.transform = "";
-          return;
-        }
+        if (to.width <= 0 || to.height <= 0 || fromWidth <= 0 || fromHeight <= 0) return;
+
+        const dx = to.left - from.left;
+        const dy = to.top - from.top;
         const scale = Math.min(fromWidth / to.width, fromHeight / to.height);
-        const dx = (from.left + fromWidth / 2) - (to.left + to.width / 2);
-        const dy = (from.top + fromHeight / 2) - (to.top + to.height / 2);
+        const iw = to.width * scale;
+        const ih = to.height * scale;
+        const inset = (v) => `${Math.max(0, v).toFixed(1)}px`;
 
-        lightboxImage.style.transformOrigin = "center center";
-        lightboxImage.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+        lightboxImage.style.transition = "none";
+        lightboxImage.style.clipPath =
+          `inset(${inset(dy)} ${inset(to.width - (dx + iw))} ${inset(to.height - (dy + ih))} ${inset(dx)})`;
+        lightboxImage.style.borderRadius = "12px";
 
-        // 下一帧开始过渡到终态
         requestAnimationFrame(() => {
-          lightboxImage.style.transition = "transform 320ms cubic-bezier(0.2, 0, 0, 1)";
-          lightboxImage.style.transform = "translate(0, 0) scale(1)";
+          lightboxImage.style.transition =
+            "clip-path 320ms cubic-bezier(0.2, 0, 0, 1)";
+          lightboxImage.style.clipPath = "inset(0px 0px 0px 0px)";
         });
       };
 
       if (lightboxImage.complete) animate();
       else lightboxImage.addEventListener("load", animate, { once: true });
 
-      // 图片在飞入过程中如果窗口尺寸变了，直接落到终态，避免错位
+      const detachTilt = attachCardTilt();
+
+      // 飞入过程中如果窗口尺寸变了，直接落到终态，避免错位
       const onResize = () => {
         lightboxImage.style.transition = "";
-        lightboxImage.style.transform = "";
+        lightboxImage.style.clipPath = "";
       };
       window.addEventListener("resize", onResize);
+
       lightboxCleanup = () => {
         window.removeEventListener("resize", onResize);
+        detachTilt();
         lightboxCleanup = null;
       };
     }
@@ -817,7 +902,8 @@ const duePickerEl = document.getElementById("edit-due-picker");
       if (lightboxImage) {
         lightboxImage.removeAttribute("src");
         lightboxImage.style.transition = "";
-        lightboxImage.style.transform = "";
+        lightboxImage.style.clipPath = "";
+        lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
       }
       lightboxSrc = "";
     }
