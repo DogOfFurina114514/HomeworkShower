@@ -1,6 +1,6 @@
 {
-  "version": "26.0.1",
-  "versionCode": 260001,
+  "version": "26.0.2",
+  "versionCode": 260002,
   "entry": "index.html",
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "assets/app.css",
-      "hash": "d3538b00b065c36d1164f966587f87c293ba4187177924ee91675818e46967ed",
-      "bytes": 21677
+      "hash": "24db239734e27f1ee24c44e085c1a7d91bdf15550cb698f050db60f17338d46c",
+      "bytes": 21718
     },
     {
       "path": "assets/auth.js",
@@ -25,8 +25,8 @@
     },
     {
       "path": "assets/board.js",
-      "hash": "7b3442fa2cec1d5c3f3bdddbe1104fb3cf5b615bbcb2c5592f41aecd3b1fb621",
-      "bytes": 48475
+      "hash": "65da6f138762f5b154e655d8a304e4ccee75476c325b74e26fe0c0081bb406d7",
+      "bytes": 51651
     },
     {
       "path": "assets/client.js",
@@ -155,7 +155,7 @@
     },
     {
       "path": "version.json",
-      "hash": "ccb83f5cdc08aa846a22004612438ba62efb422f283909a41c09e6c7f1e33b67",
+      "hash": "423c07c28e81e1cec90c6d08017e5bf8e667b37226e20a7d4bd7667a73dccad5",
       "bytes": 1794
     }
   ]
