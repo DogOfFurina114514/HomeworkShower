@@ -223,6 +223,21 @@
       </m3e-dialog>
       <div id="fab-host"></div>
 
+      <!-- 图片放大查看：点正文里的图片打开，下面可下载 / 保存到手机。
+           下载图标是自绘 SVG：M3E 那套图标里没有 download。 -->
+      <div class="lightbox" id="image-lightbox" hidden>
+        <img id="lightbox-image" alt="放大的图片" />
+        <div class="lightbox__actions">
+          <m3e-button variant="filled" id="lightbox-download">
+            <svg class="lightbox__icon" slot="icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+            </svg>
+            <span id="lightbox-download-label">下载图片</span>
+          </m3e-button>
+          <m3e-button variant="text" id="lightbox-close">关闭</m3e-button>
+        </div>
+      </div>
+
       <m3e-dialog id="permission-dialog" alert dismissible>
         <m3e-heading slot="header" variant="headline" size="small" level="2">仅管理员可修改作业</m3e-heading>
         <p class="hint">

@@ -688,6 +688,61 @@ const duePickerEl = document.getElementById("edit-due-picker");
       document.getElementById("delete-cancel")?.addEventListener("click", () => deleteDialog.hide());
     }
 
+    // ---------- 图片放大查看（灯箱） ----------
+
+    const lightboxEl = document.getElementById("image-lightbox");
+    const lightboxImage = document.getElementById("lightbox-image");
+    const lightboxDownloadLabel = document.getElementById("lightbox-download-label");
+    let lightboxSrc = "";
+
+    /** 触屏设备就把按钮文案写成「保存到手机」，说明会走系统下载管理器 */
+    const isTouchDevice = (navigator.maxTouchPoints || 0) > 0;
+    if (lightboxDownloadLabel && isTouchDevice) lightboxDownloadLabel.textContent = "保存到手机";
+
+    function openLightbox(image) {
+      if (!lightboxEl || !lightboxImage) return;
+      lightboxSrc = image.currentSrc || image.src || "";
+      lightboxImage.src = lightboxSrc;
+      lightboxImage.alt = image.alt || "放大的图片";
+      lightboxEl.hidden = false;
+    }
+
+    function closeLightbox() {
+      if (!lightboxEl) return;
+      lightboxEl.hidden = true;
+      // 清掉 src，避免大图一直占着内存
+      if (lightboxImage) lightboxImage.removeAttribute("src");
+      lightboxSrc = "";
+    }
+
+    function downloadLightboxImage() {
+      if (!lightboxSrc) return;
+      const raw = lightboxSrc.split("?")[0].split("#")[0];
+      const name = decodeURIComponent(raw.split("/").pop() || "") || "作业图片";
+      const link = document.createElement("a");
+      link.href = lightboxSrc;
+      link.download = name;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // 手机端（尤其 App 里）交给系统下载管理器；网页端就走浏览器自带的下载
+      hs.toast(isTouchDevice ? "已交给系统下载管理器保存" : "已开始下载");
+    }
+
+    if (lightboxEl) {
+      document.getElementById("lightbox-close")?.addEventListener("click", closeLightbox);
+      document.getElementById("lightbox-download")?.addEventListener("click", downloadLightboxImage);
+      // 点图片以外的空白处关闭
+      lightboxEl.addEventListener("click", (event) => {
+        if (event.target === lightboxEl) closeLightbox();
+      });
+      // Esc 关闭
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !lightboxEl.hidden) closeLightbox();
+      });
+    }
+
     /**
      * 图片被清理后会 404：在原位置换成灰底占位块（裂图图标 + 「图片已过期」）。
      * 注意图片的 error 事件不冒泡，必须用捕获阶段监听。
@@ -708,6 +763,14 @@ const duePickerEl = document.getElementById("edit-due-picker");
     );
 
     boardEl.addEventListener("click", (event) => {
+      // 点正文里的图片 → 放大查看（灯箱）；不这么做的话会被下面的作业项选中逻辑吃掉
+      const image = event.target.closest("img");
+      if (image && boardEl.contains(image)) {
+        event.stopPropagation();
+        openLightbox(image);
+        return;
+      }
+
       const action = event.target.closest("[data-action]");
       if (action) {
         event.stopPropagation();
@@ -881,6 +944,8 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
     if (fabHost && mode === "latest") {
       if (profile && hs.canEditToday(profile)) {
+        // 新建作业 = 打开发布页；只有发布者能发布，所以这一项也只给发布者看
+        const canPublish = hs.isPublisher(profile);
         fabHost.innerHTML = `
           <m3e-fab variant="primary" aria-label="编辑">
             <m3e-fab-menu-trigger for="fab-menu">
@@ -888,7 +953,11 @@ const duePickerEl = document.getElementById("edit-due-picker");
             </m3e-fab-menu-trigger>
           </m3e-fab>
           <m3e-fab-menu id="fab-menu" variant="primary">
-            ${hs.isPublisher(profile) ? `<m3e-fab-menu-item id="fab-publish">
+            ${canPublish ? `<m3e-fab-menu-item id="fab-new">
+              <m3e-icon variant="outlined" slot="icon" name="assignment"></m3e-icon>
+              新建作业
+            </m3e-fab-menu-item>` : ""}
+            ${canPublish ? `<m3e-fab-menu-item id="fab-publish">
               <m3e-icon variant="outlined" slot="icon" name="upload_file"></m3e-icon>
               发布作业
             </m3e-fab-menu-item>` : ""}
@@ -898,6 +967,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
             </m3e-fab-menu-item>
             
           </m3e-fab-menu>`;
+        document.getElementById("fab-new")?.addEventListener("click", () => location.assign("publish.html"));
         document.getElementById("fab-publish")?.addEventListener("click", () => location.assign("publish.html"));
         document.getElementById("fab-save")?.addEventListener("click", () => {
           const subjects = [];

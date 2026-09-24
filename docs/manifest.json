@@ -15,8 +15,8 @@
     },
     {
       "path": "assets/app.css",
-      "hash": "54b79d4ab0d808d50941443839c8c2148643e78968da43614cfa4b422f86766b",
-      "bytes": 18989
+      "hash": "c10ec45a08d35f70f25428076aa1daf5f91aa81c491d4b8222d9cfd60aef8558",
+      "bytes": 19959
     },
     {
       "path": "assets/auth.js",
@@ -25,8 +25,8 @@
     },
     {
       "path": "assets/board.js",
-      "hash": "b7d3545b384d61d47b4cc2072b3db457e1ebd2989cef5dc6bc0c9ee2c9192b79",
-      "bytes": 40039
+      "hash": "43f9882f57b5cb53b7be95bc66de7e00f2b734eaa7fabc4422ee0bd7d618c8d0",
+      "bytes": 43102
     },
     {
       "path": "assets/client.js",
@@ -80,8 +80,8 @@
     },
     {
       "path": "index.html",
-      "hash": "10d13bd39276f826b78b908a843bd9335b197b3c72929ad23b2d5f8fa9b4e08d",
-      "bytes": 13146
+      "hash": "b665f850572efd0a99ba476b9365e2223dfc6d1d0ac1994571d1e52581ded9cb",
+      "bytes": 13983
     },
     {
       "path": "login.html",
@@ -135,8 +135,8 @@
     },
     {
       "path": "timemachine.html",
-      "hash": "73c441064848082b4af57f1e25c62403c11cb81f432cb18372e7bb0b97829201",
-      "bytes": 13619
+      "hash": "852d55ec951d9078630cbb25dbae4d60c0c301699d2ce241c1b66ed7807add7e",
+      "bytes": 14548
     },
     {
       "path": "unsupport.html",
