@@ -1,6 +1,6 @@
 {
-  "version": "10",
-  "versionCode": 10,
+  "version": "11",
+  "versionCode": 11,
   "entry": "index.html",
   "files": [
     {
@@ -25,8 +25,8 @@
     },
     {
       "path": "assets/board.js",
-      "hash": "81812deb5c971f877432fd92c92e6fc7e4445afd4bf7f07ccc60243705d5c738",
-      "bytes": 69169
+      "hash": "454aba06cd368a9cc46a0da5a20ce4f44325e15920f0ecd3719d6dd6f75bd531",
+      "bytes": 70905
     },
     {
       "path": "assets/client.js",
@@ -155,7 +155,7 @@
     },
     {
       "path": "version.json",
-      "hash": "b9a8a547c8d9a4b66891ce5a2df990597c284b003ae9689a1d12e6306325810d",
+      "hash": "8f04e8e27c161e85e136e242df5d66c2a48c89a14cf13af8fd8bdd743e66b38f",
       "bytes": 1925
     }
   ]

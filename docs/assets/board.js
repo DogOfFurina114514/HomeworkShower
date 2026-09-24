@@ -149,9 +149,8 @@
     const noAnimClass = skipEnterAnimation ? " masonry-columns--no-anim" : "";
     boardEl.innerHTML = `<div class="masonry-columns${noAnimClass}">${sections.join("")}</div>`;
     splitIntoColumns(boardEl.querySelector(".masonry-columns"));
-    // m3e 组件与字体是异步就绪的，第一次量可能偏小；等它们稳定后再校一次。
-    // 这一步只挪位置、不改变结构，视觉上是平滑的。
-    scheduleLayout();
+    // 注意：这里不再安排"延迟校正"。装箱用的是与字体无关的内容权重，
+    // 字体晚一点就绪也不会改变分配结果；之前那两次延迟校正反而让页面动了两下。
     skipEnterAnimation = false;
   }
 
@@ -163,6 +162,25 @@
    *   2. 用装箱算法算出分配，一次性重建各列。
    * 也就是说用户看到的永远只是"已经分好的结果"。
    */
+  /**
+   * 估算一个科目组的"内容量"（与字体无关）。
+   *
+   * 为什么不用实测像素高度：m3e 组件与字体是异步就绪的，刚插入 DOM 时
+   * 卡片还没长开（实测 394px 的作文卡当时只有 56px），量出来偏小且不稳定；
+   * 而"卡片数 + 文字长度 + 图片数"这些是内容本身的特征，
+   * 字体怎么变都只是整体缩放，相对大小不变 —— 用它排序就稳。
+   */
+  function contentWeight(group) {
+    const items = group.querySelectorAll(".homework-item");
+    let weight = 40; // 科目标题
+    items.forEach((item) => {
+      const text = (item.textContent || "").trim();
+      const images = item.querySelectorAll("img").length;
+      weight += 56 + text.length * 2.4 + images * 220;
+    });
+    return weight;
+  }
+
   function splitIntoColumns(wrap) {
     if (!wrap) return;
     const groups = Array.from(wrap.querySelectorAll(".subject-group"));
@@ -171,7 +189,9 @@
     const boardWidth = boardEl.clientWidth || window.innerWidth || 1024;
     const count = Math.max(1, Math.min(groups.length, Math.floor((boardWidth - 48) / 358) || 1));
 
-    // 测量容器：与正式布局同样的列宽，但不显示给用户
+    // 权重：内容特征，与字体无关
+    const weights = groups.map((group) => contentWeight(group));
+    // 同时量一遍真实高度，仅用于最后把"高列排到左边"
     const probe = document.createElement("div");
     probe.className = "masonry-columns";
     probe.style.position = "absolute";
@@ -186,12 +206,10 @@
       probe.appendChild(phantom);
     }
     document.body.appendChild(probe);
-
-    // 把组搬进测量容器量高度（量完再搬回来）
     const sources = groups.map((group) => group.parentNode);
     groups.forEach((group) => probe.children[0].appendChild(group));
     void probe.offsetHeight;
-    const sizes = groups.map((group) => {
+    const measured = groups.map((group) => {
       const marginBottom = parseFloat(window.getComputedStyle(group).marginBottom) || 0;
       return group.getBoundingClientRect().height + marginBottom;
     });
@@ -201,7 +219,8 @@
     });
     probe.remove();
 
-    const assign = solveAssignment(sizes, count);
+    // 装箱：按权重大小依次放进"当前总权重最小"的列
+    const assign = solveAssignment(weights, count);
 
     // 一次性重建
     wrap.classList.add("masonry-columns--js");
@@ -219,6 +238,22 @@
     wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
       node.style.animation = "none";
     });
+
+    // 高的一列放左边。
+    //
+    // 不用"列总权重"排序：三列的权重可能几乎相同（实测 473/471/468），
+    // 排了等于没排。改用**该列里最重的那个组**做代表值 ——
+    // 一列高不高，主要由它最大的那块内容决定。
+    // 这个值固定，不随字体/时机变化，所以不会出现"加载后又动一下"。
+    const columnLead = new Array(count).fill(0);
+    weights.forEach((weight, index) => {
+      const bin = assign[index];
+      if (weight > columnLead[bin]) columnLead[bin] = weight;
+    });
+    const order = columns
+      .map((column, index) => ({ column, index }))
+      .sort((a, b) => columnLead[b.index] - columnLead[a.index]);
+    order.forEach(({ column }) => wrap.appendChild(column));
   }
 
   /**

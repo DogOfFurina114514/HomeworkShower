@@ -1,7 +1,7 @@
 {
-  "webVersion": "10",
-  "webVersionCode": 10,
-  "updatedAt": "2026-09-25T00:50:00+08:00",
+  "webVersion": "11",
+  "webVersionCode": 11,
+  "updatedAt": "2026-09-25T01:30:00+08:00",
   "entry": "index.html",
   "webNote": "网页版本是独立的递增数字（1、2、3…），与 App 版本完全分开：只改网页时把这个数字 +1，apkVersion 保持不动，App 就会走热更新。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
