@@ -259,6 +259,24 @@
     showMessage(error ? `重发失败：${error.message}` : "验证邮件已重新发送，请稍等一两分钟查收（也看看垃圾箱）。", Boolean(error));
   });
 
+  // ---------------- 返回 ----------------
+
+  /**
+   * 返回来路：从站内别的页面（主页、时光机…）跳进来的就回上一页，
+   * 直接打开登录页（App 冷启动、收藏夹进入）则回主页，避免退到站点外面。
+   */
+  function goBack() {
+    const referrer = document.referrer || "";
+    const fromSite = referrer.startsWith(location.origin) && !referrer.endsWith(location.pathname);
+    if (fromSite && history.length > 1) {
+      history.back();
+      return;
+    }
+    location.assign("index.html");
+  }
+
+  document.getElementById("back-button")?.addEventListener("click", goBack);
+
   // ---------------- 启动 ----------------
 
   void (async () => {

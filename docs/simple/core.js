@@ -275,6 +275,11 @@
     if (options.back) {
       html += '<a class="pill text" href="' + options.back + '">' + icon("back", 18) + "回到今天</a>";
     }
+    // 通用返回入口（登录页等）：文案可自定义，默认回主页
+    if (options.backLink) {
+      html += '<a class="pill text" href="' + options.backLink + '">' + icon("back", 18) +
+        escapeHtml(options.backLabel || "返回") + "</a>";
+    }
     if (options.showTimemachine) {
       html += '<a class="pill" href="timemachine.html">' + icon("clock", 18) + "时光机</a>";
     }
@@ -722,7 +727,7 @@
   /* -------------------------------------------------- 页面：登录注册 */
 
   function pageLogin() {
-    topbar({ title: config.siteName || "作业", hideAccount: true });
+    topbar({ title: config.siteName || "作业", hideAccount: true, backLink: "index.html", backLabel: "返回" });
     var mode = "login";
     var card = document.createElement("div");
     card.className = "card";

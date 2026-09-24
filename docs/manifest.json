@@ -1,6 +1,6 @@
 {
-  "version": "26.0.0",
-  "versionCode": 260000,
+  "version": "26.0.1",
+  "versionCode": 260001,
   "entry": "index.html",
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "assets/app.css",
-      "hash": "12779b94dc057a460ce1d55d67ddb13e4bb3af1797c2204f6e4ac4f31a515c5b",
-      "bytes": 18742
+      "hash": "54b79d4ab0d808d50941443839c8c2148643e78968da43614cfa4b422f86766b",
+      "bytes": 18989
     },
     {
       "path": "assets/auth.js",
@@ -45,8 +45,8 @@
     },
     {
       "path": "assets/login.js",
-      "hash": "4d0e6017a92da60cfcdabc19fcf14789501a1d91564a5ebc916125236cf257fa",
-      "bytes": 10446
+      "hash": "d8eee419b203088303d39dcafa2d64031c1aaa6da8db2f21c13b1f06edee4f2b",
+      "bytes": 11080
     },
     {
       "path": "assets/publish.js",
@@ -85,8 +85,8 @@
     },
     {
       "path": "login.html",
-      "hash": "667c66cbe923c007040dd68b2d837e113e5992247c04db6ce622ca43e9b8e3ef",
-      "bytes": 9101
+      "hash": "72fe27b1f497e4b60f76ce2c2ab9b57d8dd9dfcddc201658bcc6dab9cf242e6e",
+      "bytes": 9288
     },
     {
       "path": "publish.html",
@@ -105,8 +105,8 @@
     },
     {
       "path": "simple/core.js",
-      "hash": "21b6562bb9d722b15cb511d83179fb2a9e9457f5a9c1b2aa205e41a6d86d1a94",
-      "bytes": 53137
+      "hash": "ffc2a6cfd5c1d50a99c737a241b2efea850d60963c49451d08fb3ae8e36714d1",
+      "bytes": 53419
     },
     {
       "path": "simple/index.html",
@@ -155,7 +155,7 @@
     },
     {
       "path": "version.json",
-      "hash": "d431c6b29224e88538280747c1e69c4ff1b3f07c1d44c615e195dc8c34975a6b",
+      "hash": "db8755952b2efbc1e8a82e8fd3bcf7b61ca8026b27badaa1cbf3a110facb65a2",
       "bytes": 1657
     }
   ]

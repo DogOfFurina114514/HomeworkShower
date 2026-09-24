@@ -456,6 +456,16 @@ html.hs-booting body {
   background: var(--md-sys-color-surface-container-low, #eff4f6);
 }
 
+/* 登录/注册卡片左上角的返回按钮（用负外边距抵掉卡片的留白，视觉上贴左上角） */
+.auth__back {
+  display: flex;
+  margin: -14px 0 -8px -12px;
+}
+
+.auth__back m3e-button {
+  --m3e-button-container-height: 36px;
+}
+
 .auth__card h1 {
   margin: 0;
 }
