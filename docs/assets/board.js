@@ -417,6 +417,17 @@
    * 与 CSS 多栏的区别：分配结果固定，卡片变高只影响自己这一列，
    * 不会让别的科目被挤到下一排。
    */
+  /**
+   * 分栏：按容器宽度算列数，再按**实际高度**把科目分配到各列。
+   *
+   * 之前的做法是"按顺序轮流放"（第 1 个进第 1 列、第 2 个进第 2 列…），
+   * 完全不看高度 —— 于是内容多的科目堆在某列、其它列空着，整体很高。
+   * 现在：
+   *   1. 量出每个科目组的真实高度；
+   *   2. 取"当前最矮的一列"放（贪心），把最高列压下来；
+   *   3. 仍然大体保持科目的先后顺序（贪心遍历顺序就是原顺序）。
+   * 列数没变时不销毁重建，只挪动分组 —— 否则卡片重新进 DOM 会重播入场动画。
+   */
   function layoutColumns() {
     const wrap = boardEl.querySelector(".masonry-columns");
     if (!wrap) return;
@@ -426,22 +437,71 @@
     const width = boardEl.clientWidth || window.innerWidth || 1024;
     const count = Math.max(1, Math.min(groups.length, Math.floor((width - 48) / 358) || 1));
 
-    // 列数没变就不动 DOM：重建列会把卡片重新插进文档，CSS 动画会整片重播
-    const existing = wrap.querySelectorAll(".masonry-column").length;
-    if (existing === count) return;
-
-    wrap.innerHTML = "";
-    const columns = [];
-    for (let i = 0; i < count; i += 1) {
-      const column = document.createElement("div");
-      column.className = "masonry-column";
-      wrap.appendChild(column);
-      columns.push(column);
+    // 列容器：数量不对才重建
+    let columns = Array.from(wrap.querySelectorAll(".masonry-column"));
+    if (columns.length !== count) {
+      wrap.innerHTML = "";
+      columns = [];
+      for (let i = 0; i < count; i += 1) {
+        const column = document.createElement("div");
+        column.className = "masonry-column";
+        wrap.appendChild(column);
+        columns.push(column);
+      }
     }
-    groups.forEach((group, index) => {
-      columns[index % count].appendChild(group);
+
+    // 先按顺序轮流放一版（此时是真实布局，量出来的高度才准）
+    columns.forEach((column) => {
+      column.innerHTML = "";
     });
-    // 重排属于布局变化，不是"新内容进场"：这一次不要播入场动画
+    groups.forEach((group, index) => {
+      columns[index % columns.length].appendChild(group);
+    });
+    const realColumnHeights = columns.map((column) => column.getBoundingClientRect().height);
+    const beforeMax = Math.max(...realColumnHeights);
+
+    // 每组占多高（连同它下面的间距）
+    const sizes = groups.map((group) => group.getBoundingClientRect().height + 8);
+
+    /**
+     * 两种分配策略，取最高列更矮的那个：
+     *   A. 按科目原顺序，放进当前最矮的列（顺序自然，但大科目常常最后才分配，
+     *      容易"大的自己占一列、其余挤在一起"，最高列反而更高）；
+     *   B. 按高度降序，依次放进当前最矮的列（LPT 近似，能把最高列压到接近理论最优）。
+     */
+    const tryAssign = (ordered) => {
+      const totals = new Array(columns.length).fill(0);
+      columns.forEach((column) => {
+        column.innerHTML = "";
+      });
+      ordered.forEach((item) => {
+        let target = 0;
+        for (let i = 1; i < totals.length; i += 1) {
+          if (totals[i] < totals[target] - 1) target = i;
+        }
+        columns[target].appendChild(item.group);
+        totals[target] += item.size;
+      });
+      return Math.max(...columns.map((column) => column.getBoundingClientRect().height));
+    };
+
+    const bySequence = groups.map((group, index) => ({ group, index, size: sizes[index] }));
+    const bySize = [...bySequence].sort((a, b) => b.size - a.size);
+
+    const sequenceMax = tryAssign(bySequence);
+    const sizeMax = tryAssign(bySize);
+
+    // 两种都不如原来的顺序分配，就退回原样（至少不比之前差）
+    if (Math.min(sequenceMax, sizeMax) > beforeMax) {
+      columns.forEach((column) => {
+        column.innerHTML = "";
+      });
+      groups.forEach((group, index) => {
+        columns[index % columns.length].appendChild(group);
+      });
+    }
+
+    // 重排属于布局变化，不是"新内容进场"：不要播入场动画
     wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
       node.style.animation = "none";
     });
