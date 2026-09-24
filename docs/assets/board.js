@@ -145,13 +145,23 @@
     }
 
     boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
-    // 关键：必须等浏览器完成一次布局再分栏。
-    // 紧接着 innerHTML 就调 layoutColumns() 的话，getBoundingClientRect() 量到的是
-    // 脏数据（还没排版，甚至为 0），高度算错 → 分配全错。
-    // 用 setTimeout 而不是只靠 requestAnimationFrame：页面在后台时 rAF 会被节流、甚至不执行。
-    window.setTimeout(() => layoutColumns(), 0);
-    if (window.requestAnimationFrame) window.requestAnimationFrame(() => layoutColumns());
+    // 分栏要等内容稳定后再算：m3e 组件是异步升级的、字体也是异步的，
+    // 太早量会拿到"还没长开"的卡片（实测 394px 的作文卡彼时只有 56px），
+    // 高度算错 → 装箱算歪。这里多安排几次，最后一次（内容已稳定）为准。
+    scheduleLayout();
     skipEnterAnimation = false;
+  }
+
+  let layoutTimer = 0;
+
+  /** 安排分栏：越晚触发，内容越稳定、量得越准；后一次会取消前一次，只留最后一次 */
+  function scheduleLayout() {
+    [400, 1200].forEach((delay) => {
+      window.setTimeout(() => {
+        window.clearTimeout(layoutTimer);
+        layoutTimer = window.setTimeout(() => layoutColumns(), 0);
+      }, delay);
+    });
   }
 
   async function loadDates() {
@@ -399,22 +409,33 @@
    *   3. 仍然大体保持科目的先后顺序（贪心遍历顺序就是原顺序）。
    * 列数没变时不销毁重建，只挪动分组 —— 否则卡片重新进 DOM 会重播入场动画。
    */
+  /**
+   * 分栏现在交给 CSS 的多列布局（见 app.css 里 .masonry-columns 的 column-count）。
+   *
+   * 为什么不再用 JS 分配：JS 方案要先量出每个科目组的高度再装箱，
+   * 而"量高度"这件事在我们的页面上不可靠 —— m3e 组件是异步升级的，
+   * 刚插入 DOM 时卡片还是空的（实测那张 394px 的作文卡当时只有 56px），
+   * 量到的尺寸偏小，装箱结果自然不是最优，最高列反而更高。
+   * 浏览器原生的多列平衡不需要测量，自己就会把内容均分到各列。
+   */
+  /**
+   * 分栏：量出每个科目组的高度，再按"最高的列尽可能矮"装箱。
+   *
+   * 关键在测量时机 —— m3e 组件是异步升级的、字体也是异步的，
+   * 刚插入 DOM 时量到的是"还没长开"的高度（实测那张 394px 的作文卡当时只有 56px），
+   * 用这种尺寸装箱必然算歪。所以这里坚持到内容稳定后再量。
+   */
   function layoutColumns() {
     const wrap = boardEl.querySelector(".masonry-columns");
     if (!wrap) return;
     const groups = Array.from(wrap.querySelectorAll(".subject-group"));
     if (!groups.length) return;
 
-    // 停掉入场动画再测量：hs-rise 带 scale(0.985)，动画播放中量到的是中间值，
-    // 同一科目在不同时机能量出不同高度，分配就会算错。
-    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
-      node.style.animation = "none";
-    });
-
     const boardWidth = boardEl.clientWidth || window.innerWidth || 1024;
     const count = Math.max(1, Math.min(groups.length, Math.floor((boardWidth - 48) / 358) || 1));
 
-    // 重新建列（每次都重建，保证是干净状态；动画已停，重建不会重播动画）
+    // 切到 JS 分栏模式（同时关掉 CSS 的多列兜底）
+    wrap.classList.add("masonry-columns--js");
     wrap.innerHTML = "";
     const columns = [];
     for (let i = 0; i < count; i += 1) {
@@ -424,17 +445,15 @@
       columns.push(column);
     }
 
-    // ① 先把所有组放进第一列，量出真实高度
-    //    （列宽是 flex:1，放进哪一列宽度都一样，所以量一次就够）
-    const sizes = [];
-    groups.forEach((group) => {
-      columns[0].appendChild(group);
-      sizes.push(group.getBoundingClientRect().height + 8);
+    // ① 全部先放第一列，批量量高度（一次放好、一次读完，读到的是稳定值）
+    groups.forEach((group) => columns[0].appendChild(group));
+    void columns[0].offsetHeight;
+    const sizes = groups.map((group) => {
+      const marginBottom = parseFloat(window.getComputedStyle(group).marginBottom) || 0;
+      return group.getBoundingClientRect().height + marginBottom;
     });
 
-    // ② 求最优分配：把"最高列"压到最小
-    //    组数 ≤ 12 直接穷举（3^12 = 53 万，几十毫秒），保证最优；
-    //    更多则用 LPT 贪心（降序放进最矮的列）。
+    // ② 装箱：组数不多就穷举（保证最优），多则按高度降序放进最矮的列
     const solve = () => {
       if (groups.length <= 12) {
         const total = Math.pow(count, groups.length);
@@ -456,7 +475,7 @@
             bestAssign = assign;
           }
         }
-        if (bestAssign) return { assign: bestAssign, max: bestMax };
+        if (bestAssign) return bestAssign;
       }
       const totals = new Array(count).fill(0);
       const assign = new Array(groups.length).fill(0);
@@ -471,40 +490,21 @@
           assign[i] = target;
           totals[target] += sizes[i];
         });
-      return { assign, max: Math.max(...totals) };
+      return assign;
     };
 
-    // ③ 落位，并用"实测列高"校正一次
-    //    估算用的组高与实际落位后的列高可能有一点出入（换行、图片加载等），
-    //    所以应用后量一次实际列高：若明显高于理论值，就按实测列高再求一次分配。
-    const apply = (assignment) => {
-      columns.forEach((column) => {
-        column.innerHTML = "";
-      });
-      groups.forEach((group, index) => {
-        columns[assignment[index]].appendChild(group);
-      });
-    };
-
-    apply(solve().assign);
-
-    const measure = () => columns.map((column) => column.getBoundingClientRect().height);
-    const theoretical = Math.max(...sizes);
-    if (Math.max(...measure()) > theoretical * 1.12) {
-      // 用实测列高作为"每列的起点"，把每组重新塞进最矮的一列
-      const order = groups.map((_, i) => i).sort((a, b) => sizes[b] - sizes[a]);
-      const totals = measure();
-      const assignment = new Array(groups.length).fill(0);
-      order.forEach((i) => {
-        let target = 0;
-        for (let c = 1; c < count; c += 1) {
-          if (totals[c] < totals[target] - 1) target = c;
-        }
-        assignment[i] = target;
-        totals[target] += sizes[i];
-      });
-      apply(assignment);
-    }
+    // ③ 落位
+    const assign = solve();
+    columns.forEach((column) => {
+      column.innerHTML = "";
+    });
+    groups.forEach((group, index) => {
+      columns[assign[index]].appendChild(group);
+    });
+    // 重排属于布局变化，不是"新内容进场"
+    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
+      node.style.animation = "none";
+    });
   }
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
