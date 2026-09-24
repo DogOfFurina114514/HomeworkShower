@@ -141,11 +141,11 @@ class MainActivity : Activity() {
                 tag = TAG_PROGRESS_BAR
             }
         } else if (loading) {
-            content.addView(com.google.android.material.progressindicator.CircularProgressIndicator(this).apply {
+            // 自绘圆环：Material 的 CircularProgressIndicator 尺寸由它内部的 spec 决定，
+            // 设了 indicatorSize 在真机上依然被画成一个点，不如自己画一个可控的。
+            content.addView(M3RingView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
-                isIndeterminate = true
-                trackThickness = dp(4)
-                setIndicatorColor(Color.parseColor("#006877"))
+                start()
             })
         } else {
             content.addView(TextView(this).apply {
@@ -221,7 +221,7 @@ class MainActivity : Activity() {
             content.addView(row)
         }
 
-        // 整页：标题固定左上，正文在剩余空间里垂直居中
+        // 整页：标题固定在左上角，其余内容在"标题以下的区域"里垂直居中
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
@@ -245,12 +245,14 @@ class MainActivity : Activity() {
             )
         }
 
+        // 上方一段弹性空白 + 内容 + 下方一段弹性空白：这样内容才是"剩余空间的中间"，
+        // 只给内容加 weight=1 会让它贴着标题往下排（看着偏上）。
+        page.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
         page.addView(
             content,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
-                gravity = Gravity.CENTER_VERTICAL
-            }
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         )
+        page.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
 
         crossFadeTo(page)
         currentSplashPage = page
@@ -323,6 +325,68 @@ class MainActivity : Activity() {
             }
             false // 不消费事件，交给 Button 自己处理点击
         }
+    }
+
+    /**
+     * 自绘的 M3 圆环加载指示器：一段圆弧持续旋转。
+     *
+     * 用自绘而不是 Material 的 CircularProgressIndicator：
+     * 后者的绘制尺寸由它内部 spec 决定，在真机上设了 indicatorSize 仍被画成一个点；
+     * 自绘能完全控制半径与线宽，不会再出现"只是一个点"。
+     */
+    private class M3RingView(context: android.content.Context) : View(context) {
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.STROKE
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            color = Color.parseColor("#006877")
+        }
+        private var angle = 0f
+        private var animator: android.animation.ValueAnimator? = null
+
+        fun start() {
+            if (animator != null) return
+            animator = android.animation.ValueAnimator.ofFloat(0f, 360f).apply {
+                duration = 1200L
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                interpolator = LinearInterpolator()
+                addUpdateListener {
+                    angle = it.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            start()
+        }
+
+        override fun onDetachedFromWindow() {
+            animator?.cancel()
+            animator = null
+            super.onDetachedFromWindow()
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+            val size = minOf(width, height).toFloat()
+            if (size <= 0f) return
+            val stroke = (size * 0.09f).coerceAtLeast(dp(3).toFloat())
+            paint.strokeWidth = stroke
+            val inset = stroke / 2f
+            val box = android.graphics.RectF(inset, inset, size - inset, size - inset)
+            // 底圈（淡）
+            paint.alpha = 46
+            canvas.drawArc(box, 0f, 360f, false, paint)
+            // 转动的那一段（约 100 度）
+            paint.alpha = 255
+            canvas.drawArc(box, angle, 100f, false, paint)
+        }
+
+        private fun dp(value: Int): Int = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
+        ).toInt()
     }
 
     /** 换界面时淡入淡出，避免"啪"地一下换掉 */
@@ -498,11 +562,17 @@ class MainActivity : Activity() {
             val info = UpdateChecker.loadVersionInfo()
             if (info == null) {
                 main.post {
+                    // 注意用命名参数：showSplash 的参数不止三个，
+                    // 写尾随 lambda 会被当成最后一个参数（onSecondary），
+                    // 结果 onClick 是 null，按钮整个不渲染 —— 之前"重试按钮不见了"就是这个。
                     showSplash(
-                        "网络连接失败",
-                        "没能连上版本服务器，请检查网络后重试。",
-                        "重试"
-                    ) { startUpdateCheck() }
+                        message = "网络连接失败",
+                        detail = "没能连上版本服务器，请检查网络后重试。",
+                        buttonText = "重试",
+                        onClick = { startUpdateCheck() },
+                        secondaryButtonText = "退出",
+                        onSecondary = { finishAffinity() }
+                    )
                 }
                 return@execute
             }

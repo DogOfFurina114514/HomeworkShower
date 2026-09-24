@@ -1,7 +1,7 @@
 {
-  "webVersion": "4",
-  "webVersionCode": 4,
-  "updatedAt": "2026-09-24T20:10:00+08:00",
+  "webVersion": "11",
+  "webVersionCode": 11,
+  "updatedAt": "2026-09-25T02:40:00+08:00",
   "entry": "index.html",
   "webNote": "网页版本是独立的递增数字（1、2、3…），与 App 版本完全分开：只改网页时把这个数字 +1，apkVersion 保持不动，App 就会走热更新。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
@@ -16,10 +16,10 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.4",
-  "apkVersionCode": 260004,
+  "apkVersion": "26.0.6",
+  "apkVersionCode": 260006,
   "apkMandatory": true,
-  "apkNotes": "接入 Material Components：下载进度条改为官方波浪形 LinearProgressIndicator、检查更新改为官方 CircularProgressIndicator；进度改为就地更新（修掉一直 0% 且闪烁）；分栏改为按实际高度平衡。",
+  "apkNotes": "修掉网络错误页缺少「重试/退出」按钮（尾随 lambda 把 onClick 顶掉了）；检查更新的圆环改为自绘，不再是一个点。",
   "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
@@ -28,6 +28,6 @@
     "webManifestTable": "app_web_manifest",
     "appReleaseTable": "app_releases"
   },
-  "apkMandatorySince": 260004,
+  "apkMandatorySince": 260006,
   "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
 }

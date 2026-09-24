@@ -163,7 +163,8 @@ html.hs-booting body {
   padding: 24px 20px 96px;
 }
 
-/* 列由 JS 固定分配：卡片变高只影响自己这一列 */
+/* 列由 JS 分配：先量出每个科目组的高度，再装箱（见 board.js 的 layoutColumns）。
+   JS 分栏时会给容器加 .masonry-columns--js，把下面的多列兜底关掉。 */
 .masonry-columns {
   display: flex;
   align-items: flex-start;
@@ -174,6 +175,31 @@ html.hs-booting body {
   display: block;
   flex: 1 1 0;
   min-width: 0;
+}
+
+/* 兜底：万一 JS 没跑到（脚本出错等），用浏览器原生多列把内容排开，
+   总比全部堆成一列好。 */
+.masonry-columns:not(.masonry-columns--js) {
+  display: block;
+  column-count: 3;
+  column-gap: 8px;
+}
+
+.masonry-columns:not(.masonry-columns--js) > .subject-group {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+@media (max-width: 1100px) {
+  .masonry-columns:not(.masonry-columns--js) {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 700px) {
+  .masonry-columns:not(.masonry-columns--js) {
+    column-count: 1;
+  }
 }
 
 @keyframes hs-rise {

@@ -144,9 +144,181 @@
         </section>`);
     }
 
-    boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
-    layoutColumns();
+    // 先算好分栏，再把结果一次性插进页面 —— 不能先显示未分栏的内容再挪位置，
+    // 那样用户会看到"跳一下"。
+    const noAnimClass = skipEnterAnimation ? " masonry-columns--no-anim" : "";
+    boardEl.innerHTML = `<div class="masonry-columns${noAnimClass}">${sections.join("")}</div>`;
+    splitIntoColumns(boardEl.querySelector(".masonry-columns"));
+    // 注意：这里不再安排"延迟校正"。装箱用的是与字体无关的内容权重，
+    // 字体晚一点就绪也不会改变分配结果；之前那两次延迟校正反而让页面动了两下。
     skipEnterAnimation = false;
+  }
+
+  /**
+   * 把已经插进 DOM 的科目组重新分配到各列。
+   *
+   * 分两步：
+   *   1. 先按列宽把内容量出真实高度（测量期间内容是隐藏的，用户看不到）；
+   *   2. 用装箱算法算出分配，一次性重建各列。
+   * 也就是说用户看到的永远只是"已经分好的结果"。
+   */
+  /**
+   * 估算一个科目组的"内容量"（与字体无关）。
+   *
+   * 为什么不用实测像素高度：m3e 组件与字体是异步就绪的，刚插入 DOM 时
+   * 卡片还没长开（实测 394px 的作文卡当时只有 56px），量出来偏小且不稳定；
+   * 而"卡片数 + 文字长度 + 图片数"这些是内容本身的特征，
+   * 字体怎么变都只是整体缩放，相对大小不变 —— 用它排序就稳。
+   */
+  function contentWeight(group) {
+    const items = group.querySelectorAll(".homework-item");
+    let weight = 40; // 科目标题
+    items.forEach((item) => {
+      const text = (item.textContent || "").trim();
+      const images = item.querySelectorAll("img").length;
+      weight += 56 + text.length * 2.4 + images * 220;
+    });
+    return weight;
+  }
+
+  function splitIntoColumns(wrap) {
+    if (!wrap) return;
+    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
+    if (!groups.length) return;
+
+    const boardWidth = boardEl.clientWidth || window.innerWidth || 1024;
+    const count = Math.max(1, Math.min(groups.length, Math.floor((boardWidth - 48) / 358) || 1));
+
+    // 权重：内容特征，与字体无关
+    const weights = groups.map((group) => contentWeight(group));
+    // 同时量一遍真实高度，仅用于最后把"高列排到左边"
+    const probe = document.createElement("div");
+    probe.className = "masonry-columns";
+    probe.style.position = "absolute";
+    probe.style.left = "-100000px";
+    probe.style.top = "0";
+    probe.style.width = `${wrap.getBoundingClientRect().width || boardWidth}px`;
+    probe.style.visibility = "hidden";
+    probe.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < count; i += 1) {
+      const phantom = document.createElement("div");
+      phantom.className = "masonry-column";
+      probe.appendChild(phantom);
+    }
+    document.body.appendChild(probe);
+    const sources = groups.map((group) => group.parentNode);
+    groups.forEach((group) => probe.children[0].appendChild(group));
+    void probe.offsetHeight;
+    const measured = groups.map((group) => {
+      const marginBottom = parseFloat(window.getComputedStyle(group).marginBottom) || 0;
+      return group.getBoundingClientRect().height + marginBottom;
+    });
+    groups.forEach((group, index) => {
+      const back = sources[index];
+      if (back) back.appendChild(group);
+    });
+    probe.remove();
+
+    // 装箱：按权重大小依次放进"当前总权重最小"的列
+    const assign = solveAssignment(weights, count);
+
+    // 一次性重建
+    wrap.classList.add("masonry-columns--js");
+    wrap.innerHTML = "";
+    const columns = [];
+    for (let i = 0; i < count; i += 1) {
+      const column = document.createElement("div");
+      column.className = "masonry-column";
+      wrap.appendChild(column);
+      columns.push(column);
+    }
+    groups.forEach((group, index) => {
+      columns[assign[index]].appendChild(group);
+    });
+    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
+      node.style.animation = "none";
+    });
+
+    // 高的一列放左边。
+    //
+    // 不用"列总权重"排序：三列的权重可能几乎相同（实测 473/471/468），
+    // 排了等于没排。改用**该列里最重的那个组**做代表值 ——
+    // 一列高不高，主要由它最大的那块内容决定。
+    // 这个值固定，不随字体/时机变化，所以不会出现"加载后又动一下"。
+    const columnLead = new Array(count).fill(0);
+    weights.forEach((weight, index) => {
+      const bin = assign[index];
+      if (weight > columnLead[bin]) columnLead[bin] = weight;
+    });
+    const order = columns
+      .map((column, index) => ({ column, index }))
+      .sort((a, b) => columnLead[b.index] - columnLead[a.index]);
+    order.forEach(({ column }) => wrap.appendChild(column));
+  }
+
+  /**
+   * 装箱：组数不多就穷举，多则按高度降序放进最矮的列（LPT 近似）。
+   *
+   * 打分标准是"最高列尽量矮"，同时在最高列相同的情况下让各列尽量均匀 ——
+   * 只看最高列会挑出 584/571/403 这种，最高列是矮了，但右边空一大块。
+   */
+  function solveAssignment(sizes, count) {
+    const score = (totals) => {
+      const max = Math.max(...totals);
+      const min = Math.min(...totals);
+      // 最高列优先（权重拉开量级），同等最高列时列间差距越小越好
+      return max * 10000 + (max - min);
+    };
+
+    if (sizes.length <= 12) {
+      const total = Math.pow(count, sizes.length);
+      let bestScore = Infinity;
+      let bestAssign = null;
+      for (let code = 0; code < total; code += 1) {
+        const totals = new Array(count).fill(0);
+        const assign = new Array(sizes.length);
+        let rest = code;
+        for (let i = 0; i < sizes.length; i += 1) {
+          const bin = rest % count;
+          rest = Math.floor(rest / count);
+          assign[i] = bin;
+          totals[bin] += sizes[i];
+        }
+        const s = score(totals);
+        if (s < bestScore) {
+          bestScore = s;
+          bestAssign = assign;
+        }
+      }
+      if (bestAssign) return bestAssign;
+    }
+
+    const totals = new Array(count).fill(0);
+    const assign = new Array(sizes.length).fill(0);
+    sizes
+      .map((_, i) => i)
+      .sort((a, b) => sizes[b] - sizes[a])
+      .forEach((i) => {
+        let target = 0;
+        for (let c = 1; c < count; c += 1) {
+          if (totals[c] < totals[target] - 1) target = c;
+        }
+        assign[i] = target;
+        totals[target] += sizes[i];
+      });
+    return assign;
+  }
+
+  let layoutTimer = 0;
+
+  /** 安排分栏：越晚触发，内容越稳定、量得越准；后一次会取消前一次，只留最后一次 */
+  function scheduleLayout() {
+    [400, 1200].forEach((delay) => {
+      window.setTimeout(() => {
+        window.clearTimeout(layoutTimer);
+        layoutTimer = window.setTimeout(() => layoutColumns(), 0);
+      }, delay);
+    });
   }
 
   async function loadDates() {
@@ -358,40 +530,6 @@
 
 
   /**
-   * 瀑布流分栏：按列高把科目组放进最矮的一列（和桌面端同样的做法）。
-   * 用 flex 列而不是 CSS 多栏 —— 多栏会把卡片裁在栏内，选中放大就会溢出并在列上生成滚动条。
-   */
-  function layoutColumns() {
-    const wrap = boardEl.querySelector(".masonry-columns");
-    if (!wrap) return;
-    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
-    if (!groups.length) return;
-
-    const width = wrap.clientWidth || 0;
-    const count = Math.max(1, Math.min(groups.length, Math.floor(width / 358) || 1));
-
-    wrap.innerHTML = "";
-    wrap.style.display = "flex";
-    wrap.style.gap = "8px";
-    wrap.style.alignItems = "flex-start";
-
-    const columns = [];
-    for (let i = 0; i < count; i += 1) {
-      const column = document.createElement("div");
-      column.className = "masonry-column";
-      wrap.appendChild(column);
-      columns.push({ element: column, height: 0 });
-    }
-
-    for (const group of groups) {
-      let target = columns[0];
-      for (const column of columns) if (column.height < target.height) target = column;
-      target.element.appendChild(group);
-      target.height += group.offsetHeight;
-    }
-  }
-
-  /**
    * 只在**宽度**变化时重排。
    *
    * 手机上向下滑会隐藏地址栏、向上滑又显示，innerHeight 一直在变，
@@ -428,85 +566,28 @@
    *   3. 仍然大体保持科目的先后顺序（贪心遍历顺序就是原顺序）。
    * 列数没变时不销毁重建，只挪动分组 —— 否则卡片重新进 DOM 会重播入场动画。
    */
+  /**
+   * 分栏现在交给 CSS 的多列布局（见 app.css 里 .masonry-columns 的 column-count）。
+   *
+   * 为什么不再用 JS 分配：JS 方案要先量出每个科目组的高度再装箱，
+   * 而"量高度"这件事在我们的页面上不可靠 —— m3e 组件是异步升级的，
+   * 刚插入 DOM 时卡片还是空的（实测那张 394px 的作文卡当时只有 56px），
+   * 量到的尺寸偏小，装箱结果自然不是最优，最高列反而更高。
+   * 浏览器原生的多列平衡不需要测量，自己就会把内容均分到各列。
+   */
+  /** 重新分栏（供 resize 或内容稳定后调用）：只挪位置，不改结构 */
   function layoutColumns() {
     const wrap = boardEl.querySelector(".masonry-columns");
     if (!wrap) return;
-    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
-    if (!groups.length) return;
-
-    const width = boardEl.clientWidth || window.innerWidth || 1024;
-    const count = Math.max(1, Math.min(groups.length, Math.floor((width - 48) / 358) || 1));
-
-    // 列容器：数量不对才重建
-    let columns = Array.from(wrap.querySelectorAll(".masonry-column"));
-    if (columns.length !== count) {
-      wrap.innerHTML = "";
-      columns = [];
-      for (let i = 0; i < count; i += 1) {
-        const column = document.createElement("div");
-        column.className = "masonry-column";
-        wrap.appendChild(column);
-        columns.push(column);
-      }
-    }
-
-    // 先按顺序轮流放一版（此时是真实布局，量出来的高度才准）
-    columns.forEach((column) => {
-      column.innerHTML = "";
+    // 先把已有列里的分组提回顶层，再统一重新分配
+    const oldColumns = Array.from(wrap.querySelectorAll(":scope > .masonry-column"));
+    oldColumns.forEach((column) => {
+      while (column.firstChild) wrap.appendChild(column.firstChild);
+      column.remove();
     });
-    groups.forEach((group, index) => {
-      columns[index % columns.length].appendChild(group);
-    });
-    const realColumnHeights = columns.map((column) => column.getBoundingClientRect().height);
-    const beforeMax = Math.max(...realColumnHeights);
-
-    // 每组占多高（连同它下面的间距）
-    const sizes = groups.map((group) => group.getBoundingClientRect().height + 8);
-
-    /**
-     * 两种分配策略，取最高列更矮的那个：
-     *   A. 按科目原顺序，放进当前最矮的列（顺序自然，但大科目常常最后才分配，
-     *      容易"大的自己占一列、其余挤在一起"，最高列反而更高）；
-     *   B. 按高度降序，依次放进当前最矮的列（LPT 近似，能把最高列压到接近理论最优）。
-     */
-    const tryAssign = (ordered) => {
-      const totals = new Array(columns.length).fill(0);
-      columns.forEach((column) => {
-        column.innerHTML = "";
-      });
-      ordered.forEach((item) => {
-        let target = 0;
-        for (let i = 1; i < totals.length; i += 1) {
-          if (totals[i] < totals[target] - 1) target = i;
-        }
-        columns[target].appendChild(item.group);
-        totals[target] += item.size;
-      });
-      return Math.max(...columns.map((column) => column.getBoundingClientRect().height));
-    };
-
-    const bySequence = groups.map((group, index) => ({ group, index, size: sizes[index] }));
-    const bySize = [...bySequence].sort((a, b) => b.size - a.size);
-
-    const sequenceMax = tryAssign(bySequence);
-    const sizeMax = tryAssign(bySize);
-
-    // 两种都不如原来的顺序分配，就退回原样（至少不比之前差）
-    if (Math.min(sequenceMax, sizeMax) > beforeMax) {
-      columns.forEach((column) => {
-        column.innerHTML = "";
-      });
-      groups.forEach((group, index) => {
-        columns[index % columns.length].appendChild(group);
-      });
-    }
-
-    // 重排属于布局变化，不是"新内容进场"：不要播入场动画
-    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
-      node.style.animation = "none";
-    });
+    wrap.classList.remove("masonry-columns--js");
+    splitIntoColumns(wrap);
   }
-
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
     if (!window.hs || !window.hs.client) {
@@ -1014,6 +1095,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
       lightboxSrc = image.currentSrc || image.src || "";
 
       const from = image.getBoundingClientRect();
+      // 上一轮如果还在收尾（或动画留了 fill 残留），先全部取消，
+      // 否则第二次打开会被旧动画的内联样式盖住：看着像没打开
+      closingLightbox = false;
+      clearLightboxAnimations();
       lightboxEl.hidden = false;
       lightboxImage.src = lightboxSrc;
       lightboxImage.alt = image.alt || "放大的图片";
@@ -1022,6 +1107,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
       lightboxImage.style.height = "";
       lightboxImage.style.transition = "";
       lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
+      lightboxImage.style.opacity = "";
 
       const playFlip = () => {
         const to = lightboxImage.getBoundingClientRect();
@@ -1081,9 +1167,12 @@ const duePickerEl = document.getElementById("edit-due-picker");
       };
     }
 
-    /** 真正收尾：停止动画、清掉 src 与残留，避免大图占内存、下次打开带旧位移 */
+    /** 真正收尾：停掉动画、清掉 src 与残留，避免大图占内存、下次打开带旧位移 */
     function finishCloseLightbox() {
       lightboxCleanup?.();
+      // 出场动画用 fill:both，结束后必须显式取消，否则它留下的内联样式
+      // 会盖在元素上 —— 表现就是"第二次打开什么都没了，只有关闭动画"
+      clearLightboxAnimations();
       lightboxEl.hidden = true;
       if (lightboxImage) {
         lightboxImage.removeAttribute("src");
@@ -1094,6 +1183,18 @@ const duePickerEl = document.getElementById("edit-due-picker");
       const actions = lightboxEl.querySelector(".lightbox__actions");
       if (actions) actions.style.opacity = "";
       lightboxSrc = "";
+    }
+
+    /** 取消灯箱上所有还在生效的动画（含 fill 残留） */
+    function clearLightboxAnimations() {
+      if (!lightboxEl) return;
+      try {
+        if (lightboxEl.getAnimations) {
+          lightboxEl.getAnimations({ subtree: true }).forEach((animation) => animation.cancel());
+        }
+      } catch (error) {
+        /* 忽略 */
+      }
     }
 
     /** 关闭：先播淡出动画，动画结束再隐藏 */

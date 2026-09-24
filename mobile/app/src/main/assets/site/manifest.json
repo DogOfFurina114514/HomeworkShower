@@ -1,6 +1,6 @@
 {
-  "version": "4",
-  "versionCode": 4,
+  "version": "11",
+  "versionCode": 11,
   "entry": "index.html",
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "assets/app.css",
-      "hash": "63f5524c00e829ffb738c04c980066ad34b2d481b50e852530cd53e0190c7f24",
-      "bytes": 23001
+      "hash": "c49eae973b0adae24068a101db364a836071307ca1813e63a5ba3deebb7cc2b2",
+      "bytes": 23693
     },
     {
       "path": "assets/auth.js",
@@ -25,8 +25,8 @@
     },
     {
       "path": "assets/board.js",
-      "hash": "483e356864ba4ce3ed319ce5e53a2bacf5f8f9264d4f0613b3aafa7db963f9c4",
-      "bytes": 66352
+      "hash": "454aba06cd368a9cc46a0da5a20ce4f44325e15920f0ecd3719d6dd6f75bd531",
+      "bytes": 70905
     },
     {
       "path": "assets/client.js",
@@ -155,8 +155,8 @@
     },
     {
       "path": "version.json",
-      "hash": "2d998763bf3dcb0ef447ec8485faee7c539d17138d01711eaac239532177728b",
-      "bytes": 1964
+      "hash": "87ceccdf6202ef5e0be802ae5ffdab2023510580f51622ece7b66f0bbf6025e2",
+      "bytes": 1969
     }
   ]
 }
