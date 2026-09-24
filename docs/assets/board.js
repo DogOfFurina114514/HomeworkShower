@@ -391,12 +391,25 @@
     }
   }
 
-  window.addEventListener("resize", () => {
+  /**
+   * 只在**宽度**变化时重排。
+   *
+   * 手机上向下滑会隐藏地址栏、向上滑又显示，innerHeight 一直在变，
+   * 如果拿 resize 直接触发重排，就会不停重建 masonry 列
+   * （重建 = 卡片被重新插入 DOM = 入场动画重播，看着像"每次滑动都在播动画"）。
+   */
+  let lastLayoutWidth = window.innerWidth;
+
+  function onViewportResize() {
+    if (window.innerWidth === lastLayoutWidth) return;
+    lastLayoutWidth = window.innerWidth;
     window.clearTimeout(layoutColumns.timer);
     layoutColumns.timer = window.setTimeout(() => {
-      if (!boardEl.querySelector(".masonry-columns")) return;
+      if (boardEl.querySelector(".masonry-columns")) layoutColumns();
     }, 150);
-  });
+  }
+
+  window.addEventListener("resize", onViewportResize);
 
 
   /**
@@ -413,6 +426,10 @@
     const width = boardEl.clientWidth || window.innerWidth || 1024;
     const count = Math.max(1, Math.min(groups.length, Math.floor((width - 48) / 358) || 1));
 
+    // 列数没变就不动 DOM：重建列会把卡片重新插进文档，CSS 动画会整片重播
+    const existing = wrap.querySelectorAll(".masonry-column").length;
+    if (existing === count) return;
+
     wrap.innerHTML = "";
     const columns = [];
     for (let i = 0; i < count; i += 1) {
@@ -424,14 +441,11 @@
     groups.forEach((group, index) => {
       columns[index % count].appendChild(group);
     });
+    // 重排属于布局变化，不是"新内容进场"：这一次不要播入场动画
+    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
+      node.style.animation = "none";
+    });
   }
-
-  window.addEventListener("resize", () => {
-    window.clearTimeout(layoutColumns.timer);
-    layoutColumns.timer = window.setTimeout(() => {
-      if (boardEl.querySelector(".masonry-columns")) layoutColumns();
-    }, 150);
-  });
 
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
@@ -1033,19 +1047,67 @@ const duePickerEl = document.getElementById("edit-due-picker");
       });
     }
 
-    function downloadLightboxImage() {
+    function guessImageName(src) {
+      const raw = String(src || "").split("?")[0].split("#")[0];
+      const last = decodeURIComponent(raw.split("/").pop() || "");
+      if (last && last.includes(".")) return last;
+      return `作业图片-${todayString()}.jpg`;
+    }
+
+    /**
+     * 保存图片。
+     *
+     * 两种环境分开处理：
+     *   - App 内：`a[download]` 会被 WebView 的 DownloadListener 接住，交给系统下载管理器；
+     *   - 普通浏览器：跨域地址上的 download 属性会被忽略（点了根本不下载，只会跳转），
+     *     所以先用 fetch 取成 blob 再下载；取不到就退化成新标签打开，让用户长按保存。
+     */
+    async function downloadLightboxImage() {
       if (!lightboxSrc) return;
-      const raw = lightboxSrc.split("?")[0].split("#")[0];
-      const name = decodeURIComponent(raw.split("/").pop() || "") || "作业图片";
-      const link = document.createElement("a");
-      link.href = lightboxSrc;
-      link.download = name;
-      link.rel = "noopener";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      // 手机端（尤其 App 里）交给系统下载管理器；网页端就走浏览器自带的下载
-      hs.toast(isInApp ? "已交给系统下载管理器保存" : "已开始下载");
+      const name = guessImageName(lightboxSrc);
+      const button = document.getElementById("lightbox-download");
+      const originalText = lightboxDownloadLabel ? lightboxDownloadLabel.textContent : "";
+
+      const saveBlob = (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+      };
+
+      if (isInApp) {
+        // App 里交给系统下载管理器（DownloadListener → DownloadManager）
+        const link = document.createElement("a");
+        link.href = lightboxSrc;
+        link.download = name;
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        hs.toast("已交给系统下载管理器保存");
+        return;
+      }
+
+      button?.setAttribute("disabled", "");
+      if (lightboxDownloadLabel) lightboxDownloadLabel.textContent = "正在保存…";
+      try {
+        const response = await fetch(lightboxSrc, { mode: "cors", credentials: "omit" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        saveBlob(await response.blob());
+        hs.toast("已开始下载");
+      } catch (error) {
+        // 取不到就退化成"打开图片"，至少用户可以长按保存
+        hs.toast("已在新标签打开，长按图片即可保存");
+        window.open(lightboxSrc, "_blank", "noopener");
+      } finally {
+        button?.removeAttribute("disabled");
+        if (lightboxDownloadLabel) lightboxDownloadLabel.textContent = originalText || "下载图片";
+      }
     }
 
     if (lightboxEl) {
