@@ -797,7 +797,9 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   left: auto;
   top: auto;
   z-index: 30;
-  contain: layout paint;
+  /* 只保留 layout：容器与按钮同尺寸（80×80），一旦加上 paint，
+     M3E 按钮自身的投影（内部 elevation 层）就会被裁掉，边缘看着像被切平 */
+  contain: layout;
   transform: none;
 }
 
