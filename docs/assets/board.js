@@ -147,8 +147,10 @@
     boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
     // 关键：必须等浏览器完成一次布局再分栏。
     // 紧接着 innerHTML 就调 layoutColumns() 的话，getBoundingClientRect() 量到的是
-    // 脏数据（还没排版，甚至为 0），高度算错 → 分配全错、最高列下不来。
-    requestAnimationFrame(() => layoutColumns());
+    // 脏数据（还没排版，甚至为 0），高度算错 → 分配全错。
+    // 用 setTimeout 而不是只靠 requestAnimationFrame：页面在后台时 rAF 会被节流、甚至不执行。
+    window.setTimeout(() => layoutColumns(), 0);
+    if (window.requestAnimationFrame) window.requestAnimationFrame(() => layoutColumns());
     skipEnterAnimation = false;
   }
 
