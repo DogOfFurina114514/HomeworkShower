@@ -517,6 +517,12 @@
       else await loadLatest();
     }
 
+    /** 编辑/新建共用一个对话框：标题与保存动作按 dataset.id 区分 */
+    function setEditDialogMode(creating) {
+      const title = document.getElementById("edit-dialog-title");
+      if (title) title.textContent = creating ? "新建作业" : "修改作业";
+    }
+
     function openEdit(id) {
       if (!canManage) {
         hs.toast("你的修改权限已被撤销");
@@ -524,6 +530,7 @@
       }
       const row = findRow(id);
       if (!row || !editDialog) return;
+      setEditDialogMode(false);
       document.getElementById("edit-subject").value = row.subject || "";
       const duePicker = document.getElementById("edit-due-picker");
       const dueInput = document.getElementById("edit-due-input");
@@ -541,9 +548,34 @@
       window.setTimeout(() => editor.focus(), 80);
     }
 
+    /**
+     * 新建作业：和「修改作业」用的是同一个对话框，只是标题换成「新建」、字段清空。
+     * 保存时走 create_homework（单条插入），不会像发布页那样覆盖当天整批作业。
+     */
+    function openCreate() {
+      if (!canManage || !editDialog) {
+        if (!canManage) hs.toast("你没有新建作业的权限");
+        return;
+      }
+      setEditDialogMode(true);
+      document.getElementById("edit-subject").value = "";
+      document.getElementById("edit-tags").value = "";
+      const duePicker = document.getElementById("edit-due-picker");
+      const dueInput = document.getElementById("edit-due-input");
+      if (dueInput) dueInput.value = "";
+      if (duePicker) duePicker.date = null;
+      const editor = document.getElementById("edit-content");
+      editor.innerHTML = "";
+      setDialogMessage("edit-message", "");
+      delete editDialog.dataset.id;
+      editDialog.show();
+      window.setTimeout(() => editor.focus(), 80);
+    }
+
     async function saveEdit() {
       if (!editDialog || !canManage) return;
       const id = editDialog.dataset.id;
+      const creating = !id;
       const subject = document.getElementById("edit-subject").value.trim() || "其它";
 const duePickerEl = document.getElementById("edit-due-picker");
       const picked = duePickerEl && duePickerEl.date;
@@ -556,31 +588,49 @@ const duePickerEl = document.getElementById("edit-due-picker");
       const content = (editor.innerText || "").replace(/\u00a0/g, " ").trim();
       const saveButton = document.getElementById("edit-save");
 
+      if (!content && !contentHtml) {
+        setDialogMessage("edit-message", "内容不能为空。");
+        return;
+      }
+
       saveButton.setAttribute("disabled", "");
-      const { error } = await client
-        .from("homeworks")
-        .update({
-          subject,
-          content,
-          content_html: contentHtml || null,
-          tags,
-          due_date: due || null,
-          due_time: due ? `${due}T00:00:00` : null,
-        })
-        .eq("id", id);
+
+      // 新建走 RPC（单条插入）；修改就是普通的 update
+      const { error } = creating
+        ? await client.rpc("create_homework", {
+            p_subject: subject,
+            p_content: content,
+            p_content_html: contentHtml || null,
+            p_tags: tags,
+            p_due_date: due || null,
+          })
+        : await client
+            .from("homeworks")
+            .update({
+              subject,
+              content,
+              content_html: contentHtml || null,
+              tags,
+              due_date: due || null,
+              due_time: due ? `${due}T00:00:00` : null,
+            })
+            .eq("id", id);
       saveButton.removeAttribute("disabled");
 
       if (error) {
+        const denied = String(error.message).includes("row-level security") || error.code === "42501";
         setDialogMessage(
           "edit-message",
-          String(error.message).includes("row-level security") || error.code === "42501"
-            ? "保存失败：只能修改当天发布的内容。"
-            : `保存失败：${error.message}`,
+          denied
+            ? creating
+              ? "新建失败：只有发布者与管理员可以新建作业。"
+              : "保存失败：只能修改当天发布的内容。"
+            : `${creating ? "新建" : "保存"}失败：${error.message}`,
         );
         return;
       }
       editDialog.hide();
-      hs.toast("已保存");
+      hs.toast(creating ? "已新建" : "已保存");
       await refresh();
     }
 
@@ -695,23 +745,80 @@ const duePickerEl = document.getElementById("edit-due-picker");
     const lightboxDownloadLabel = document.getElementById("lightbox-download-label");
     let lightboxSrc = "";
 
-    /** 触屏设备就把按钮文案写成「保存到手机」，说明会走系统下载管理器 */
-    const isTouchDevice = (navigator.maxTouchPoints || 0) > 0;
-    if (lightboxDownloadLabel && isTouchDevice) lightboxDownloadLabel.textContent = "保存到手机";
+    /**
+     * 只有**应用内**才写「保存到手机」（那里点了会走系统下载管理器）。
+     * 不能用"是不是触屏"来判断 —— 带触摸屏的电脑同样会被判成触屏，
+     * 结果桌面端也显示「保存到手机」，很怪。
+     */
+    const isInApp = location.hostname === "appassets.androidplatform.net";
+    if (lightboxDownloadLabel && isInApp) lightboxDownloadLabel.textContent = "保存到手机";
 
+    let lightboxCleanup = null;
+
+    /**
+     * 打开灯箱：让图片从它在卡片里的位置"飞"到屏幕中间放大。
+     * 做法是先把浮层里的图片按原图位置与大小摆好（禁用过渡），
+     * 下一帧再放开过渡并回到居中放大的终态。
+     */
     function openLightbox(image) {
       if (!lightboxEl || !lightboxImage) return;
       lightboxSrc = image.currentSrc || image.src || "";
+
+      const from = image.getBoundingClientRect();
+      lightboxEl.hidden = false;
       lightboxImage.src = lightboxSrc;
       lightboxImage.alt = image.alt || "放大的图片";
-      lightboxEl.hidden = false;
+      lightboxImage.style.transition = "none";
+      lightboxImage.style.transform = "none";
+
+      const animate = () => {
+        const to = lightboxImage.getBoundingClientRect();
+        const fromWidth = from.width || to.width;
+        const fromHeight = from.height || to.height;
+        if (to.width <= 0 || to.height <= 0 || fromWidth <= 0 || fromHeight <= 0) {
+          lightboxImage.style.transition = "";
+          lightboxImage.style.transform = "";
+          return;
+        }
+        const scale = Math.min(fromWidth / to.width, fromHeight / to.height);
+        const dx = (from.left + fromWidth / 2) - (to.left + to.width / 2);
+        const dy = (from.top + fromHeight / 2) - (to.top + to.height / 2);
+
+        lightboxImage.style.transformOrigin = "center center";
+        lightboxImage.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+
+        // 下一帧开始过渡到终态
+        requestAnimationFrame(() => {
+          lightboxImage.style.transition = "transform 320ms cubic-bezier(0.2, 0, 0, 1)";
+          lightboxImage.style.transform = "translate(0, 0) scale(1)";
+        });
+      };
+
+      if (lightboxImage.complete) animate();
+      else lightboxImage.addEventListener("load", animate, { once: true });
+
+      // 图片在飞入过程中如果窗口尺寸变了，直接落到终态，避免错位
+      const onResize = () => {
+        lightboxImage.style.transition = "";
+        lightboxImage.style.transform = "";
+      };
+      window.addEventListener("resize", onResize);
+      lightboxCleanup = () => {
+        window.removeEventListener("resize", onResize);
+        lightboxCleanup = null;
+      };
     }
 
     function closeLightbox() {
       if (!lightboxEl) return;
+      lightboxCleanup?.();
       lightboxEl.hidden = true;
-      // 清掉 src，避免大图一直占着内存
-      if (lightboxImage) lightboxImage.removeAttribute("src");
+      // 清掉 src 与动画残留，避免大图一直占着内存、下次打开带着旧位移
+      if (lightboxImage) {
+        lightboxImage.removeAttribute("src");
+        lightboxImage.style.transition = "";
+        lightboxImage.style.transform = "";
+      }
       lightboxSrc = "";
     }
 
@@ -727,7 +834,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
       link.click();
       link.remove();
       // 手机端（尤其 App 里）交给系统下载管理器；网页端就走浏览器自带的下载
-      hs.toast(isTouchDevice ? "已交给系统下载管理器保存" : "已开始下载");
+      hs.toast(isInApp ? "已交给系统下载管理器保存" : "已开始下载");
     }
 
     if (lightboxEl) {
@@ -761,6 +868,30 @@ const duePickerEl = document.getElementById("edit-due-picker");
       },
       true,
     );
+
+    /**
+     * 鼠标停在图片上时给卡片打个标记，让卡片的悬停/按下反馈让位给图片自己的
+     * 伪 3D 上浮（见 app.css 里的 [data-hover-image]）。触摸设备不会有 hover。
+     */
+    const setImageHover = (on, item) => {
+      if (!item) return;
+      if (on) item.dataset.hoverImage = "1";
+      else delete item.dataset.hoverImage;
+    };
+
+    boardEl.addEventListener("mouseover", (event) => {
+      const image = event.target.closest(".homework-text img");
+      if (!image || !boardEl.contains(image)) return;
+      setImageHover(true, image.closest(".homework-item"));
+    });
+
+    boardEl.addEventListener("mouseout", (event) => {
+      const image = event.target.closest(".homework-text img");
+      if (!image || !boardEl.contains(image)) return;
+      const next = event.relatedTarget;
+      if (next instanceof Node && image.contains(next)) return;
+      setImageHover(false, image.closest(".homework-item"));
+    });
 
     boardEl.addEventListener("click", (event) => {
       // 点正文里的图片 → 放大查看（灯箱）；不这么做的话会被下面的作业项选中逻辑吃掉
@@ -967,7 +1098,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
             </m3e-fab-menu-item>
             
           </m3e-fab-menu>`;
-        document.getElementById("fab-new")?.addEventListener("click", () => location.assign("publish.html"));
+        document.getElementById("fab-new")?.addEventListener("click", () => openCreate());
         document.getElementById("fab-publish")?.addEventListener("click", () => location.assign("publish.html"));
         document.getElementById("fab-save")?.addEventListener("click", () => {
           const subjects = [];

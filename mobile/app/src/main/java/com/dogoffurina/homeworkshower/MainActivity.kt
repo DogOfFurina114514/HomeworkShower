@@ -14,6 +14,8 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.LinearInterpolator
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -82,59 +84,401 @@ class MainActivity : Activity() {
     private fun dp(value: Int): Int =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
 
-    /** 开屏：应用名 + 状态行（+ 可选的按钮） */
-    private fun showSplash(message: String, detail: String? = null, buttonText: String? = null, onClick: (() -> Unit)? = null) {
-        val column = LinearLayout(this).apply {
+    /**
+     * 开屏即界面：检查更新、更新本身都在这里显示，不再往上叠弹窗。
+     *
+     * 结构（M3 的骨架）：
+     *   左上角标题「作业」+ 中间一块内容区（图标或环形进度 + 状态文字 + 说明）+ 底部操作按钮
+     * 每次换状态都走 crossFade，避免"界面突然换掉"的突兀感。
+     */
+    private fun showSplash(
+        message: String,
+        detail: String? = null,
+        buttonText: String? = null,
+        onClick: (() -> Unit)? = null,
+        actions: List<Triple<String, Boolean, () -> Unit>> = emptyList(),
+        loading: Boolean = false,
+        percent: Int = -1,
+        secondaryButtonText: String? = null,
+        onSecondary: (() -> Unit)? = null
+    ) {
+        val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(32), dp(32), dp(32), dp(32))
-            setBackgroundColor(Color.parseColor("#F5FAFC"))
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(28), 0, dp(28), dp(24))
         }
-        column.addView(TextView(this).apply {
-            text = "作业"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
-            setTextColor(Color.parseColor("#006877"))
-            typeface = Typeface.DEFAULT_BOLD
-        })
-        column.addView(TextView(this).apply {
-            text = message
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-            setTextColor(Color.parseColor("#3F484A"))
-            gravity = Gravity.CENTER
-            setPadding(0, dp(14), 0, 0)
-        })
-        if (detail != null) {
-            column.addView(TextView(this).apply {
-                text = detail
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setTextColor(Color.parseColor("#6F797B"))
-                gravity = Gravity.CENTER
-                setPadding(0, dp(8), 0, 0)
+
+        // 中间：环形进度（检查/下载中）或状态图标
+        val indicatorSize = dp(56)
+        if (loading) {
+            content.addView(M3RingView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(indicatorSize, indicatorSize)
+                start()
             })
-        }
-        if (buttonText != null && onClick != null) {
-            column.addView(Button(this).apply {
-                text = buttonText
-                isAllCaps = false
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                setTextColor(Color.WHITE)
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    cornerRadius = dp(20).toFloat()
-                    setColor(Color.parseColor("#006877"))
-                }
-                val params = LinearLayout.LayoutParams(dp(160), dp(44))
-                params.topMargin = dp(20)
-                layoutParams = params
-                setOnClickListener { onClick() }
+        } else {
+            content.addView(TextView(this).apply {
+                text = if (buttonText != null) "⚠" else "•"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+                setTextColor(Color.parseColor("#006877"))
+                gravity = Gravity.CENTER
             })
         }
 
-        root.removeAllViews()
-        root.addView(
-            column,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        content.addView(TextView(this).apply {
+            text = message
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            setTextColor(Color.parseColor("#171D1E"))
+            gravity = Gravity.CENTER
+            setPadding(0, dp(18), 0, 0)
+        })
+
+        if (detail != null) {
+            content.addView(TextView(this).apply {
+                text = detail
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(Color.parseColor("#3F484A"))
+                gravity = Gravity.CENTER
+                setLineSpacing(dp(4).toFloat(), 1f)
+                setPadding(0, dp(10), 0, 0)
+            })
+        }
+
+        if (percent >= 0) {
+            content.addView(TextView(this).apply {
+                text = "$percent%"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+                setTextColor(Color.parseColor("#006877"))
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                setPadding(0, dp(12), 0, 0)
+            })
+        }
+
+        // 按钮区：单个按钮走 buttonText/onClick，多按钮走 actions
+        val allActions = mutableListOf<Triple<String, Boolean, () -> Unit>>()
+        if (buttonText != null && onClick != null) allActions.add(Triple(buttonText, true, onClick))
+        if (secondaryButtonText != null && onSecondary != null) allActions.add(Triple(secondaryButtonText, false, onSecondary))
+        allActions.addAll(actions)
+
+        if (allActions.isNotEmpty()) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                setPadding(0, dp(24), 0, 0)
+            }
+            for ((label, primary, action) in allActions) {
+                val button = Button(this).apply {
+                    text = label
+                    isAllCaps = false
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                    setTextColor(if (primary) Color.WHITE else Color.parseColor("#006877"))
+                    val params = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        dp(44)
+                    )
+                    params.marginStart = dp(10)
+                    params.marginEnd = dp(10)
+                    layoutParams = params
+                    setPadding(dp(22), 0, dp(22), 0)
+                    setOnClickListener { action() }
+                }
+                applyM3ButtonFeedback(button, primary)
+                row.addView(button)
+            }
+            content.addView(row)
+        }
+
+        // 整页：标题固定左上，内容垂直居中
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(22), dp(20), dp(22), dp(16))
+        }
+        page.addView(TextView(this).apply {
+            text = "作业"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+            setTextColor(Color.parseColor("#006877"))
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.START
+        })
+        page.addView(
+            content,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            }
+        )
+
+        crossFadeTo(page)
+    }
+
+    /**
+     * M3 按钮的点击反馈：按下时从触点扩散的涟漪（状态层）+ 轻微下沉。
+     * 用 RippleDrawable 而不是自定义动画 —— 它就是 Material 里的状态层实现，
+     * 也是"点了没反应"这个问题的正解。注意必须设 clickable，否则涟漪不触发。
+     */
+    private fun applyM3ButtonFeedback(button: Button, primary: Boolean) {
+        val radius = dp(20).toFloat()
+        val base = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = radius
+            setColor(if (primary) Color.parseColor("#006877") else Color.TRANSPARENT)
+            if (!primary) {
+                setStroke(dp(1), Color.parseColor("#BFC8CB"))
+            }
+        }
+        // 末位 alpha 就是 M3 的状态层不透明度（按下 12%）
+        val rippleColor = android.content.res.ColorStateList.valueOf(
+            if (primary) Color.parseColor("#33FFFFFF") else Color.parseColor("#1F006877")
+        )
+        val mask = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = radius
+            setColor(Color.WHITE)
+        }
+        button.background = android.graphics.drawable.RippleDrawable(rippleColor, base, mask)
+        button.isClickable = true
+        // 按下时轻微下沉，松开回弹
+        button.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN ->
+                    view.animate().scaleX(0.97f).scaleY(0.97f).setDuration(90L).start()
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL ->
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(140L).start()
+            }
+            false // 不消费事件，交给 Button 自己处理点击
+        }
+    }
+
+    /** 换界面时淡入淡出，避免"啪"地一下换掉 */
+    private fun crossFadeTo(next: View) {
+        val container = root
+        val params = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        val previous = if (container.childCount > 0) container.getChildAt(0) else null
+        if (previous == null) {
+            next.alpha = 0f
+            container.addView(next, params)
+            next.animate().alpha(1f).setDuration(220L).setInterpolator(DecelerateInterpolator()).start()
+            return
+        }
+        next.alpha = 0f
+        container.addView(next, params)
+        previous.animate().alpha(0f).setDuration(160L).withEndAction {
+            container.removeView(previous)
+        }.start()
+        next.animate().alpha(1f).setDuration(240L).setInterpolator(DecelerateInterpolator()).start()
+    }
+
+    /**
+     * M3 风格的环形进度：一段圆弧持续旋转。
+     * 完全没有动画的"正在检查更新…"会让人以为卡死了，所以这里必须动起来。
+     */
+    private class M3RingView(context: android.content.Context) : View(context) {
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.STROKE
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            color = Color.parseColor("#006877")
+        }
+        private var angle = 0f
+        private var animator: android.animation.ValueAnimator? = null
+
+        fun start() {
+            if (animator != null) return
+            animator = android.animation.ValueAnimator.ofFloat(0f, 360f).apply {
+                duration = 1400L
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                interpolator = LinearInterpolator()
+                addUpdateListener {
+                    angle = it.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            start()
+        }
+
+        override fun onDetachedFromWindow() {
+            animator?.cancel()
+            animator = null
+            super.onDetachedFromWindow()
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+            val stroke = dp(4).toFloat()
+            paint.strokeWidth = stroke
+            val inset = stroke / 2f + dp(2)
+            val size = (minOf(width, height) - inset * 2).toFloat()
+            val box = android.graphics.RectF(inset, inset, inset + size, inset + size)
+            // 底圈
+            paint.alpha = 40
+            canvas.drawArc(box, 0f, 360f, false, paint)
+            // 转动的那一段（约 100 度）
+            paint.alpha = 255
+            canvas.drawArc(box, angle, 100f, false, paint)
+        }
+
+        private fun dp(value: Int): Int = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
+        ).toInt()
+    }
+
+    // ------------------------------------------------------------------ 本体更新
+
+    private fun checkAppUpdate(info: UpdateChecker.VersionInfo, localAppCode: Int) {
+        if (!UpdateChecker.hasAppUpdate(info, localAppCode)) {
+            checkWebUpdate(info)
+            return
+        }
+        // 累积强制规则：本地低于历史最高强制版本 → 强制更新到最新
+        val mandatory = UpdateChecker.isMandatory(info, localAppCode)
+        val notes = if (info.apkNotes.isBlank()) "" else "\n\n更新内容：${info.apkNotes}"
+        val detail = "当前版本 ${UpdateChecker.localVersionName(this)}（$localAppCode）\n" +
+            "最新版本 ${info.apkVersion}（${info.apkVersionCode}）" + notes +
+            if (mandatory) "\n\n这个版本必须更新后才能继续使用。" else ""
+
+        showSplash(
+            message = if (mandatory) "需要更新应用" else "发现新版本",
+            detail = detail,
+            buttonText = "立即更新",
+            onClick = { downloadAppUpdate(info) },
+            // 强制更新时不给"稍后"，只给"退出"
+            secondaryButtonText = if (mandatory) "退出" else "稍后",
+            onSecondary = {
+                if (mandatory) finishAffinity() else checkWebUpdate(info)
+            }
         )
     }
+
+    private fun downloadAppUpdate(info: UpdateChecker.VersionInfo) {
+        showSplash(
+            message = "正在下载安装包",
+            detail = "下载完成后会自动打开系统安装器。",
+            loading = true,
+            percent = 0
+        )
+        worker.execute {
+            // 注意 this 在 Runnable 里指的是 Runnable，必须显式写 this@MainActivity
+            val result = ApkUpdater.download(
+                context = this@MainActivity,
+                info = info,
+                onProgress = { p ->
+                    val percent = p.percent
+                    val text = if (percent >= 0) percent else -1
+                    main.post {
+                        if (text >= 0) {
+                            showSplash(
+                                message = "正在下载安装包",
+                                detail = "下载完成后会自动打开系统安装器。",
+                                loading = true,
+                                percent = text
+                            )
+                        }
+                    }
+                }
+            )
+            main.post {
+                val file = result.file
+                if (file == null) {
+                    showSplash(
+                        message = "下载失败",
+                        detail = result.message + "\n\n可以重试，或到 GitHub Releases 手动下载。",
+                        buttonText = "重试",
+                        onClick = { downloadAppUpdate(info) },
+                        secondaryButtonText = "先跳过",
+                        onSecondary = { checkWebUpdate(info) }
+                    )
+                    return@post
+                }
+                try {
+                    ApkUpdater.install(this, file)
+                    // 安装器已经拉起，回到"稍后/跳过"这一步，避免用户取消安装后卡在这里
+                    showSplash(
+                        message = "已交给系统安装器",
+                        detail = "按提示完成安装即可。装好后重新打开应用会自动进入。",
+                        buttonText = "先跳过",
+                        onClick = { checkWebUpdate(info) },
+                        secondaryButtonText = "退出",
+                        onSecondary = { finishAffinity() }
+                    )
+                } catch (error: Throwable) {
+                    showSplash(
+                        message = "无法拉起安装器",
+                        detail = "安装包已下载到：\n${file.absolutePath}\n\n请手动打开安装；若系统提示，请允许本应用安装未知应用。",
+                        buttonText = "知道了",
+                        onClick = { checkWebUpdate(info) }
+                    )
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ 热更新
+
+    private fun checkWebUpdate(info: UpdateChecker.VersionInfo) {
+        val localWebCode = UpdateChecker.localWebVersionCode(this)
+        if (!UpdateChecker.hasWebUpdate(info, localWebCode)) {
+            enterApp()
+            return
+        }
+
+        showSplash(
+            message = "有网页更新",
+            detail = "当前网页版本 $localWebCode → ${info.webVersion}（${info.webVersionCode}）\n\n" +
+                "只下载变化的文件，完成后会自动进入。",
+            buttonText = "立即更新",
+            onClick = { runWebUpdate(info) },
+            secondaryButtonText = "稍后",
+            onSecondary = { enterApp() }
+        )
+    }
+
+    private fun runWebUpdate(info: UpdateChecker.VersionInfo) {
+        showSplash(
+            message = "正在更新网页",
+            detail = "只下载有变化的文件。",
+            loading = true,
+            percent = 0
+        )
+        worker.execute {
+            val manifest = WebUpdater.fetchManifest(info.manifestUrl)
+            val result = WebUpdater.update(
+                context = this@MainActivity,
+                targetManifest = manifest,
+                targetWebVersionCode = info.webVersionCode,
+                sources = info.webSources.ifEmpty { listOf("https://gh.dpik.top/", "https://gh.llkk.cc/", "") },
+                onProgress = { p ->
+                    val percent = if (p.totalBytes > 0) (p.doneBytes * 100 / p.totalBytes).toInt() else -1
+                    main.post {
+                        showSplash(
+                            message = "正在更新网页",
+                            detail = "第 ${p.index}/${p.total} 个文件：${p.path}",
+                            loading = true,
+                            percent = percent
+                        )
+                    }
+                }
+            )
+            main.post {
+                if (result.applied) enterApp() else {
+                    showSplash(
+                        message = "网页更新失败",
+                        detail = result.message + "\n\n当前的网页版本没有被改动，可以先用着，稍后再试。",
+                        buttonText = "重试",
+                        onClick = { runWebUpdate(info) },
+                        secondaryButtonText = "先进入",
+                        onSecondary = { enterApp() }
+                    )
+                }
+            }
+        }
+    }
+
 
     /** 检查更新：拿版本信息 → 本体更新 → 热更新 → 进主界面 */
     private fun startUpdateCheck() {
@@ -158,200 +502,6 @@ class MainActivity : Activity() {
 
             main.post { checkAppUpdate(info, localAppCode) }
         }
-    }
-
-    // ------------------------------------------------------------------ 本体更新
-
-    private fun checkAppUpdate(info: UpdateChecker.VersionInfo, localAppCode: Int) {
-        if (!UpdateChecker.hasAppUpdate(info, localAppCode)) {
-            checkWebUpdate(info)
-            return
-        }
-        // 累积强制规则：本地低于历史最高强制版本 → 强制更新到最新
-        val mandatory = UpdateChecker.isMandatory(info, localAppCode)
-        val notes = if (info.apkNotes.isBlank()) "" else "\n\n更新内容：${info.apkNotes}"
-        val message = "当前版本 ${UpdateChecker.localVersionName(this)}（${localAppCode}）\n" +
-            "最新版本 ${info.apkVersion}（${info.apkVersionCode}）" + notes +
-            if (mandatory) "\n\n这个版本必须更新后才能继续使用。" else ""
-
-        UpdateChecker.showDialog(
-            activity = this,
-            title = if (mandatory) "需要更新应用" else "发现新版本",
-            message = message,
-            primaryText = "立即更新",
-            // 强制更新时不给"稍后"，只给"退出"
-            secondaryText = if (mandatory) "退出" else "稍后",
-            onPrimary = { downloadAppUpdate(info) },
-            onSecondary = {
-                if (mandatory) {
-                    finishAffinity()
-                } else {
-                    checkWebUpdate(info)
-                }
-            }
-        )
-    }
-
-    private fun downloadAppUpdate(info: UpdateChecker.VersionInfo) {
-        val progress = showProgressDialog("正在下载安装包", "0%")
-        worker.execute {
-            // 注意 this 在 Runnable 里指的是 Runnable，必须显式写 this@MainActivity
-            val result = ApkUpdater.download(
-                context = this@MainActivity,
-                info = info,
-                onProgress = { p ->
-                    val text = if (p.percent >= 0) "${p.percent}%" else "${p.doneBytes / 1024 / 1024} MB"
-                    main.post { progress.update(text) }
-                }
-            )
-            main.post {
-                progress.dismiss()
-                val file = result.file
-                if (file == null) {
-                    UpdateChecker.showDialog(
-                        activity = this,
-                        title = "下载失败",
-                        message = result.message + "\n\n可以稍后再试，或到 GitHub Releases 手动下载。",
-                        primaryText = "重试",
-                        secondaryText = "稍后",
-                        onPrimary = { downloadAppUpdate(info) },
-                        onSecondary = { checkWebUpdate(info) }
-                    )
-                    return@post
-                }
-                try {
-                    ApkUpdater.install(this, file)
-                } catch (error: Throwable) {
-                    UpdateChecker.showDialog(
-                        activity = this,
-                        title = "无法拉起安装器",
-                        message = "安装包已下载到：\n${file.absolutePath}\n\n请手动打开安装；若系统提示，请允许本应用安装未知应用。",
-                        primaryText = "知道了",
-                        secondaryText = null,
-                        onPrimary = { checkWebUpdate(info) },
-                        onSecondary = null
-                    )
-                }
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------ 热更新
-
-    private fun checkWebUpdate(info: UpdateChecker.VersionInfo) {
-        val localWebCode = UpdateChecker.localWebVersionCode(this)
-        if (!UpdateChecker.hasWebUpdate(info, localWebCode)) {
-            enterApp()
-            return
-        }
-
-        val notes = "当前网页版本 $localWebCode → ${info.webVersion}（${info.webVersionCode}）"
-        UpdateChecker.showDialog(
-            activity = this,
-            title = "有网页更新",
-            message = "$notes\n\n只下载变化的文件，完成后会自动刷新界面。",
-            primaryText = "立即更新",
-            secondaryText = "稍后",
-            onPrimary = { runWebUpdate(info) },
-            onSecondary = { enterApp() }
-        )
-    }
-
-    private fun runWebUpdate(info: UpdateChecker.VersionInfo) {
-        val progress = showProgressDialog("正在更新网页", "准备中…")
-        worker.execute {
-            val manifest = WebUpdater.fetchManifest(info.manifestUrl)
-            val result = WebUpdater.update(
-                context = this@MainActivity,
-                targetManifest = manifest,
-                targetWebVersionCode = info.webVersionCode,
-                sources = info.webSources.ifEmpty { listOf("https://gh.dpik.top/", "https://gh.llkk.cc/", "") },
-                onProgress = { p ->
-                    val percent = if (p.totalBytes > 0) (p.doneBytes * 100 / p.totalBytes).toInt() else -1
-                    val text = if (percent >= 0) "$percent%（${p.index}/${p.total} 个文件）" else "${p.index}/${p.total} 个文件"
-                    main.post { progress.update(text) }
-                }
-            )
-            main.post {
-                progress.dismiss()
-                if (result.applied) enterApp() else {
-                    UpdateChecker.showDialog(
-                        activity = this,
-                        title = "网页更新失败",
-                        message = result.message + "\n\n当前的网页版本没有被改动，可以先用着，稍后再试。",
-                        primaryText = "重试",
-                        secondaryText = "先进入",
-                        onPrimary = { runWebUpdate(info) },
-                        onSecondary = { enterApp() }
-                    )
-                }
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------ 进度弹窗
-
-    private class ProgressDialog {
-        var dialog: android.app.Dialog? = null
-        var textView: TextView? = null
-        fun update(text: String) {
-            textView?.text = text
-        }
-        fun dismiss() {
-            try {
-                dialog?.dismiss()
-            } catch (ignored: Throwable) {
-                /* 忽略 */
-            }
-        }
-    }
-
-    private fun showProgressDialog(title: String, initial: String): ProgressDialog {
-        val holder = ProgressDialog()
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(22), dp(24), dp(22))
-            background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = dp(28).toFloat()
-                setColor(Color.parseColor("#E3E9EB"))
-            }
-        }
-        column.addView(TextView(this).apply {
-            text = title
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-            setTextColor(Color.parseColor("#171D1E"))
-        })
-        val status = TextView(this).apply {
-            text = initial
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-            setTextColor(Color.parseColor("#3F484A"))
-            setPadding(0, dp(10), 0, 0)
-        }
-        column.addView(status)
-        holder.textView = status
-
-        val dialog = android.app.Dialog(this).apply {
-            requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-            setContentView(ScrollView(this@MainActivity).apply {
-                setBackgroundColor(Color.parseColor("#80101818"))
-                addView(
-                    LinearLayout(this@MainActivity).apply {
-                        orientation = LinearLayout.VERTICAL
-                        gravity = Gravity.CENTER
-                        setPadding(dp(20), dp(20), dp(20), dp(20))
-                        addView(column, LinearLayout.LayoutParams(dp(320), ViewGroup.LayoutParams.WRAP_CONTENT))
-                    },
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-            })
-            setCancelable(false)
-            window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            window?.setBackgroundDrawableResource(android.R.color.transparent)
-        }
-        holder.dialog = dialog
-        dialog.show()
-        return holder
     }
 
     // ------------------------------------------------------------------ 主界面

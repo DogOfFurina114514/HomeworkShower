@@ -228,8 +228,17 @@ html.hs-booting body {
   cursor: pointer;
 }
 
-.homework-item--clickable:active {
+/* 点击卡片：只有卡片自己缩一下。
+   两种情况让位：
+     1. 卡片内的图标按钮（修改/删除）自己有点击反馈，别让整张卡片跟着动；
+     2. 鼠标停在图片上时，反馈交给图片自己的伪 3D 上浮。 */
+.homework-item--clickable:not(:has(m3e-icon-button:active)):not([data-hover-image="1"]):active {
   transform: scale(0.975);
+}
+
+/* 鼠标在图片上时，卡片的悬停反馈让位给图片本身的上浮 */
+.homework-item--clickable:hover:not([data-hover-image="1"]) {
+  box-shadow: 0 3px 12px rgb(0 0 0 / 10%);
 }
 
 .homework-item--selected {
@@ -283,6 +292,26 @@ html.hs-booting body {
   -webkit-touch-callout: none;
   -webkit-user-drag: none;
   user-select: none;
+  border-radius: 8px;
+  transform-origin: center bottom;
+  /* 用 transform 做抬升，避免和卡片自身的 hover 抢同一个属性 */
+  transition:
+    transform 260ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 260ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/**
+ * 桌面端鼠标悬停在图片上：图片自己做一个伪 3D 上浮
+ * （透视 + 轻微仰角 + 放大 + 投影），和卡片的整体反馈互不干扰。
+ * 只在真的有指针悬停能力的设备上启用，触摸设备看不到 hover 会一直"卡"在浮起状态。
+ */
+@media (hover: hover) and (pointer: fine) {
+  .homework-text img:hover {
+    transform: perspective(760px) rotateX(7deg) translateY(-6px) scale(1.025);
+    box-shadow:
+      0 14px 26px rgb(0 0 0 / 20%),
+      0 4px 8px rgb(0 0 0 / 12%);
+  }
 }
 
 .homework-text a {
@@ -436,6 +465,23 @@ html.hs-booting body {
 #fab-menu {
   z-index: 40;
 }
+
+/* 手机上点卡片会出现浏览器自带的蓝色高亮方框 / 焦点框，去掉它。
+   m3e-list-action 自己有涟漪反馈，够用了。 */
+html body,
+html body * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html body m3e-list-action,
+html body m3e-list-item,
+html body m3e-fab,
+html body m3e-button,
+html body button {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
 
 /* --------------------------------------------- 6.1 图片放大查看（灯箱） */
 
