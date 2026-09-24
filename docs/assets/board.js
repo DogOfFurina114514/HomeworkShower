@@ -456,7 +456,7 @@
             bestAssign = assign;
           }
         }
-        if (bestAssign) return bestAssign;
+        if (bestAssign) return { assign: bestAssign, max: bestMax };
       }
       const totals = new Array(count).fill(0);
       const assign = new Array(groups.length).fill(0);
@@ -471,14 +471,40 @@
           assign[i] = target;
           totals[target] += sizes[i];
         });
-      return assign;
+      return { assign, max: Math.max(...totals) };
     };
 
-    // ③ 直接按最优分配落位 —— 不再二次测量、不再回退
-    const assign = solve();
-    groups.forEach((group, index) => {
-      columns[assign[index]].appendChild(group);
-    });
+    // ③ 落位，并用"实测列高"校正一次
+    //    估算用的组高与实际落位后的列高可能有一点出入（换行、图片加载等），
+    //    所以应用后量一次实际列高：若明显高于理论值，就按实测列高再求一次分配。
+    const apply = (assignment) => {
+      columns.forEach((column) => {
+        column.innerHTML = "";
+      });
+      groups.forEach((group, index) => {
+        columns[assignment[index]].appendChild(group);
+      });
+    };
+
+    apply(solve().assign);
+
+    const measure = () => columns.map((column) => column.getBoundingClientRect().height);
+    const theoretical = Math.max(...sizes);
+    if (Math.max(...measure()) > theoretical * 1.12) {
+      // 用实测列高作为"每列的起点"，把每组重新塞进最矮的一列
+      const order = groups.map((_, i) => i).sort((a, b) => sizes[b] - sizes[a]);
+      const totals = measure();
+      const assignment = new Array(groups.length).fill(0);
+      order.forEach((i) => {
+        let target = 0;
+        for (let c = 1; c < count; c += 1) {
+          if (totals[c] < totals[target] - 1) target = c;
+        }
+        assignment[i] = target;
+        totals[target] += sizes[i];
+      });
+      apply(assignment);
+    }
   }
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
