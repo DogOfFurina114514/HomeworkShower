@@ -762,6 +762,8 @@ const duePickerEl = document.getElementById("edit-due-picker");
     if (lightboxDownloadLabel && isInApp) lightboxDownloadLabel.textContent = "保存到手机";
 
     let lightboxCleanup = null;
+    /** 正在播关闭动画：这段时间内忽略重复的关闭请求，避免动画被打断 */
+    let closingLightbox = false;
 
     /**
      * 是不是"真有鼠标"的设备。
@@ -987,6 +989,9 @@ const duePickerEl = document.getElementById("edit-due-picker");
       if (lightboxImage.complete) playFlip();
       else lightboxImage.addEventListener("load", playFlip, { once: true });
 
+      // 背景变暗+模糊、底部按钮淡入上浮
+      animateLightboxIn();
+
       const detachTilt = attachCardTilt();
 
       // 飞入过程中如果窗口尺寸变了，直接落到终态，避免错位
@@ -1002,17 +1007,30 @@ const duePickerEl = document.getElementById("edit-due-picker");
       };
     }
 
-    function closeLightbox() {
-      if (!lightboxEl) return;
+    /** 真正收尾：停止动画、清掉 src 与残留，避免大图占内存、下次打开带旧位移 */
+    function finishCloseLightbox() {
       lightboxCleanup?.();
       lightboxEl.hidden = true;
-      // 清掉 src 与动画残留，避免大图一直占着内存、下次打开带着旧位移
       if (lightboxImage) {
         lightboxImage.removeAttribute("src");
         lightboxImage.style.transition = "";
         lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
+        lightboxImage.style.opacity = "";
       }
+      const actions = lightboxEl.querySelector(".lightbox__actions");
+      if (actions) actions.style.opacity = "";
       lightboxSrc = "";
+    }
+
+    /** 关闭：先播淡出动画，动画结束再隐藏 */
+    function closeLightbox() {
+      if (!lightboxEl || lightboxEl.hidden) return;
+      if (closingLightbox) return;
+      closingLightbox = true;
+      animateLightboxOut(() => {
+        closingLightbox = false;
+        finishCloseLightbox();
+      });
     }
 
     function downloadLightboxImage() {
@@ -1040,6 +1058,80 @@ const duePickerEl = document.getElementById("edit-due-picker");
       // Esc 关闭
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && !lightboxEl.hidden) closeLightbox();
+      });
+    }
+
+    /** 灯箱入场：背景由透明变暗并渐显模糊，图片飞入，底部按钮随后淡入上浮 */
+    function animateLightboxIn() {
+      try {
+        lightboxEl.animate(
+          [
+            { backgroundColor: "rgba(12, 18, 20, 0)", backdropFilter: "blur(0px)", webkitBackdropFilter: "blur(0px)" },
+            { backgroundColor: "rgba(12, 18, 20, 0.88)", backdropFilter: "blur(2px)", webkitBackdropFilter: "blur(2px)" },
+          ],
+          { duration: 260, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "both" }
+        );
+      } catch (error) {
+        /* 不支持就保持静态样式 */
+      }
+
+      const actions = lightboxEl.querySelector(".lightbox__actions");
+      if (actions && actions.animate) {
+        actions.animate(
+          [
+            { opacity: 0, transform: "translateY(10px)" },
+            { opacity: 1, transform: "translateY(0px)" },
+          ],
+          { duration: 260, delay: 120, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "both" }
+        );
+      }
+    }
+
+    /** 灯箱出场：按钮与图片先淡出，背景再褪成透明 —— 播完才真正隐藏 */
+    function animateLightboxOut(onDone) {
+      const actions = lightboxEl.querySelector(".lightbox__actions");
+      const animations = [];
+
+      if (actions && actions.animate) {
+        animations.push(
+          actions.animate(
+            [{ opacity: 1 }, { opacity: 0 }],
+            { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+          )
+        );
+      }
+      if (lightboxImage && lightboxImage.animate) {
+        animations.push(
+          lightboxImage.animate(
+            [{ opacity: 1, transform: getComputedStyle(lightboxImage).transform }, { opacity: 0 }],
+            { duration: 180, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+          )
+        );
+      }
+      if (lightboxEl.animate) {
+        animations.push(
+          lightboxEl.animate(
+            [
+              { backgroundColor: "rgba(12, 18, 20, 0.88)", backdropFilter: "blur(2px)", webkitBackdropFilter: "blur(2px)" },
+              { backgroundColor: "rgba(12, 18, 20, 0)", backdropFilter: "blur(0px)", webkitBackdropFilter: "blur(0px)" },
+            ],
+            { duration: 200, delay: 80, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+          )
+        );
+      }
+
+      if (!animations.length) {
+        onDone();
+        return;
+      }
+      let remaining = animations.length;
+      const finish = () => {
+        remaining -= 1;
+        if (remaining <= 0) onDone();
+      };
+      animations.forEach((animation) => {
+        animation.addEventListener("finish", finish);
+        animation.addEventListener("cancel", finish);
       });
     }
 
