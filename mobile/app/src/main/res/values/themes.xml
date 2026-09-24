@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <style name="Theme.HomeworkShower" parent="@android:style/Theme.Material.Light.NoActionBar">
+  <!--
+    用 Material3 主题：Material 的组件（进度条、涟漪等）会从主题里取 M3 的颜色与动效属性，
+    挂在普通的 @android:style 主题上会崩。Activity 仍然继承平台 Activity，
+    只用到主题属性，不需要 AppCompatActivity。
+  -->
+  <style name="Theme.HomeworkShower" parent="Theme.Material3.DayNight.NoActionBar">
     <item name="android:windowBackground">#FFF5FAFC</item>
+    <item name="android:statusBarColor">#FFF5FAFC</item>
+    <item name="android:windowLightStatusBar">true</item>
   </style>
 </resources>

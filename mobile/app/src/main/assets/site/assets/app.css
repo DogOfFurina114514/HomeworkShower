@@ -62,6 +62,21 @@ m3e-snackbar:not(:defined) {
   display: none !important;
 }
 
+/* Snackbar（那个底部提示条）是用 popover 显示的，宿主元素自己没样式，
+   不处理就会在圆角外露出一块白底（看着就是"提示条四个角发白"）。
+   真正有背景的是它内部的 .base，把宿主刷成透明即可。 */
+m3e-snackbar {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+m3e-snackbar::backdrop {
+  background: transparent !important;
+}
+
 /* 启动遮罩：组件就绪后由页面脚本撤掉 */
 html.hs-booting body {
   visibility: hidden;

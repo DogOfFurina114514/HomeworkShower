@@ -391,18 +391,42 @@
     }
   }
 
-  window.addEventListener("resize", () => {
+  /**
+   * 只在**宽度**变化时重排。
+   *
+   * 手机上向下滑会隐藏地址栏、向上滑又显示，innerHeight 一直在变，
+   * 如果拿 resize 直接触发重排，就会不停重建 masonry 列
+   * （重建 = 卡片被重新插入 DOM = 入场动画重播，看着像"每次滑动都在播动画"）。
+   */
+  let lastLayoutWidth = window.innerWidth;
+
+  function onViewportResize() {
+    if (window.innerWidth === lastLayoutWidth) return;
+    lastLayoutWidth = window.innerWidth;
     window.clearTimeout(layoutColumns.timer);
     layoutColumns.timer = window.setTimeout(() => {
-      if (!boardEl.querySelector(".masonry-columns")) return;
+      if (boardEl.querySelector(".masonry-columns")) layoutColumns();
     }, 150);
-  });
+  }
+
+  window.addEventListener("resize", onViewportResize);
 
 
   /**
    * 固定分栏：按容器宽度算出列数，科目按顺序轮流分配到各列。
    * 与 CSS 多栏的区别：分配结果固定，卡片变高只影响自己这一列，
    * 不会让别的科目被挤到下一排。
+   */
+  /**
+   * 分栏：按容器宽度算列数，再按**实际高度**把科目分配到各列。
+   *
+   * 之前的做法是"按顺序轮流放"（第 1 个进第 1 列、第 2 个进第 2 列…），
+   * 完全不看高度 —— 于是内容多的科目堆在某列、其它列空着，整体很高。
+   * 现在：
+   *   1. 量出每个科目组的真实高度；
+   *   2. 取"当前最矮的一列"放（贪心），把最高列压下来；
+   *   3. 仍然大体保持科目的先后顺序（贪心遍历顺序就是原顺序）。
+   * 列数没变时不销毁重建，只挪动分组 —— 否则卡片重新进 DOM 会重播入场动画。
    */
   function layoutColumns() {
     const wrap = boardEl.querySelector(".masonry-columns");
@@ -413,25 +437,75 @@
     const width = boardEl.clientWidth || window.innerWidth || 1024;
     const count = Math.max(1, Math.min(groups.length, Math.floor((width - 48) / 358) || 1));
 
-    wrap.innerHTML = "";
-    const columns = [];
-    for (let i = 0; i < count; i += 1) {
-      const column = document.createElement("div");
-      column.className = "masonry-column";
-      wrap.appendChild(column);
-      columns.push(column);
+    // 列容器：数量不对才重建
+    let columns = Array.from(wrap.querySelectorAll(".masonry-column"));
+    if (columns.length !== count) {
+      wrap.innerHTML = "";
+      columns = [];
+      for (let i = 0; i < count; i += 1) {
+        const column = document.createElement("div");
+        column.className = "masonry-column";
+        wrap.appendChild(column);
+        columns.push(column);
+      }
     }
+
+    // 先按顺序轮流放一版（此时是真实布局，量出来的高度才准）
+    columns.forEach((column) => {
+      column.innerHTML = "";
+    });
     groups.forEach((group, index) => {
-      columns[index % count].appendChild(group);
+      columns[index % columns.length].appendChild(group);
+    });
+    const realColumnHeights = columns.map((column) => column.getBoundingClientRect().height);
+    const beforeMax = Math.max(...realColumnHeights);
+
+    // 每组占多高（连同它下面的间距）
+    const sizes = groups.map((group) => group.getBoundingClientRect().height + 8);
+
+    /**
+     * 两种分配策略，取最高列更矮的那个：
+     *   A. 按科目原顺序，放进当前最矮的列（顺序自然，但大科目常常最后才分配，
+     *      容易"大的自己占一列、其余挤在一起"，最高列反而更高）；
+     *   B. 按高度降序，依次放进当前最矮的列（LPT 近似，能把最高列压到接近理论最优）。
+     */
+    const tryAssign = (ordered) => {
+      const totals = new Array(columns.length).fill(0);
+      columns.forEach((column) => {
+        column.innerHTML = "";
+      });
+      ordered.forEach((item) => {
+        let target = 0;
+        for (let i = 1; i < totals.length; i += 1) {
+          if (totals[i] < totals[target] - 1) target = i;
+        }
+        columns[target].appendChild(item.group);
+        totals[target] += item.size;
+      });
+      return Math.max(...columns.map((column) => column.getBoundingClientRect().height));
+    };
+
+    const bySequence = groups.map((group, index) => ({ group, index, size: sizes[index] }));
+    const bySize = [...bySequence].sort((a, b) => b.size - a.size);
+
+    const sequenceMax = tryAssign(bySequence);
+    const sizeMax = tryAssign(bySize);
+
+    // 两种都不如原来的顺序分配，就退回原样（至少不比之前差）
+    if (Math.min(sequenceMax, sizeMax) > beforeMax) {
+      columns.forEach((column) => {
+        column.innerHTML = "";
+      });
+      groups.forEach((group, index) => {
+        columns[index % columns.length].appendChild(group);
+      });
+    }
+
+    // 重排属于布局变化，不是"新内容进场"：不要播入场动画
+    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
+      node.style.animation = "none";
     });
   }
-
-  window.addEventListener("resize", () => {
-    window.clearTimeout(layoutColumns.timer);
-    layoutColumns.timer = window.setTimeout(() => {
-      if (boardEl.querySelector(".masonry-columns")) layoutColumns();
-    }, 150);
-  });
 
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
@@ -762,6 +836,8 @@ const duePickerEl = document.getElementById("edit-due-picker");
     if (lightboxDownloadLabel && isInApp) lightboxDownloadLabel.textContent = "保存到手机";
 
     let lightboxCleanup = null;
+    /** 正在播关闭动画：这段时间内忽略重复的关闭请求，避免动画被打断 */
+    let closingLightbox = false;
 
     /**
      * 是不是"真有鼠标"的设备。
@@ -987,6 +1063,9 @@ const duePickerEl = document.getElementById("edit-due-picker");
       if (lightboxImage.complete) playFlip();
       else lightboxImage.addEventListener("load", playFlip, { once: true });
 
+      // 背景变暗+模糊、底部按钮淡入上浮
+      animateLightboxIn();
+
       const detachTilt = attachCardTilt();
 
       // 飞入过程中如果窗口尺寸变了，直接落到终态，避免错位
@@ -1002,32 +1081,93 @@ const duePickerEl = document.getElementById("edit-due-picker");
       };
     }
 
-    function closeLightbox() {
-      if (!lightboxEl) return;
+    /** 真正收尾：停止动画、清掉 src 与残留，避免大图占内存、下次打开带旧位移 */
+    function finishCloseLightbox() {
       lightboxCleanup?.();
       lightboxEl.hidden = true;
-      // 清掉 src 与动画残留，避免大图一直占着内存、下次打开带着旧位移
       if (lightboxImage) {
         lightboxImage.removeAttribute("src");
         lightboxImage.style.transition = "";
         lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
+        lightboxImage.style.opacity = "";
       }
+      const actions = lightboxEl.querySelector(".lightbox__actions");
+      if (actions) actions.style.opacity = "";
       lightboxSrc = "";
     }
 
-    function downloadLightboxImage() {
+    /** 关闭：先播淡出动画，动画结束再隐藏 */
+    function closeLightbox() {
+      if (!lightboxEl || lightboxEl.hidden) return;
+      if (closingLightbox) return;
+      closingLightbox = true;
+      animateLightboxOut(() => {
+        closingLightbox = false;
+        finishCloseLightbox();
+      });
+    }
+
+    function guessImageName(src) {
+      const raw = String(src || "").split("?")[0].split("#")[0];
+      const last = decodeURIComponent(raw.split("/").pop() || "");
+      if (last && last.includes(".")) return last;
+      return `作业图片-${todayString()}.jpg`;
+    }
+
+    /**
+     * 保存图片。
+     *
+     * 两种环境分开处理：
+     *   - App 内：`a[download]` 会被 WebView 的 DownloadListener 接住，交给系统下载管理器；
+     *   - 普通浏览器：跨域地址上的 download 属性会被忽略（点了根本不下载，只会跳转），
+     *     所以先用 fetch 取成 blob 再下载；取不到就退化成新标签打开，让用户长按保存。
+     */
+    async function downloadLightboxImage() {
       if (!lightboxSrc) return;
-      const raw = lightboxSrc.split("?")[0].split("#")[0];
-      const name = decodeURIComponent(raw.split("/").pop() || "") || "作业图片";
-      const link = document.createElement("a");
-      link.href = lightboxSrc;
-      link.download = name;
-      link.rel = "noopener";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      // 手机端（尤其 App 里）交给系统下载管理器；网页端就走浏览器自带的下载
-      hs.toast(isInApp ? "已交给系统下载管理器保存" : "已开始下载");
+      const name = guessImageName(lightboxSrc);
+      const button = document.getElementById("lightbox-download");
+      const originalText = lightboxDownloadLabel ? lightboxDownloadLabel.textContent : "";
+
+      const saveBlob = (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+      };
+
+      if (isInApp) {
+        // App 里交给系统下载管理器（DownloadListener → DownloadManager）
+        const link = document.createElement("a");
+        link.href = lightboxSrc;
+        link.download = name;
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        hs.toast("已交给系统下载管理器保存");
+        return;
+      }
+
+      button?.setAttribute("disabled", "");
+      if (lightboxDownloadLabel) lightboxDownloadLabel.textContent = "正在保存…";
+      try {
+        const response = await fetch(lightboxSrc, { mode: "cors", credentials: "omit" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        saveBlob(await response.blob());
+        hs.toast("已开始下载");
+      } catch (error) {
+        // 取不到就退化成"打开图片"，至少用户可以长按保存
+        hs.toast("已在新标签打开，长按图片即可保存");
+        window.open(lightboxSrc, "_blank", "noopener");
+      } finally {
+        button?.removeAttribute("disabled");
+        if (lightboxDownloadLabel) lightboxDownloadLabel.textContent = originalText || "下载图片";
+      }
     }
 
     if (lightboxEl) {
@@ -1040,6 +1180,80 @@ const duePickerEl = document.getElementById("edit-due-picker");
       // Esc 关闭
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && !lightboxEl.hidden) closeLightbox();
+      });
+    }
+
+    /** 灯箱入场：背景由透明变暗并渐显模糊，图片飞入，底部按钮随后淡入上浮 */
+    function animateLightboxIn() {
+      try {
+        lightboxEl.animate(
+          [
+            { backgroundColor: "rgba(12, 18, 20, 0)", backdropFilter: "blur(0px)", webkitBackdropFilter: "blur(0px)" },
+            { backgroundColor: "rgba(12, 18, 20, 0.88)", backdropFilter: "blur(2px)", webkitBackdropFilter: "blur(2px)" },
+          ],
+          { duration: 260, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "both" }
+        );
+      } catch (error) {
+        /* 不支持就保持静态样式 */
+      }
+
+      const actions = lightboxEl.querySelector(".lightbox__actions");
+      if (actions && actions.animate) {
+        actions.animate(
+          [
+            { opacity: 0, transform: "translateY(10px)" },
+            { opacity: 1, transform: "translateY(0px)" },
+          ],
+          { duration: 260, delay: 120, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "both" }
+        );
+      }
+    }
+
+    /** 灯箱出场：按钮与图片先淡出，背景再褪成透明 —— 播完才真正隐藏 */
+    function animateLightboxOut(onDone) {
+      const actions = lightboxEl.querySelector(".lightbox__actions");
+      const animations = [];
+
+      if (actions && actions.animate) {
+        animations.push(
+          actions.animate(
+            [{ opacity: 1 }, { opacity: 0 }],
+            { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+          )
+        );
+      }
+      if (lightboxImage && lightboxImage.animate) {
+        animations.push(
+          lightboxImage.animate(
+            [{ opacity: 1, transform: getComputedStyle(lightboxImage).transform }, { opacity: 0 }],
+            { duration: 180, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+          )
+        );
+      }
+      if (lightboxEl.animate) {
+        animations.push(
+          lightboxEl.animate(
+            [
+              { backgroundColor: "rgba(12, 18, 20, 0.88)", backdropFilter: "blur(2px)", webkitBackdropFilter: "blur(2px)" },
+              { backgroundColor: "rgba(12, 18, 20, 0)", backdropFilter: "blur(0px)", webkitBackdropFilter: "blur(0px)" },
+            ],
+            { duration: 200, delay: 80, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+          )
+        );
+      }
+
+      if (!animations.length) {
+        onDone();
+        return;
+      }
+      let remaining = animations.length;
+      const finish = () => {
+        remaining -= 1;
+        if (remaining <= 0) onDone();
+      };
+      animations.forEach((animation) => {
+        animation.addEventListener("finish", finish);
+        animation.addEventListener("cancel", finish);
       });
     }
 

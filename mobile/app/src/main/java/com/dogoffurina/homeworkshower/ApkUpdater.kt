@@ -94,8 +94,18 @@ object ApkUpdater {
             val code = connection.responseCode
             if (code !in 200..299) return false
 
-            val total = connection.contentLengthLong
+            // 镜像常用分块传输，这时拿不到 Content-Length（-1）。
+            // 不能因此就不报进度 —— 界面会一直停在 0%。
+            var total = connection.contentLengthLong
+            if (total <= 0) {
+                val header = connection.getHeaderField("Content-Range")
+                // 形如 bytes 0-0/1924139
+                val fromHeader = header?.substringAfterLast('/')?.toLongOrNull() ?: -1L
+                total = if (fromHeader > 0) fromHeader else -1L
+            }
+
             var done = 0L
+            var lastReport = 0L
             connection.inputStream.use { input ->
                 FileOutputStream(target).use { output ->
                     val buffer = ByteArray(64 * 1024)
@@ -105,8 +115,12 @@ object ApkUpdater {
                         if (read <= 0) break
                         output.write(buffer, 0, read)
                         done += read
-                        // 每 128 KB 报一次，界面上的百分比才动得起来
-                        onProgress(Progress(done, total))
+                        // 有总长度按 1% 报，没有就按 128KB 报（界面用"已下载 MB"显示）
+                        val step = if (total > 0) (total / 100).coerceAtLeast(16 * 1024) else 128 * 1024
+                        if (done - lastReport >= step) {
+                            lastReport = done
+                            onProgress(Progress(done, total))
+                        }
                     }
                     output.flush()
                 }

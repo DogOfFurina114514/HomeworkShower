@@ -28,10 +28,10 @@ android {
     applicationId = "com.dogoffurina.homeworkshower"
     minSdk = 24
     targetSdk = 34
-    // App 版本号规则：26.0.3 = 年份(26).大功能(0).小补丁(3)，打包号 260003
+    // App 版本号规则：26.0.4 = 年份(26).大功能(0).小补丁(4)，打包号 260004
     // 注意：这与网页版本（docs/version.json 里的 webVersionCode，纯递增数字）是两套。
-    versionCode = 260003
-    versionName = "26.0.3"
+    versionCode = 260004
+    versionName = "26.0.4"
   }
 
   signingConfigs {
@@ -52,6 +52,8 @@ android {
 
   buildTypes {
     release {
+      // 不开 R8：引入 Material 后包体约 5MB，这个体积可以接受，
+      // 而不压缩能少一层"反射/属性名被裁剪"的踩坑风险（Material 组件靠 XML 名实例化）。
       isMinifyEnabled = false
       signingConfig = signingConfigs.findByName("release")
     }
@@ -69,4 +71,7 @@ dependencies {
   implementation("androidx.webkit:webkit:1.11.0")
   // FileProvider：把下载好的安装包以 content:// 交给系统安装器
   implementation("androidx.core:core-ktx:1.13.1")
+  // Material Components：M3 的进度条（波浪形 LinearProgressIndicator）、涟漪、
+  // 动效插值器都用官方实现，不再自己画 —— 自绘的观感比不上官方组件。
+  implementation("com.google.android.material:material:1.12.0")
 }
