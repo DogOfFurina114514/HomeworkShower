@@ -12,3 +12,7 @@ mobile/local.properties
 *.iml
 .DS_Store
 Thumbs.db
+
+# 本地保留的 workflow（当前 PAT 无 workflow 作用域，推不上去）
+.github/workflows/
+
