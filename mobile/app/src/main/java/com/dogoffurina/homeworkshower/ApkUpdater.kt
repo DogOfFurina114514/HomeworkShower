@@ -112,14 +112,35 @@ object ApkUpdater {
                 }
             }
             onProgress(Progress(done, total))
-            // 有 Content-Length 就核对一下，避免下到半截的包
-            return total <= 0 || done == total
+
+            // 完整性校验：
+            //   1. 有 Content-Length 就必须一模一样（下到半截的包装上去会报
+            //      “Archive is not a ZIP archive”，绝对不能当成功）；
+            //   2. 开头必须是 ZIP 的 "PK\x03\x04" —— 有些镜像会把二进制按文本转发，
+            //      下下来的其实是错误页，字节数看着正常但根本不是安装包。
+            if (total > 0 && done != total) return false
+            if (!looksLikeZip(target)) return false
+            return true
         } finally {
             try {
                 connection?.disconnect()
             } catch (ignored: Throwable) {
                 /* 忽略 */
             }
+        }
+    }
+
+    /** 文件头是不是 ZIP（APK 就是 ZIP）：PK\x03\x04 */
+    private fun looksLikeZip(file: File): Boolean {
+        return try {
+            file.inputStream().use { input ->
+                val head = ByteArray(4)
+                if (input.read(head) != 4) return false
+                head[0] == 0x50.toByte() && head[1] == 0x4B.toByte() &&
+                    head[2] == 0x03.toByte() && head[3] == 0x04.toByte()
+            }
+        } catch (error: Throwable) {
+            false
         }
     }
 

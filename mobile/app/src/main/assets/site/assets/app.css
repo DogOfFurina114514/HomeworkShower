@@ -437,6 +437,61 @@ html.hs-booting body {
   z-index: 40;
 }
 
+/* --------------------------------------------- 6.1 图片放大查看（灯箱） */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: rgb(12 18 20 / 88%);
+  backdrop-filter: blur(2px);
+}
+
+.lightbox[hidden] {
+  display: none;
+}
+
+.lightbox img {
+  max-width: min(1100px, 94vw);
+  /* 给下面的按钮留出位置 */
+  max-height: min(76vh, 900px);
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.lightbox__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* 自绘的下载图标：尺寸与 M3E 按钮里的 icon 槽保持一致 */
+.lightbox__icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
+}
+
+@media (max-width: 700px) {
+  .lightbox {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .lightbox img {
+    max-height: 70vh;
+  }
+}
+
 /* --------------------------------------------------------- 7. 登录注册 */
 
 .auth {
@@ -454,6 +509,16 @@ html.hs-booting body {
   border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
   border-radius: 24px;
   background: var(--md-sys-color-surface-container-low, #eff4f6);
+}
+
+/* 登录/注册卡片左上角的返回按钮（用负外边距抵掉卡片的留白，视觉上贴左上角） */
+.auth__back {
+  display: flex;
+  margin: -14px 0 -8px -12px;
+}
+
+.auth__back m3e-button {
+  --m3e-button-container-height: 36px;
 }
 
 .auth__card h1 {
@@ -797,7 +862,9 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   left: auto;
   top: auto;
   z-index: 30;
-  contain: layout paint;
+  /* 只保留 layout：容器与按钮同尺寸（80×80），一旦加上 paint，
+     M3E 按钮自身的投影（内部 elevation 层）就会被裁掉，边缘看着像被切平 */
+  contain: layout;
   transform: none;
 }
 

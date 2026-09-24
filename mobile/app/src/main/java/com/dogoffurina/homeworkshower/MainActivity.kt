@@ -1,11 +1,13 @@
 package com.dogoffurina.homeworkshower
 
 import android.app.Activity
+import android.app.DownloadManager
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -416,6 +418,16 @@ class MainActivity : Activity() {
             }
         }
 
+        // 页面里点「保存到手机」或下载链接时交给系统下载管理器。
+        // WebView 自己不会下载文件，不接管的话点了没有任何反应。
+        view.setDownloadListener { url, _, contentDisposition, mimeType, _ ->
+            try {
+                startSystemDownload(url, contentDisposition, mimeType)
+            } catch (error: Throwable) {
+                toast("无法调用系统下载管理器")
+            }
+        }
+
         val loader = buildAssetLoader()
 
         view.webViewClient = object : WebViewClient() {
@@ -450,6 +462,103 @@ class MainActivity : Activity() {
 
         view.loadUrl("https://appassets.androidplatform.net/site/index.html")
         return view
+    }
+
+    // ------------------------------------------------------------------ 下载
+
+    /**
+     * 交给系统下载管理器（手机自带的那套：通知栏进度、下载完成可点开、进「下载」目录）。
+     * 网页里点「保存到手机」或任何下载链接都会走到这里。
+     */
+    private fun startSystemDownload(url: String, contentDisposition: String?, mimeType: String?) {
+        val fileName = guessFileName(url, contentDisposition, mimeType)
+        val request = DownloadManager.Request(Uri.parse(url)).apply {
+            setTitle(fileName)
+            setDescription("正在保存到「下载」")
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setAllowedOverMetered(true)
+            setAllowedOverRoaming(true)
+            if (mimeType.isNullOrBlank()) {
+                setMimeType(guessMime(fileName))
+            } else {
+                setMimeType(mimeType)
+            }
+            try {
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            } catch (error: Throwable) {
+                // 少数机型/权限异常时退到应用专属目录，至少文件能落盘
+                setDestinationInExternalFilesDir(this@MainActivity, Environment.DIRECTORY_DOWNLOADS, fileName)
+            }
+        }
+        try {
+            val manager = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+            manager.enqueue(request)
+            toast("已交给系统下载管理器保存")
+        } catch (error: Throwable) {
+            // 完全没有下载管理器时，退回用浏览器打开
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            } catch (ignored: Throwable) {
+                toast("这台设备没有可用的下载方式")
+            }
+        }
+    }
+
+    /** 从 Content-Disposition 或 URL 里猜文件名 */
+    private fun guessFileName(url: String, contentDisposition: String?, mimeType: String?): String {
+        val fromHeader = Regex("filename\\*?=(?:UTF-8''|\")?([^\";]+)", RegexOption.IGNORE_CASE)
+            .find(contentDisposition ?: "")
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.trim('"')
+        if (!fromHeader.isNullOrBlank()) {
+            return try {
+                java.net.URLDecoder.decode(fromHeader, "UTF-8")
+            } catch (error: Throwable) {
+                fromHeader
+            }
+        }
+
+        val path = try {
+            Uri.parse(url).lastPathSegment ?: ""
+        } catch (error: Throwable) {
+            ""
+        }
+        val name = path.substringAfterLast('/')
+        if (name.isNotBlank() && name.contains('.')) return name
+
+        val ext = when {
+            mimeType == null -> "jpg"
+            mimeType.contains("png") -> "png"
+            mimeType.contains("webp") -> "webp"
+            mimeType.contains("gif") -> "gif"
+            mimeType.contains("jpeg") || mimeType.contains("jpg") -> "jpg"
+            else -> "jpg"
+        }
+        val stamp = android.text.format.DateFormat.format("yyyyMMdd_HHmmss", System.currentTimeMillis())
+        return "作业图片_$stamp.$ext"
+    }
+
+    private fun guessMime(fileName: String): String {
+        return when (fileName.substringAfterLast('.', "").lowercase()) {
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            "gif" -> "image/gif"
+            "jpg", "jpeg" -> "image/jpeg"
+            "pdf" -> "application/pdf"
+            "apk" -> "application/vnd.android.package-archive"
+            else -> "application/octet-stream"
+        }
+    }
+
+    /** 轻提示：页面里的 toast 走不通时（例如未进主界面）用系统 toast 兜底 */
+    private fun toast(message: String) {
+        try {
+            android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+        } catch (ignored: Throwable) {
+            /* 忽略 */
+        }
     }
 
     /**

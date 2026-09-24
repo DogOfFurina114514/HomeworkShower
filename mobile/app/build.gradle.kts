@@ -40,6 +40,11 @@ android {
         storePassword = keyProperties["storePassword"]
         keyAlias = keyProperties["keyAlias"]
         keyPassword = keyProperties["keyPassword"]
+        // 必须同时开 v1(JAR) 与 v2：只出 v2 时，国内不少安装器
+        // （MT 管理器、部分华为/小米机型）会因为找不到 META-INF 签名而报
+        // “Archive is not a ZIP archive”，装不上。
+        enableV1Signing = true
+        enableV2Signing = true
       }
     }
   }
