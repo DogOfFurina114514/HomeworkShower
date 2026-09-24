@@ -1,9 +1,10 @@
 {
-  "webVersion": "26.0.2",
-  "webVersionCode": 260002,
-  "updatedAt": "2026-09-24T15:20:00+08:00",
+  "webVersion": "1",
+  "webVersionCode": 1,
+  "updatedAt": "2026-09-24T17:10:00+08:00",
   "entry": "index.html",
-  "note": "版本号规则：26.0.2 = 年份(26).大功能(0).小补丁(2)，打包号 260002。App 端读取本文件判断是否需要热更新。",
+  "webNote": "网页版本是独立的递增数字（1、2、3…），与 App 版本完全分开：只改网页时把这个数字 +1，apkVersion 保持不动，App 就会走热更新。",
+  "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
     "https://gh.llkk.cc/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
@@ -15,10 +16,10 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.2",
-  "apkVersionCode": 260002,
+  "apkVersion": "26.0.3",
+  "apkVersionCode": 260003,
   "apkMandatory": false,
-  "apkNotes": "开屏检查更新改用形状变换动画（旋转并在圆/圆角方/胶囊间变形），下载安装包改用 M3 波浪进度条；图片悬停只轻微上浮，放大后可跟随鼠标做电子收藏卡式倾斜。",
+  "apkNotes": "开屏检查更新改用形状变换动画、下载用 M3 波浪进度条；图片放大可跟随鼠标/手指做电子收藏卡式倾斜（带缓动）；图片失败区分「已过期」与「加载失败」；网页版本改为独立递增数字。",
   "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",

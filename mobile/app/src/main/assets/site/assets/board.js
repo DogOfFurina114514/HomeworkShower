@@ -47,6 +47,14 @@
     return `${y} 年 ${Number(m)} 月 ${Number(d)} 日`;
   }
 
+  /**
+   * 图片超过这个天数，404 就按"已被容量清理"来解释。
+   * 后端是按 1 GB 上限从最早的日期开始清的（homework_image_purge_dates），
+   * 前端拿不到实时清理清单，所以用天数做个保守判断：
+   * 老图 404 → 已过期；近期图 404 → 多半是网络问题，给重试。
+   */
+  const IMAGE_KEEP_DAYS = 60;
+
   /** 过期与否以「期限」为准，并用当天日期实时判断，不看发布时写死的标记。 */
   function isExpired(dueDate) {
     if (!dueDate) return false;
@@ -772,64 +780,150 @@ const duePickerEl = document.getElementById("edit-due-picker");
     }
 
     /**
-     * "电子收藏卡"式跟随倾斜：鼠标在图片里时，鼠标所在的那一角朝屏幕外翘起来
-     * （也就是离用户更近），鼠标移出就回到正面。
+     * "电子收藏卡"式的跟随倾斜。
      *
-     * 只在真有鼠标的设备上启用 —— 手机（包括手机浏览器打开网页）没有 hover，
-     * 装了会一直"卡"在某个角度。
+     * 桌面：鼠标在图片里 → 鼠标所在那一角朝用户靠近；移出 → 平滑回正。
+     * 手机：按住图片约 0.26 秒后同样进入倾斜，手指拖动改变倾角，松手回正
+     *       （这样手机上也能玩到这个效果）。
+     *
+     * 两个手感细节：
+     *   1. 所有变化都走缓动逼近，不做"即时赋值" —— 移入/移出不会生硬；
+     *   2. 缓动系数取小一点（0.14），拖动时有一点点"重量感"，
+     *      完全跟手反而很假。
      */
     function attachCardTilt() {
-      if (!hasFinePointer()) return () => {};
+      const fine = hasFinePointer();
+      const hasTouch = "ontouchstart" in window || (navigator.maxTouchPoints || 0) > 0;
+      if (!fine && !hasTouch) return () => {};
 
-      const MAX_TILT = 8; // 度；再大就假了
-      const LIFT = 6;     // 抬起多少像素
+      const MAX_TILT = 8;   // 度；再大就假了
+      const LIFT = 6;       // 抬起多少像素
+      const EASE = 0.14;    // 缓动系数：越小越"重"、越顺滑
+      const HOLD_MS = 260;  // 手机：按住多久进入倾斜
+
       let frame = 0;
-      let px = 0.5;
-      let py = 0.5;
+      let curX = 0;
+      let curY = 0;
+      let curLift = 0;
+      let wantX = 0;
+      let wantY = 0;
+      let wantLift = 0;
+      let holdTimer = 0;
 
-      const apply = () => {
-        frame = 0;
-        // 鼠标在中心时是 0，越靠边角度越大
-        const rotateY = (px - 0.5) * 2 * MAX_TILT;
-        const rotateX = (0.5 - py) * 2 * MAX_TILT;
-        lightboxImage.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(${LIFT}px)`;
+      const tick = () => {
+        curX += (wantX - curX) * EASE;
+        curY += (wantY - curY) * EASE;
+        curLift += (wantLift - curLift) * EASE;
+        lightboxImage.style.transform =
+          `rotateX(${curX.toFixed(3)}deg) rotateY(${curY.toFixed(3)}deg) translateZ(${curLift.toFixed(2)}px)`;
+        // 足够接近就停帧，省电；重新有目标时会再启动
+        const settled =
+          Math.abs(wantX - curX) < 0.02 &&
+          Math.abs(wantY - curY) < 0.02 &&
+          Math.abs(wantLift - curLift) < 0.02;
+        if (settled) {
+          curX = wantX;
+          curY = wantY;
+          curLift = wantLift;
+          lightboxImage.style.transform =
+            `rotateX(${curX.toFixed(3)}deg) rotateY(${curY.toFixed(3)}deg) translateZ(${curLift.toFixed(2)}px)`;
+          frame = 0;
+          return;
+        }
+        frame = requestAnimationFrame(tick);
       };
 
-      const setNeutral = () => {
-        lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
+      const ensureRunning = () => {
+        if (!frame) frame = requestAnimationFrame(tick);
       };
 
-      const onMove = (event) => {
+      const neutral = () => {
+        wantX = 0;
+        wantY = 0;
+        wantLift = 0;
+        ensureRunning();
+      };
+
+      /** 把屏幕坐标换算成倾角目标值；不在图片内就回正 */
+      const aim = (clientX, clientY, active) => {
+        if (!active) {
+          neutral();
+          return;
+        }
         const rect = lightboxImage.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return;
         const inside =
-          event.clientX >= rect.left && event.clientX <= rect.right &&
-          event.clientY >= rect.top && event.clientY <= rect.bottom;
+          clientX >= rect.left && clientX <= rect.right &&
+          clientY >= rect.top && clientY <= rect.bottom;
         if (!inside) {
-          setNeutral();
+          neutral();
           return;
         }
-        px = (event.clientX - rect.left) / rect.width;
-        py = (event.clientY - rect.top) / rect.height;
-        if (!frame) frame = requestAnimationFrame(apply);
+        const px = (clientX - rect.left) / rect.width;
+        const py = (clientY - rect.top) / rect.height;
+        wantY = (px - 0.5) * 2 * MAX_TILT;
+        wantX = (0.5 - py) * 2 * MAX_TILT;
+        wantLift = LIFT;
+        ensureRunning();
       };
 
-      const onLeave = () => {
-        if (frame) {
-          cancelAnimationFrame(frame);
-          frame = 0;
-        }
-        setNeutral();
+      let touching = false;
+
+      const onPointerMove = (event) => {
+        if (event.pointerType === "touch") return; // 触摸走下面那套
+        aim(event.clientX, event.clientY, true);
       };
 
-      // 鼠标在浮层任意位置都算（图片外的按钮区域同样复位）
-      lightboxEl.addEventListener("pointermove", onMove);
-      lightboxEl.addEventListener("pointerleave", onLeave);
+      const onPointerLeave = () => {
+        if (touching) return;
+        neutral();
+      };
+
+      const onTouchStart = (event) => {
+        touching = true;
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+        window.clearTimeout(holdTimer);
+        // 按住一小会儿再进入倾斜：轻点关闭浮层时不会误触发
+        holdTimer = window.setTimeout(() => {
+          aim(touch.clientX, touch.clientY, true);
+        }, HOLD_MS);
+      };
+
+      const onTouchMove = (event) => {
+        if (!touching) return;
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+        aim(touch.clientX, touch.clientY, true);
+      };
+
+      const onTouchEnd = () => {
+        touching = false;
+        window.clearTimeout(holdTimer);
+        neutral();
+      };
+
+      if (fine) {
+        lightboxEl.addEventListener("pointermove", onPointerMove);
+        lightboxEl.addEventListener("pointerleave", onPointerLeave);
+      }
+      if (hasTouch) {
+        lightboxEl.addEventListener("touchstart", onTouchStart, { passive: true });
+        lightboxEl.addEventListener("touchmove", onTouchMove, { passive: true });
+        lightboxEl.addEventListener("touchend", onTouchEnd, { passive: true });
+        lightboxEl.addEventListener("touchcancel", onTouchEnd, { passive: true });
+      }
 
       return () => {
+        window.clearTimeout(holdTimer);
         if (frame) cancelAnimationFrame(frame);
-        lightboxEl.removeEventListener("pointermove", onMove);
-        lightboxEl.removeEventListener("pointerleave", onLeave);
+        frame = 0;
+        lightboxEl.removeEventListener("pointermove", onPointerMove);
+        lightboxEl.removeEventListener("pointerleave", onPointerLeave);
+        lightboxEl.removeEventListener("touchstart", onTouchStart);
+        lightboxEl.removeEventListener("touchmove", onTouchMove);
+        lightboxEl.removeEventListener("touchend", onTouchEnd);
+        lightboxEl.removeEventListener("touchcancel", onTouchEnd);
       };
     }
 
@@ -847,43 +941,57 @@ const duePickerEl = document.getElementById("edit-due-picker");
       lightboxEl.hidden = false;
       lightboxImage.src = lightboxSrc;
       lightboxImage.alt = image.alt || "放大的图片";
+      // 清掉上一轮可能留下的内联尺寸，否则终态会算不准
+      lightboxImage.style.width = "";
+      lightboxImage.style.height = "";
       lightboxImage.style.transition = "";
       lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
 
-      const animate = () => {
+      const playFlip = () => {
         const to = lightboxImage.getBoundingClientRect();
         const fromWidth = from.width || to.width;
         const fromHeight = from.height || to.height;
         if (to.width <= 0 || to.height <= 0 || fromWidth <= 0 || fromHeight <= 0) return;
 
-        const dx = to.left - from.left;
-        const dy = to.top - from.top;
+        const dx = (from.left + fromWidth / 2) - (to.left + to.width / 2);
+        const dy = (from.top + fromHeight / 2) - (to.top + to.height / 2);
         const scale = Math.min(fromWidth / to.width, fromHeight / to.height);
-        const iw = to.width * scale;
-        const ih = to.height * scale;
-        const inset = (v) => `${Math.max(0, v).toFixed(1)}px`;
 
-        lightboxImage.style.transition = "none";
-        lightboxImage.style.clipPath =
-          `inset(${inset(dy)} ${inset(to.width - (dx + iw))} ${inset(to.height - (dy + ih))} ${inset(dx)})`;
-        lightboxImage.style.borderRadius = "12px";
-
-        requestAnimationFrame(() => {
-          lightboxImage.style.transition =
-            "clip-path 320ms cubic-bezier(0.2, 0, 0, 1)";
-          lightboxImage.style.clipPath = "inset(0px 0px 0px 0px)";
-        });
+        // 用 Web Animations：第一帧就带着"从原位置+原大小"出发，
+        // 浏览器一定播得出来（之前用 clip-path 配 requestAnimationFrame，
+        // 样式在同一帧里被合并，动画根本没触发）。
+        try {
+          const animation = lightboxImage.animate(
+            [
+              { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, borderRadius: "8px" },
+              { transform: "translate(0px, 0px) scale(1)", borderRadius: "12px" },
+            ],
+            {
+              duration: 320,
+              easing: "cubic-bezier(0.2, 0, 0, 1)",
+              fill: "both",
+            }
+          );
+          animation.addEventListener("finish", () => {
+            try {
+              animation.cancel();
+            } catch (ignored) {
+              /* 忽略 */
+            }
+          });
+        } catch (error) {
+          /* 不支持 Web Animations 就直接显示终态 */
+        }
       };
 
-      if (lightboxImage.complete) animate();
-      else lightboxImage.addEventListener("load", animate, { once: true });
+      if (lightboxImage.complete) playFlip();
+      else lightboxImage.addEventListener("load", playFlip, { once: true });
 
       const detachTilt = attachCardTilt();
 
       // 飞入过程中如果窗口尺寸变了，直接落到终态，避免错位
       const onResize = () => {
         lightboxImage.style.transition = "";
-        lightboxImage.style.clipPath = "";
       };
       window.addEventListener("resize", onResize);
 
@@ -902,7 +1010,6 @@ const duePickerEl = document.getElementById("edit-due-picker");
       if (lightboxImage) {
         lightboxImage.removeAttribute("src");
         lightboxImage.style.transition = "";
-        lightboxImage.style.clipPath = "";
         lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
       }
       lightboxSrc = "";
@@ -936,8 +1043,26 @@ const duePickerEl = document.getElementById("edit-due-picker");
       });
     }
 
+    /** 图片桶路径是 "YYYY-MM-DD/uuid.ext"，日期说明它属于哪一天 */
+    function imageOwnDate(src) {
+      const match = String(src || "").match(/\/(\d{4}-\d{2}-\d{2})\//);
+      return match ? match[1] : "";
+    }
+
+    function daysSince(dateText) {
+      if (!dateText) return 0;
+      const then = new Date(`${dateText}T00:00:00`);
+      if (Number.isNaN(then.getTime())) return 0;
+      const today = new Date(`${todayString()}T00:00:00`);
+      return Math.round((today - then) / 86400000);
+    }
+
     /**
-     * 图片被清理后会 404：在原位置换成灰底占位块（裂图图标 + 「图片已过期」）。
+     * 图片加载失败时分两种，别让用户误会：
+     *   - 很久以前的图片：桶是 1 GB 上限，装不下时会从最早的日期开始清理，
+     *     所以老图 404 基本就是被清掉了 → 「图片已过期」；
+     *   - 近期图片：多半只是网络/临时故障 → 「图片加载失败」并可以点一下重试。
+     *
      * 注意图片的 error 事件不冒泡，必须用捕获阶段监听。
      */
     boardEl.addEventListener(
@@ -945,15 +1070,54 @@ const duePickerEl = document.getElementById("edit-due-picker");
       (event) => {
         const image = event.target;
         if (!(image instanceof HTMLImageElement)) return;
-        if (image.dataset.expiredPlaceholder === "1") return;
+        if (image.dataset.failedPlaceholder === "1") return;
+
+        const url = image.currentSrc || image.src || "";
+        const age = daysSince(imageOwnDate(url));
+        const expired = age > IMAGE_KEEP_DAYS;
+
         const box = document.createElement("span");
-        box.className = "image-expired";
-        box.innerHTML = '<m3e-icon variant="outlined" name="broken_image"></m3e-icon><span>图片已过期</span>';
-        image.dataset.expiredPlaceholder = "1";
+        box.className = expired ? "image-expired" : "image-failed";
+        box.innerHTML = expired
+          ? '<m3e-icon variant="outlined" name="broken_image"></m3e-icon><span>图片已过期（旧图片会按容量自动清理）</span>'
+          : '<m3e-icon variant="outlined" name="broken_image"></m3e-icon><span>图片加载失败，点这里重试</span>';
+
+        if (!expired) {
+          // 点一下就重新加载同一张图
+          box.dataset.retrySrc = url;
+          box.setAttribute("role", "button");
+          box.tabIndex = 0;
+        }
+        image.dataset.failedPlaceholder = "1";
         image.replaceWith(box);
       },
       true,
     );
+
+    /** 点「加载失败」的占位块 = 重试 */
+    const retryImage = (target) => {
+      const box = target.closest(".image-failed");
+      if (!box || !box.dataset.retrySrc) return false;
+      const image = document.createElement("img");
+      image.src = box.dataset.retrySrc;
+      image.alt = "作业图片";
+      box.replaceWith(image);
+      return true;
+    };
+
+    boardEl.addEventListener("click", (event) => {
+      if (retryImage(event.target)) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    });
+    boardEl.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (retryImage(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
 
     /**
      * 鼠标停在图片上时给卡片打个标记，让卡片的悬停/按下反馈让位给图片自己的
