@@ -76,37 +76,39 @@ $release = Invoke-GitHub -Method Post -Uri "$api/releases" -Body @{
 }
 Write-Output "Release 已创建：$($release.html_url)"
 
-# 3) 上传资产（multipart，避免 PowerShell 对二进制编码的坑）
-Add-Type -AssemblyName System.Net.Http
-$handler = New-Object System.Net.Http.HttpClientHandler
-if ($Proxy) {
-  $handler.Proxy = New-Object System.Net.WebProxy($Proxy, $true)
-  $handler.UseProxy = $true
+# 3) 上传资产（用 curl 以二进制方式发送，并立刻核对服务端记录的大小）
+#
+# 为什么不用 PowerShell 的 HttpClient/multipart：这条链路上曾出现过二进制被按
+# 文本转发的情况（上传后资产比本地多 264 字节、文件头从 PK\x03\x04 变成别的东西），
+# 用户下载后安装会报「Archive is not a ZIP archive」。curl 的 --data-binary 不碰字节。
+#
+# --ssl-no-revoke：部分网络下 schannel 取不到吊销列表，会直接拒绝连接。
+$localSize = (Get-Item $Apk).Length
+$uploadBase = "https://uploads.github.com/repos/$Repo/releases/$($release.id)/assets"
+$resultFile = Join-Path $env:TEMP "hs-release-upload.json"
+Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+
+Write-Output "上传中：$apkName（$localSize 字节，curl 二进制模式）"
+& curl.exe -sS --ssl-no-revoke -X POST --max-time 900 `
+  -H "Authorization: Bearer $token" `
+  -H "Content-Type: application/vnd.android.package-archive" `
+  -H "User-Agent: HomeworkShower-Release" `
+  --data-binary "@$Apk" `
+  "$uploadBase`?name=$([uri]::EscapeDataString($apkName))" `
+  -o $resultFile
+if (-not (Test-Path $resultFile)) { throw "上传没有返回结果（curl 失败）" }
+
+$asset = Get-Content $resultFile -Raw | ConvertFrom-Json
+if (-not $asset.name) { throw "上传失败：$(Get-Content $resultFile -Raw)" }
+Write-Output "资产已上传：$($asset.name)  $($asset.size) 字节"
+
+if ($asset.size -ne $localSize) {
+  throw "上传后大小不一致：本地 $localSize / 线上 $($asset.size) —— 资产可能在传输中被改写，请重试"
 }
-$client = New-Object System.Net.Http.HttpClient($handler)
-$client.Timeout = [TimeSpan]::FromMinutes(10)
+Write-Output "  ✅ 大小一致（本地与服务端都是 $localSize 字节）"
 
-$uploadUrl = ($release.upload_url -replace "\{.*\}$", "")
-# 注意括号：-replace 的优先级会把后面的字符串拼接一起吞掉
-$uploadUri = $uploadUrl + "?name=" + [uri]::EscapeDataString($apkName)
-$content = New-Object System.Net.Http.MultipartFormDataContent
-$bytes = [System.IO.File]::ReadAllBytes($Apk)
-$fileContent = New-Object System.Net.Http.ByteArrayContent(,$bytes)
-$fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/vnd.android.package-archive")
-$content.Add($fileContent, "file", $apkName)
-
-$request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, $uploadUri)
-$request.Headers.Add("Authorization", "Bearer $token")
-$request.Headers.Add("User-Agent", "HomeworkShower-Release")
-$request.Headers.Add("Accept", "application/vnd.github+json")
-$request.Content = $content
-
-$response = $client.SendAsync($request).GetAwaiter().GetResult()
-$body = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-if (-not $response.IsSuccessStatusCode) {
-  throw "上传失败：$($response.StatusCode) $body"
-}
-$asset = $body | ConvertFrom-Json
-Write-Output "资产已上传：$($asset.name)  $([Math]::Round($asset.size / 1MB, 2)) MB"
 Write-Output "下载地址：$($asset.browser_download_url)"
 Write-Output "页面：$($release.html_url)"
+Write-Output ""
+Write-Output "提示：这条直连链路可能中途断流，用户下到半截的包会装不上（报 Archive is not a ZIP archive）。"
+Write-Output "     可让用户用工具核对：node tools/verify-release-apk.mjs <下载的apk> $Tag"
