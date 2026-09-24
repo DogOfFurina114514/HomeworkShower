@@ -65,7 +65,13 @@ object WebUpdater {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val baseline = prefs.getInt(KEY_BASELINE, -1)
 
-        if (File(site, "index.html").isFile && baseline == builtinVersionCode) return
+        if (File(site, "index.html").isFile && baseline == builtinVersionCode) {
+            // 基线已经是这一版内置资源了，但记录里的网页版本号可能还没写过
+            // （首次启动就属于这种：铺完基线若直接 return，热更新会看到本地版本 0，
+            //   于是刚装好就弹一次"有网页更新 0 → 26.0.0"）。
+            syncBuiltinVersion(context, builtinVersionCode)
+            return
+        }
 
         temp.deleteRecursively()
         temp.mkdirs()
@@ -83,9 +89,23 @@ object WebUpdater {
         prefs.edit().putInt(KEY_BASELINE, builtinVersionCode).apply()
 
         // 基线自带内置清单，因此热更新只会下载"相对内置版本有变化"的文件
-        val builtinManifest = readLocalManifest(context)
-        val builtinVersion = builtinManifest?.optInt("webVersionCode", 0) ?: builtinVersionCode
-        UpdateChecker.saveWebVersionCode(context, builtinVersion)
+        syncBuiltinVersion(context, builtinVersionCode)
+    }
+
+    /**
+     * 把内置资源的网页版本号补进记录，只在没写过（或为 0）时写。
+     * 这样"刚装好、网页与内置一致"时不会误报热更新；而用户已经热更新过（版本号比内置新）
+     * 的情况不会被覆盖回退。
+     *
+     * 注意内置清单的字段名是 `versionCode`（tools/web-manifest.mjs 生成的），
+     * 而 version.json 里叫 `webVersionCode` —— 两者不通用。
+     */
+    private fun syncBuiltinVersion(context: Context, builtinVersionCode: Int) {
+        if (UpdateChecker.localWebVersionCode(context) > 0) return
+        val manifest = readBuiltinManifest(context)
+        val builtin = manifest?.optInt("versionCode", 0) ?: 0
+        val version = if (builtin > 0) builtin else builtinVersionCode
+        if (version > 0) UpdateChecker.saveWebVersionCode(context, version)
     }
 
     /** APK 内置的 manifest.json（随 APK 一起打包，记录基线版本号与文件哈希） */

@@ -356,6 +356,12 @@ class MainActivity : Activity() {
 
     private fun enterApp() {
         try {
+            // 已经在主界面了（比如补做热更新之后）：重新加载即可，别叠第二个 WebView
+            val existing = webView
+            if (existing != null) {
+                existing.reload()
+                return
+            }
             root.removeAllViews()
             root.addView(
                 buildWebView(),
