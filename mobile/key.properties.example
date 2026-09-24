@@ -1,0 +1,10 @@
+# 复制成 key.properties 并填上自己的口令。
+# key.properties / keystore/ 都不入库（见 .gitignore）。
+#
+# 生成密钥库（一次即可，之后所有版本都用同一个，否则无法覆盖安装）：
+#   keytool -genkeypair -v -keystore keystore/homeworkshower.jks -alias homeworkshower \
+#           -keyalg RSA -keysize 2048 -validity 10950
+storeFile=keystore/homeworkshower.jks
+storePassword=改成你的口令
+keyAlias=homeworkshower
+keyPassword=改成你的口令

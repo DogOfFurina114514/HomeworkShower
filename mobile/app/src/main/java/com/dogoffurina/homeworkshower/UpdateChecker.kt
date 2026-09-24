@@ -159,6 +159,16 @@ object UpdateChecker {
         }
     }
 
+    /** 本地已安装的版本名（弹窗里显示给人看） */
+    fun localVersionName(context: Context): String {
+        return try {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            info.versionName ?: "未知"
+        } catch (error: Throwable) {
+            "未知"
+        }
+    }
+
     /** 本地热更新的网页版本号（存在 SharedPreferences） */
     fun localWebVersionCode(context: Context): Int =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_WEB_VERSION_CODE, 0)

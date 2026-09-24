@@ -4,3 +4,9 @@ build/
 local.properties
 *.iml
 .idea/
+
+# 发布签名：密钥库与口令都留在本地，只提交 key.properties.example
+key.properties
+keystore/
+*.jks
+*.keystore

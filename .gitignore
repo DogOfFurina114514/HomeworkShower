@@ -1,0 +1,14 @@
+# 构建产物与密钥不入库
+*.apk
+*.aab
+mobile/key.properties
+mobile/keystore/
+mobile/local.properties
+*.jks
+*.keystore
+
+# 编辑器/系统临时文件
+.idea/
+*.iml
+.DS_Store
+Thumbs.db

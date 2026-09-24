@@ -64,39 +64,53 @@ pwsh -File mobile/sync-assets.ps1
 
 ---
 
-## 应用内更新（规格，实现中）
+## 应用内更新（已实现）
 
 版本号规则：`年份.大功能.小补丁`，打包号 = `年份×10000 + 大功能×100 + 小补丁`
 （例：`26.0.0` → `260000`）。最前面一位每年变，第二位为大功能，第三位为小补丁。
 
+实现文件：
+
+| 文件 | 职责 |
+|---|---|
+| `UpdateChecker.kt` | 读版本信息（Pages → Supabase 回退）、版本比较、原生 M3 弹窗 |
+| `WebUpdater.kt` | 热更新：铺基线、比对哈希、增量下载、原子替换、最后写版本号 |
+| `ApkUpdater.kt` | 本体更新：三镜像下载 APK、交给系统安装器（FileProvider） |
+| `MainActivity.kt` | 开屏检查流程、进度弹窗、把 WebView 指向内部存储的网页 |
+
 ### 检查顺序
 
-1. **两个更新同时检查**（热更新与本体更新并发）；
-2. 两者都优先请求 `https://dogoffurina114514.github.io/HomeworkShower/version.json`；
-3. 拉不到（离线/被墙）→ **回退 Supabase**（`app_web_release` / `app_web_manifest` / `app_releases`）；
-4. **两处都失败 → 开屏直接显示「网络错误」**，不进主界面（连 Supabase 都不通的话，进去也看不到作业）；
-5. 无更新则**静默**。
+1. 开屏先请求一次 `version.json`（**两个更新共用这一份版本信息**）；
+2. 优先 GitHub Pages，拉不到 → **回退 Supabase**（`app_web_release` / `app_web_manifest` / `app_releases`）；
+3. **两处都失败 → 开屏显示「网络连接失败」+ 重试按钮**，不进主界面；
+4. 有本体更新 → 先弹本体更新弹窗；处理完（更新/稍后）才轮到热更新弹窗；
+5. 两个都没更新 → 直接进主界面（静默）。
 
 ### 热更新（网页，增量）
 
+- 首次启动把 APK 内置的 `assets/site` 复制到 `filesDir/site` 当基线，
+  WebView 之后一直从那里加载（`WebViewAssetLoader` 映射 `/site/`），所以热更新不需要重装 APK；
 - 用 `manifest.json`（GitHub）或 `app_web_manifest`（Supabase）比对本地各文件哈希，**只下载变化的文件**；
 - 每个文件依次尝试：`gh.dpik.top` → `gh.llkk.cc` → 主站；
-- **原子性**：先下到临时目录 → 全部成功并校验后一次性替换 → **最后才写版本号**。
-  任何一步失败都保持旧版不动，绝不出现"更了一半却显示最新"。
+- **原子性**：先下到 `filesDir/site.tmp` → 全部下载并逐个校验 sha256 → 才搬进正式目录 →
+  **最后一步才写版本号**。任何一步失败都保持旧版原样，绝不出现"更了一半却显示最新"；
+- 清单里已删除的文件会被清掉（改名/下线的页面不会残留）。
 
 ### 本体更新（下载安装包）
 
 - 比较 `apkVersionCode`（来自 `version.json` 或 `app_releases`）；
 - APK 地址 = `apkUrlTemplate` 替换版本号，镜像前缀依次尝试：`gh.dpik.top/` → `gh.llkk.cc/` → 直连（空串）；
-- 下载完成后调用系统安装器。
+- 下到应用专属目录 `Android/data/<包名>/files/apk/`，再用 `FileProvider` 以 `content://`
+  交给系统安装器（需要 `REQUEST_INSTALL_PACKAGES` 权限）。
 
 ### 弹窗（原生 Android，M3 风格）
 
-- **本体更新弹窗在上，热更新弹窗在下**；
-- 说明文字取自 `apkNotes`；
+- **本体更新弹窗在上，热更新弹窗在下**（先本体，用户选「稍后」后才检查热更新）；
+- 说明文字取自 `apkNotes`，并显示"当前版本 → 最新版本"；
 - 可选更新（`apkMandatory = false`）：按钮为「立即更新」+「稍后」；
-- **强制更新（`apkMandatory = true`）：按钮为「立即更新」+「退出」**
-  （没有"稍后"，用户只能更新或退出 App）。
+- **强制更新（本地低于 `apkMandatorySince`）：按钮为「立即更新」+「退出」**
+  （没有"稍后"，用户只能更新或退出 App）；
+- 下载过程有进度弹窗（百分比 + 第几个文件）。
 
 ### 发布约定
 

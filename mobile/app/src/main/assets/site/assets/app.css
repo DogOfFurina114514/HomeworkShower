@@ -135,8 +135,11 @@ html.hs-booting body {
   color: var(--md-sys-color-on-surface-variant, #3f484a);
 }
 
+/* 宽度要放得下完整日期「2026 年 9 月 23 日」（约 130px）+ 后缀日历按钮 */
 #date-field {
-  min-width: 190px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
 }
 
 /* ---------------------------------------------------- 3. 看板与分栏 */
@@ -774,7 +777,9 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 }
 
 #date-field {
-  min-width: 150px;
+  flex: 0 0 auto;
+  width: 260px;
+  min-width: 260px;
 }
 
 /* 手机上窄，仍允许换行 */
@@ -805,78 +810,50 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 .topbar__controls m3e-form-field,
 #date-field {
   flex: 0 0 auto;
-  width: 178px;
-  min-width: 178px;
-  max-width: 178px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
 }
 
 .topbar__controls m3e-form-field input {
   width: 100%;
 }
 
-/* 顶栏日期字段（扁平版）：不用 m3e-form-field，避免它自带标签与辅助行把顶栏顶高 */
-.date-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  height: 40px;
-  padding: 0 6px 0 14px;
-  border: 1px solid var(--md-sys-color-outline, #6f797b);
-  border-radius: 20px;
-  background: var(--md-sys-color-surface-container-low, #eff4f6);
+/* 顶栏日期字段：回到 M3E 原生外形（outlined + 浮动标签 + 后缀日历按钮）。
+   这个外形必须留着 —— m3e-datepicker-toggle 打开日历时，浮层的锚点是
+   this.closest("m3e-form-field")，拆掉它日历会失去锚点、飘到窗口顶上。
+   高度用 M3E 自己的密度变量压：它的内容是
+   min-height: calc(3.5rem + max(-3, --md-sys-density-scale) * 0.25rem)，
+   密度 -2 正好把 56px 压到 48px。直接砍 height 会让内部 56px 的标签/轮廓
+   溢到边框外面（标签浮在边框线上、看着"格外高"）。 */
+#date-field {
+  --md-sys-density-scale: -2;
+  height: 48px;
+  block-size: 48px;
 }
 
-.date-field__label {
-  font-size: 13px;
-  white-space: nowrap;
-  color: var(--md-sys-color-on-surface-variant, #3f484a);
+/* 辅助行（subscript）即使隐藏，也仍然占着高度，直接不参与布局 */
+#date-field [slot="subscript"],
+#date-field .subscript {
+  display: none !important;
 }
 
-.date-field input {
-  width: 104px;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 15px;
-  color: var(--md-sys-color-on-surface, #171d1e);
-  padding: 0;
+#date-field input {
+  cursor: pointer;
+  user-select: none;
+  text-overflow: ellipsis;
 }
 
-.date-field input:focus-visible {
-  outline: 2px solid var(--md-sys-color-primary, #006877);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-/* 顶栏日期字段微调：三段内容不要挤在一起 */
-.date-field {
-  gap: 10px;
-  padding: 0 8px 0 14px;
-  height: 40px;
-  min-height: 40px;
-  max-height: 40px;
-}
-
-.date-field__label {
-  font-size: 13px;
-}
-
-.date-field input {
-  width: 92px;
-  min-width: 0;
-}
-
-.date-field input::placeholder {
-  color: var(--md-sys-color-on-surface-variant, #6f797b);
-  font-size: 14px;
-}
-
-/* 图标按钮保持 32px，不把 40px 的容器撑高 */
-.date-field m3e-icon-button {
+/* 后缀的日历按钮收小一点，别把字段撑开 */
+#date-field m3e-icon-button {
   --m3e-icon-button-size: 32px;
-  flex: 0 0 auto;
 }
+
+/* 手机上顶栏会换行，收一点内边距，别让它显得格外高 */
+@media (max-width: 700px) {
+  .topbar {
+    padding: 8px 14px;
+    gap: 8px;
+  }
+}
+

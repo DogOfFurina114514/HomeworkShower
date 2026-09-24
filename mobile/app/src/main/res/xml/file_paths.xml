@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只开放应用专属外部目录下的 apk/，安装器需要读这里的安装包 -->
+<paths>
+  <external-files-path name="apk" path="apk/" />
+  <files-path name="internal_apk" path="apk/" />
+</paths>

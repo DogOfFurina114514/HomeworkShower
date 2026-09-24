@@ -25,20 +25,29 @@ begin
     end;
 
     if v_body ? 'webVersionCode' then
-      insert into public.app_web_release (version, version_code, entry)
-      values (v_body ->> 'webVersion', (v_body ->> 'webVersionCode')::int, coalesce(v_body ->> 'entry', 'index.html'))
-      on conflict do nothing;
+      -- 网页版本表恒为一行：id = 1。回滚到旧版本号时也能覆盖，
+      -- 不会再像早先那样每次同步都插一条新行。
+      insert into public.app_web_release (id, version, version_code, entry, published_at)
+      values (1, v_body ->> 'webVersion', (v_body ->> 'webVersionCode')::int,
+              coalesce(v_body ->> 'entry', 'index.html'), now())
+      on conflict (id) do update
+        set version = excluded.version,
+            version_code = excluded.version_code,
+            entry = excluded.entry,
+            published_at = excluded.published_at;
       v_applied_version := 1;
 
       insert into public.app_releases (version, version_code, mandatory, notes, apk_url)
-      select v_body ->> 'apkVersion',
-             (v_body ->> 'apkVersionCode')::int,
-             coalesce((v_body ->> 'apkMandatory')::boolean, false),
-             v_body ->> 'apkNotes',
-             replace(v_body ->> 'apkUrlTemplate', '{version}', v_body ->> 'apkVersion')
-      where not exists (
-        select 1 from public.app_releases where version_code = (v_body ->> 'apkVersionCode')::int
-      );
+      values (v_body ->> 'apkVersion',
+              (v_body ->> 'apkVersionCode')::int,
+              coalesce((v_body ->> 'apkMandatory')::boolean, false),
+              v_body ->> 'apkNotes',
+              replace(v_body ->> 'apkUrlTemplate', '{version}', v_body ->> 'apkVersion'))
+      on conflict (version_code) do update
+        set version = excluded.version,
+            mandatory = excluded.mandatory,
+            notes = excluded.notes,
+            apk_url = excluded.apk_url;
 
     elsif v_body ? 'files' then
       insert into public.app_web_manifest (path, hash, bytes)

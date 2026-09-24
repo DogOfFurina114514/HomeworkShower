@@ -233,6 +233,75 @@
   }
 
   /**
+   * 时光机顶栏的日期字段：只在启动时绑定一次。
+   *
+   * 为什么不能写在 renderBoard 里 —— 那里在没有作业记录时会提前 return，
+   * 绑定就永远不会执行，于是"点任意处打开日历"时灵时不灵。
+   *
+   * 两个坑（都踩过）：
+   *   1. 不能在 click 里同步调 iconButton.click()。M3E 在 document 上挂了"点浮层外面
+   *      就关掉"的处理器，同步转发时它把这同一次点击也当成"外面"，刚打开的日历
+   *      立刻又被关掉（画面表现为点了没反应）。要等本轮事件走完再转发。
+   *   2. 判断"点的是不是右侧图标"要用 composedPath：input 在 M3E 的 shadow DOM 里，
+   *      事件冒泡到外面时 target 会被重定向成 m3e-form-field，closest() 永远匹配不上。
+   */
+  function setupDateField() {
+    const dateField = document.getElementById("date-field");
+    const picker = document.getElementById("date-picker");
+    if (!dateField || !picker) return;
+
+    const iconButton = dateField.querySelector('m3e-icon-button[slot="suffix"]');
+    const input = dateField.querySelector("input");
+    if (!iconButton) return;
+
+    const hitIcon = (event) =>
+      typeof event.composedPath === "function" &&
+      event.composedPath().some((node) => node === iconButton);
+
+    // 等本轮事件结束再转发，避开 M3E 的"点外面关闭"逻辑
+    const forward = () => setTimeout(() => iconButton.click(), 0);
+    const onClick = (event) => {
+      if (hitIcon(event)) return;
+      event.stopPropagation();
+      forward();
+    };
+
+    if (input) input.addEventListener("click", onClick);
+    // 点到标签、留白也算"点这个字段"
+    dateField.addEventListener("click", (event) => {
+      if (event.target === input) return;
+      onClick(event);
+    });
+
+    picker.addEventListener("change", () => {
+      const picked = picker.date;
+      if (!picked) return;
+      const pad = (n) => String(n).padStart(2, "0");
+      void loadDate(`${picked.getFullYear()}-${pad(picked.getMonth() + 1)}-${pad(picked.getDate())}`);
+    });
+  }
+
+  /** 日期可用范围与黑名单：要等作业日期加载完才知道哪些日子有内容 */
+  function applyDateLimits(today) {
+    const picker = document.getElementById("date-picker");
+    if (!picker) return;
+    const toDate = (value) => new Date(`${value}T00:00:00`);
+    if (availableDates.length) {
+      picker.minDate = toDate(availableDates[availableDates.length - 1]);
+      picker.maxDate = toDate(availableDates[0] > today ? availableDates[0] : today);
+    } else {
+      picker.minDate = null;
+      picker.maxDate = null;
+    }
+    // 没有发布记录的日子直接在日历里禁掉
+    picker.blackoutDates = (date) => {
+      const pad = (n) => String(n).padStart(2, "0");
+      const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      return !availableDates.includes(key);
+    };
+  }
+
+  /**
    * 把图片压缩成 Blob：最长边 1280px，非 PNG 转 JPEG 0.8。
    * 图片存进 Supabase Storage 桶（1 GB 额度），不占数据库那 500 MB。
    */
@@ -875,51 +944,21 @@ const duePickerEl = document.getElementById("edit-due-picker");
     document.getElementById("apply-mail")?.addEventListener("click", openApplyMail);
 
     const batches = await loadDates();
+    const today = todayString();
+
+    // 日期字段的绑定已经在 setupDateField() 里做过一次，这里只更新可选范围
+    applyDateLimits(today);
+
     if (!batches.length) {
-      renderEmpty("还没有发布过作业");
-      showStatus("后端还没有任何作业记录。");
+      if (mode === "date") showPickPrompt();
+      else {
+        renderEmpty("还没有发布过作业");
+        showStatus("后端还没有任何作业记录。");
+      }
       return;
     }
 
-    const today = todayString();
-    if (datePicker) {
-      datePicker.min = availableDates[availableDates.length - 1];
-      datePicker.max = availableDates[0] > today ? availableDates[0] : today;
-    }
-
     if (mode === "date") {
-      const dateField = document.getElementById("date-field");
-      const picker = document.getElementById("date-picker");
-
-      if (picker) {
-        // 与桌面端同一套：m3e-datepicker + datepicker-toggle
-        const toDate = (value) => new Date(`${value}T00:00:00`);
-        if (availableDates.length) {
-          picker.minDate = toDate(availableDates[availableDates.length - 1]);
-          picker.maxDate = toDate(availableDates[0] > today ? availableDates[0] : today);
-        }
-        // 没有发布记录的日子直接在日历里禁掉
-        picker.blackoutDates = (date) => {
-          const pad = (n) => String(n).padStart(2, "0");
-          const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-          return !availableDates.includes(key);
-        };
-        picker.addEventListener("change", () => {
-          const picked = picker.date;
-          if (!picked) return;
-          const pad = (n) => String(n).padStart(2, "0");
-          void loadDate(`${picked.getFullYear()}-${pad(picked.getMonth() + 1)}-${pad(picked.getDate())}`);
-        });
-      }
-
-      // 点字段任意处都能打开日历（应用里只有右侧图标能点，这里放宽）
-      if (dateField && picker) {
-        dateField.addEventListener("click", (event) => {
-          if (event.target.closest("m3e-datepicker-toggle")) return;
-          void picker.show(dateField, dateField);
-        });
-      }
-
       // 每次打开都从「请选择一个日期」开始，不按地址栏里的 date 自动加载
       showPickPrompt();
       return;
@@ -927,6 +966,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
     await loadLatest();
   }
+
+  // 日期字段在这里就绑好（不放进 init 的 await 之后）：M3E 组件升级和会话检查
+  // 都要花时间，绑晚了开屏这几秒点日期框会没反应。
+  setupDateField();
 
   void init();
 })();
