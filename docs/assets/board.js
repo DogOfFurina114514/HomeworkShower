@@ -144,12 +144,134 @@
         </section>`);
     }
 
-    boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
-    // 分栏要等内容稳定后再算：m3e 组件是异步升级的、字体也是异步的，
-    // 太早量会拿到"还没长开"的卡片（实测 394px 的作文卡彼时只有 56px），
-    // 高度算错 → 装箱算歪。这里多安排几次，最后一次（内容已稳定）为准。
+    // 先算好分栏，再把结果一次性插进页面 —— 不能先显示未分栏的内容再挪位置，
+    // 那样用户会看到"跳一下"。
+    const noAnimClass = skipEnterAnimation ? " masonry-columns--no-anim" : "";
+    boardEl.innerHTML = `<div class="masonry-columns${noAnimClass}">${sections.join("")}</div>`;
+    splitIntoColumns(boardEl.querySelector(".masonry-columns"));
+    // m3e 组件与字体是异步就绪的，第一次量可能偏小；等它们稳定后再校一次。
+    // 这一步只挪位置、不改变结构，视觉上是平滑的。
     scheduleLayout();
     skipEnterAnimation = false;
+  }
+
+  /**
+   * 把已经插进 DOM 的科目组重新分配到各列。
+   *
+   * 分两步：
+   *   1. 先按列宽把内容量出真实高度（测量期间内容是隐藏的，用户看不到）；
+   *   2. 用装箱算法算出分配，一次性重建各列。
+   * 也就是说用户看到的永远只是"已经分好的结果"。
+   */
+  function splitIntoColumns(wrap) {
+    if (!wrap) return;
+    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
+    if (!groups.length) return;
+
+    const boardWidth = boardEl.clientWidth || window.innerWidth || 1024;
+    const count = Math.max(1, Math.min(groups.length, Math.floor((boardWidth - 48) / 358) || 1));
+
+    // 测量容器：与正式布局同样的列宽，但不显示给用户
+    const probe = document.createElement("div");
+    probe.className = "masonry-columns";
+    probe.style.position = "absolute";
+    probe.style.left = "-100000px";
+    probe.style.top = "0";
+    probe.style.width = `${wrap.getBoundingClientRect().width || boardWidth}px`;
+    probe.style.visibility = "hidden";
+    probe.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < count; i += 1) {
+      const phantom = document.createElement("div");
+      phantom.className = "masonry-column";
+      probe.appendChild(phantom);
+    }
+    document.body.appendChild(probe);
+
+    // 把组搬进测量容器量高度（量完再搬回来）
+    const sources = groups.map((group) => group.parentNode);
+    groups.forEach((group) => probe.children[0].appendChild(group));
+    void probe.offsetHeight;
+    const sizes = groups.map((group) => {
+      const marginBottom = parseFloat(window.getComputedStyle(group).marginBottom) || 0;
+      return group.getBoundingClientRect().height + marginBottom;
+    });
+    groups.forEach((group, index) => {
+      const back = sources[index];
+      if (back) back.appendChild(group);
+    });
+    probe.remove();
+
+    const assign = solveAssignment(sizes, count);
+
+    // 一次性重建
+    wrap.classList.add("masonry-columns--js");
+    wrap.innerHTML = "";
+    const columns = [];
+    for (let i = 0; i < count; i += 1) {
+      const column = document.createElement("div");
+      column.className = "masonry-column";
+      wrap.appendChild(column);
+      columns.push(column);
+    }
+    groups.forEach((group, index) => {
+      columns[assign[index]].appendChild(group);
+    });
+    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
+      node.style.animation = "none";
+    });
+  }
+
+  /**
+   * 装箱：组数不多就穷举，多则按高度降序放进最矮的列（LPT 近似）。
+   *
+   * 打分标准是"最高列尽量矮"，同时在最高列相同的情况下让各列尽量均匀 ——
+   * 只看最高列会挑出 584/571/403 这种，最高列是矮了，但右边空一大块。
+   */
+  function solveAssignment(sizes, count) {
+    const score = (totals) => {
+      const max = Math.max(...totals);
+      const min = Math.min(...totals);
+      // 最高列优先（权重拉开量级），同等最高列时列间差距越小越好
+      return max * 10000 + (max - min);
+    };
+
+    if (sizes.length <= 12) {
+      const total = Math.pow(count, sizes.length);
+      let bestScore = Infinity;
+      let bestAssign = null;
+      for (let code = 0; code < total; code += 1) {
+        const totals = new Array(count).fill(0);
+        const assign = new Array(sizes.length);
+        let rest = code;
+        for (let i = 0; i < sizes.length; i += 1) {
+          const bin = rest % count;
+          rest = Math.floor(rest / count);
+          assign[i] = bin;
+          totals[bin] += sizes[i];
+        }
+        const s = score(totals);
+        if (s < bestScore) {
+          bestScore = s;
+          bestAssign = assign;
+        }
+      }
+      if (bestAssign) return bestAssign;
+    }
+
+    const totals = new Array(count).fill(0);
+    const assign = new Array(sizes.length).fill(0);
+    sizes
+      .map((_, i) => i)
+      .sort((a, b) => sizes[b] - sizes[a])
+      .forEach((i) => {
+        let target = 0;
+        for (let c = 1; c < count; c += 1) {
+          if (totals[c] < totals[target] - 1) target = c;
+        }
+        assign[i] = target;
+        totals[target] += sizes[i];
+      });
+    return assign;
   }
 
   let layoutTimer = 0;
@@ -418,93 +540,18 @@
    * 量到的尺寸偏小，装箱结果自然不是最优，最高列反而更高。
    * 浏览器原生的多列平衡不需要测量，自己就会把内容均分到各列。
    */
-  /**
-   * 分栏：量出每个科目组的高度，再按"最高的列尽可能矮"装箱。
-   *
-   * 关键在测量时机 —— m3e 组件是异步升级的、字体也是异步的，
-   * 刚插入 DOM 时量到的是"还没长开"的高度（实测那张 394px 的作文卡当时只有 56px），
-   * 用这种尺寸装箱必然算歪。所以这里坚持到内容稳定后再量。
-   */
+  /** 重新分栏（供 resize 或内容稳定后调用）：只挪位置，不改结构 */
   function layoutColumns() {
     const wrap = boardEl.querySelector(".masonry-columns");
     if (!wrap) return;
-    const groups = Array.from(wrap.querySelectorAll(".subject-group"));
-    if (!groups.length) return;
-
-    const boardWidth = boardEl.clientWidth || window.innerWidth || 1024;
-    const count = Math.max(1, Math.min(groups.length, Math.floor((boardWidth - 48) / 358) || 1));
-
-    // 切到 JS 分栏模式（同时关掉 CSS 的多列兜底）
-    wrap.classList.add("masonry-columns--js");
-    wrap.innerHTML = "";
-    const columns = [];
-    for (let i = 0; i < count; i += 1) {
-      const column = document.createElement("div");
-      column.className = "masonry-column";
-      wrap.appendChild(column);
-      columns.push(column);
-    }
-
-    // ① 全部先放第一列，批量量高度（一次放好、一次读完，读到的是稳定值）
-    groups.forEach((group) => columns[0].appendChild(group));
-    void columns[0].offsetHeight;
-    const sizes = groups.map((group) => {
-      const marginBottom = parseFloat(window.getComputedStyle(group).marginBottom) || 0;
-      return group.getBoundingClientRect().height + marginBottom;
+    // 先把已有列里的分组提回顶层，再统一重新分配
+    const oldColumns = Array.from(wrap.querySelectorAll(":scope > .masonry-column"));
+    oldColumns.forEach((column) => {
+      while (column.firstChild) wrap.appendChild(column.firstChild);
+      column.remove();
     });
-
-    // ② 装箱：组数不多就穷举（保证最优），多则按高度降序放进最矮的列
-    const solve = () => {
-      if (groups.length <= 12) {
-        const total = Math.pow(count, groups.length);
-        let bestMax = Infinity;
-        let bestAssign = null;
-        for (let code = 0; code < total; code += 1) {
-          const totals = new Array(count).fill(0);
-          const assign = new Array(groups.length);
-          let rest = code;
-          for (let i = 0; i < groups.length; i += 1) {
-            const bin = rest % count;
-            rest = Math.floor(rest / count);
-            assign[i] = bin;
-            totals[bin] += sizes[i];
-          }
-          const mx = Math.max(...totals);
-          if (mx < bestMax) {
-            bestMax = mx;
-            bestAssign = assign;
-          }
-        }
-        if (bestAssign) return bestAssign;
-      }
-      const totals = new Array(count).fill(0);
-      const assign = new Array(groups.length).fill(0);
-      groups
-        .map((_, i) => i)
-        .sort((a, b) => sizes[b] - sizes[a])
-        .forEach((i) => {
-          let target = 0;
-          for (let c = 1; c < count; c += 1) {
-            if (totals[c] < totals[target] - 1) target = c;
-          }
-          assign[i] = target;
-          totals[target] += sizes[i];
-        });
-      return assign;
-    };
-
-    // ③ 落位
-    const assign = solve();
-    columns.forEach((column) => {
-      column.innerHTML = "";
-    });
-    groups.forEach((group, index) => {
-      columns[assign[index]].appendChild(group);
-    });
-    // 重排属于布局变化，不是"新内容进场"
-    wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
-      node.style.animation = "none";
-    });
+    wrap.classList.remove("masonry-columns--js");
+    splitIntoColumns(wrap);
   }
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
