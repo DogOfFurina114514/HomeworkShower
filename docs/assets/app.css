@@ -294,6 +294,11 @@ html.hs-booting body {
   user-select: none;
   border-radius: 8px;
   transform-origin: center bottom;
+  /* 卡片 hover/按下时 M3E 会把状态层画在内容下面；把图片提到上层，
+     这样卡片变暗时图片自己不变暗 */
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
   /* 用 transform 做抬升，避免和卡片自身的 hover 抢同一个属性 */
   transition:
     transform 260ms cubic-bezier(0.2, 0, 0, 1),
@@ -428,7 +433,9 @@ html.hs-booting body {
 }
 
 /* 图片被清理后的原位占位块 */
-.image-expired {
+/* 图片两种失败状态：过期（灰底，说明按容量清理）与加载失败（可点重试，强调色边框） */
+.image-expired,
+.image-failed {
   display: grid;
   place-items: center;
   gap: 6px;
@@ -444,9 +451,25 @@ html.hs-booting body {
   font-size: 13px;
 }
 
-.image-expired m3e-icon {
+.image-expired m3e-icon,
+.image-failed m3e-icon {
   --m3e-icon-size: 2.5rem;
   color: var(--md-sys-color-outline, #6f797b);
+}
+
+/* 加载失败是"还能救"的状态：可点击，给个明确的边框与指针 */
+.image-failed {
+  cursor: pointer;
+  border-color: var(--md-sys-color-primary, #006877);
+  color: var(--md-sys-color-primary, #006877);
+}
+
+.image-failed m3e-icon {
+  color: var(--md-sys-color-primary, #006877);
+}
+
+.image-failed:hover {
+  background: var(--md-sys-color-surface-container-highest, #dde3e5);
 }
 
 /* ------------------------------------------------ 6. 右下角编辑按钮 */
