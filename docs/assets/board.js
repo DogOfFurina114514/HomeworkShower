@@ -145,7 +145,10 @@
     }
 
     boardEl.innerHTML = `<div class="masonry-columns${skipEnterAnimation ? " masonry-columns--no-anim" : ""}">${sections.join("")}</div>`;
-    layoutColumns();
+    // 关键：必须等浏览器完成一次布局再分栏。
+    // 紧接着 innerHTML 就调 layoutColumns() 的话，getBoundingClientRect() 量到的是
+    // 脏数据（还没排版，甚至为 0），高度算错 → 分配全错、最高列下不来。
+    requestAnimationFrame(() => layoutColumns());
     skipEnterAnimation = false;
   }
 
@@ -400,79 +403,81 @@
     const groups = Array.from(wrap.querySelectorAll(".subject-group"));
     if (!groups.length) return;
 
-    const width = boardEl.clientWidth || window.innerWidth || 1024;
-    const count = Math.max(1, Math.min(groups.length, Math.floor((width - 48) / 358) || 1));
-
-    // 列容器：数量不对才重建
-    let columns = Array.from(wrap.querySelectorAll(".masonry-column"));
-    if (columns.length !== count) {
-      wrap.innerHTML = "";
-      columns = [];
-      for (let i = 0; i < count; i += 1) {
-        const column = document.createElement("div");
-        column.className = "masonry-column";
-        wrap.appendChild(column);
-        columns.push(column);
-      }
-    }
-
-    // 先按顺序轮流放一版（此时是真实布局，量出来的高度才准）
-    columns.forEach((column) => {
-      column.innerHTML = "";
-    });
-    groups.forEach((group, index) => {
-      columns[index % columns.length].appendChild(group);
-    });
-    const realColumnHeights = columns.map((column) => column.getBoundingClientRect().height);
-    const beforeMax = Math.max(...realColumnHeights);
-
-    // 每组占多高（连同它下面的间距）
-    const sizes = groups.map((group) => group.getBoundingClientRect().height + 8);
-
-    /**
-     * 两种分配策略，取最高列更矮的那个：
-     *   A. 按科目原顺序，放进当前最矮的列（顺序自然，但大科目常常最后才分配，
-     *      容易"大的自己占一列、其余挤在一起"，最高列反而更高）；
-     *   B. 按高度降序，依次放进当前最矮的列（LPT 近似，能把最高列压到接近理论最优）。
-     */
-    const tryAssign = (ordered) => {
-      const totals = new Array(columns.length).fill(0);
-      columns.forEach((column) => {
-        column.innerHTML = "";
-      });
-      ordered.forEach((item) => {
-        let target = 0;
-        for (let i = 1; i < totals.length; i += 1) {
-          if (totals[i] < totals[target] - 1) target = i;
-        }
-        columns[target].appendChild(item.group);
-        totals[target] += item.size;
-      });
-      return Math.max(...columns.map((column) => column.getBoundingClientRect().height));
-    };
-
-    const bySequence = groups.map((group, index) => ({ group, index, size: sizes[index] }));
-    const bySize = [...bySequence].sort((a, b) => b.size - a.size);
-
-    const sequenceMax = tryAssign(bySequence);
-    const sizeMax = tryAssign(bySize);
-
-    // 两种都不如原来的顺序分配，就退回原样（至少不比之前差）
-    if (Math.min(sequenceMax, sizeMax) > beforeMax) {
-      columns.forEach((column) => {
-        column.innerHTML = "";
-      });
-      groups.forEach((group, index) => {
-        columns[index % columns.length].appendChild(group);
-      });
-    }
-
-    // 重排属于布局变化，不是"新内容进场"：不要播入场动画
+    // 停掉入场动画再测量：hs-rise 带 scale(0.985)，动画播放中量到的是中间值，
+    // 同一科目在不同时机能量出不同高度，分配就会算错。
     wrap.querySelectorAll(".subject-group, .homework-item").forEach((node) => {
       node.style.animation = "none";
     });
-  }
 
+    const boardWidth = boardEl.clientWidth || window.innerWidth || 1024;
+    const count = Math.max(1, Math.min(groups.length, Math.floor((boardWidth - 48) / 358) || 1));
+
+    // 重新建列（每次都重建，保证是干净状态；动画已停，重建不会重播动画）
+    wrap.innerHTML = "";
+    const columns = [];
+    for (let i = 0; i < count; i += 1) {
+      const column = document.createElement("div");
+      column.className = "masonry-column";
+      wrap.appendChild(column);
+      columns.push(column);
+    }
+
+    // ① 先把所有组放进第一列，量出真实高度
+    //    （列宽是 flex:1，放进哪一列宽度都一样，所以量一次就够）
+    const sizes = [];
+    groups.forEach((group) => {
+      columns[0].appendChild(group);
+      sizes.push(group.getBoundingClientRect().height + 8);
+    });
+
+    // ② 求最优分配：把"最高列"压到最小
+    //    组数 ≤ 12 直接穷举（3^12 = 53 万，几十毫秒），保证最优；
+    //    更多则用 LPT 贪心（降序放进最矮的列）。
+    const solve = () => {
+      if (groups.length <= 12) {
+        const total = Math.pow(count, groups.length);
+        let bestMax = Infinity;
+        let bestAssign = null;
+        for (let code = 0; code < total; code += 1) {
+          const totals = new Array(count).fill(0);
+          const assign = new Array(groups.length);
+          let rest = code;
+          for (let i = 0; i < groups.length; i += 1) {
+            const bin = rest % count;
+            rest = Math.floor(rest / count);
+            assign[i] = bin;
+            totals[bin] += sizes[i];
+          }
+          const mx = Math.max(...totals);
+          if (mx < bestMax) {
+            bestMax = mx;
+            bestAssign = assign;
+          }
+        }
+        if (bestAssign) return bestAssign;
+      }
+      const totals = new Array(count).fill(0);
+      const assign = new Array(groups.length).fill(0);
+      groups
+        .map((_, i) => i)
+        .sort((a, b) => sizes[b] - sizes[a])
+        .forEach((i) => {
+          let target = 0;
+          for (let c = 1; c < count; c += 1) {
+            if (totals[c] < totals[target] - 1) target = c;
+          }
+          assign[i] = target;
+          totals[target] += sizes[i];
+        });
+      return assign;
+    };
+
+    // ③ 直接按最优分配落位 —— 不再二次测量、不再回退
+    const assign = solve();
+    groups.forEach((group, index) => {
+      columns[assign[index]].appendChild(group);
+    });
+  }
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
     if (!window.hs || !window.hs.client) {
@@ -980,6 +985,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
       lightboxSrc = image.currentSrc || image.src || "";
 
       const from = image.getBoundingClientRect();
+      // 上一轮如果还在收尾（或动画留了 fill 残留），先全部取消，
+      // 否则第二次打开会被旧动画的内联样式盖住：看着像没打开
+      closingLightbox = false;
+      clearLightboxAnimations();
       lightboxEl.hidden = false;
       lightboxImage.src = lightboxSrc;
       lightboxImage.alt = image.alt || "放大的图片";
@@ -988,6 +997,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
       lightboxImage.style.height = "";
       lightboxImage.style.transition = "";
       lightboxImage.style.transform = "rotateX(0deg) rotateY(0deg) translateZ(0px)";
+      lightboxImage.style.opacity = "";
 
       const playFlip = () => {
         const to = lightboxImage.getBoundingClientRect();
@@ -1047,9 +1057,12 @@ const duePickerEl = document.getElementById("edit-due-picker");
       };
     }
 
-    /** 真正收尾：停止动画、清掉 src 与残留，避免大图占内存、下次打开带旧位移 */
+    /** 真正收尾：停掉动画、清掉 src 与残留，避免大图占内存、下次打开带旧位移 */
     function finishCloseLightbox() {
       lightboxCleanup?.();
+      // 出场动画用 fill:both，结束后必须显式取消，否则它留下的内联样式
+      // 会盖在元素上 —— 表现就是"第二次打开什么都没了，只有关闭动画"
+      clearLightboxAnimations();
       lightboxEl.hidden = true;
       if (lightboxImage) {
         lightboxImage.removeAttribute("src");
@@ -1060,6 +1073,18 @@ const duePickerEl = document.getElementById("edit-due-picker");
       const actions = lightboxEl.querySelector(".lightbox__actions");
       if (actions) actions.style.opacity = "";
       lightboxSrc = "";
+    }
+
+    /** 取消灯箱上所有还在生效的动画（含 fill 残留） */
+    function clearLightboxAnimations() {
+      if (!lightboxEl) return;
+      try {
+        if (lightboxEl.getAnimations) {
+          lightboxEl.getAnimations({ subtree: true }).forEach((animation) => animation.cancel());
+        }
+      } catch (error) {
+        /* 忽略 */
+      }
     }
 
     /** 关闭：先播淡出动画，动画结束再隐藏 */
