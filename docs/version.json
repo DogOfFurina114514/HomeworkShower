@@ -1,9 +1,9 @@
 {
-  "webVersion": "20",
-  "webVersionCode": 20,
-  "updatedAt": "2026-09-25T23:45:00+08:00",
+  "webVersion": "21",
+  "webVersionCode": 21,
+  "updatedAt": "2026-09-26T00:20:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 20：仅用于把卡住的设备拉回来 —— 装 26.0.10 时内置网页版本(18)比用户已热更到的版本低，旧逻辑会把磁盘上的新版覆盖回内置版、版本号却还记着新版，于是检查更新认为「已是最新」、永远不再更新（现象就是「打开最新版 App，检查完直接进去了」）。这个 bug 已在 26.0.11 修掉，这里把版本号往前推一格，让已经中招的设备下次打开重新触发一次热更新。",
+  "webNote": "网页版本 21：手机端首页顶栏不再白占一行 —— 「时光机 / 登录」本来就和标题放得下，现在和标题同一行、靠右；只有带日期框的时光机页才让控件区独占一行（日期框撑满，两个按钮靠右）。资源版本号提到 v88。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

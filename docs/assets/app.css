@@ -1052,23 +1052,36 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   --m3e-icon-button-size: 32px;
 }
 
-/* 手机端顶栏：日期框单独撑满一行，两个按钮保持原本大小、一起靠右。
-   用 grid 而不是 flex-wrap —— flex 下每个子项宽度由内容决定，日期框只占 260px，
-   右边会空出一条。列宽写 1fr auto auto：第一列吃掉剩下的空间，
-   两个按钮各占自己内容那么宽，于是自然就贴到右边去了（不拉伸）。
-   （m3e-datepicker 是 position:fixed 的浮层，display:none 时不成为栅格项，
-   打开时也已脱离文档流，不会来抢格子。） */
+/* 手机端顶栏。
+ *
+ * 两种形态：
+ *   首页（没有日期框）—— 标题 +「时光机 / 登录」本来一行就放得下，
+ *     控件区就按内容宽度待着，靠 .topbar__title 的 margin-inline-end:auto 顶到右边，
+ *     不额外占一行。
+ *   时光机（有日期框）—— 日期框要独占整行，控件区这时才 flex:1 1 100% 单独成行，
+ *     内部用 grid 的 1fr auto auto：第一列吃掉剩余空间，两个按钮各占内容宽、贴右边。
+ * 用 :has() 区分这两种，而不是给两个页面各写一套类名。
+ * （m3e-datepicker 是 position:fixed 的浮层，display:none 时不成为栅格项，
+ *  打开时也已脱离文档流，不会来抢格子。） */
 @media (max-width: 700px) {
   .topbar {
     padding: 8px 14px;
     gap: 8px;
   }
 
+  /* 默认：只占内容宽，能和标题挤在同一行 */
   .topbar__controls {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* 带日期框的顶栏（时光机）：控件区独占一行 */
+  .topbar__controls:has(> #date-field) {
     display: grid;
     flex: 1 1 100%;
     grid-template-columns: 1fr auto auto;
-    align-items: center;
     gap: 8px;
   }
 
