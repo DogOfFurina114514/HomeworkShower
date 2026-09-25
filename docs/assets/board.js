@@ -254,6 +254,15 @@
       .map((column, index) => ({ column, index }))
       .sort((a, b) => columnLead[b.index] - columnLead[a.index]);
     order.forEach(({ column }) => wrap.appendChild(column));
+    window.__hsColumns = {
+      count,
+      columnLead: columnLead.map((v) => Math.round(v)),
+      order: order.map((o) => o.index),
+      firstOfColumn: order.map(({ column }) => {
+        const heading = column.querySelector("m3e-heading");
+        return heading ? heading.textContent.trim() : "?";
+      }),
+    };
   }
 
   /**
@@ -955,8 +964,12 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
       const MAX_TILT = 8;   // 度；再大就假了
       const LIFT = 6;       // 抬起多少像素
-      const EASE = 0.14;    // 缓动系数：越小越"重"、越顺滑
-      const HOLD_MS = 260;  // 手机：按住多久进入倾斜
+      // 缓动系数：0.14 太小了 —— 每帧只走 14%，要十几帧（200ms+）才追上，
+      // 手感上就是"很卡、拖不动"。0.45 仍有一点重量感，但基本跟手。
+      const EASE = 0.45;
+      const HOLD_MS = 120;  // 手机：按住一小会儿进入倾斜（轻点关闭不会误触发）
+      // 手指移动超过这个距离就直接进入倾斜，不用等长按
+      const DRAG_SLOP = 6;
 
       let frame = 0;
       let curX = 0;
@@ -1025,6 +1038,9 @@ const duePickerEl = document.getElementById("edit-due-picker");
       };
 
       let touching = false;
+      let tiltActive = false;
+      let startX = 0;
+      let startY = 0;
 
       const onPointerMove = (event) => {
         if (event.pointerType === "touch") return; // 触摸走下面那套
@@ -1038,11 +1054,16 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
       const onTouchStart = (event) => {
         touching = true;
+        tiltActive = false;
         const touch = event.touches && event.touches[0];
         if (!touch) return;
+        startX = touch.clientX;
+        startY = touch.clientY;
         window.clearTimeout(holdTimer);
-        // 按住一小会儿再进入倾斜：轻点关闭浮层时不会误触发
+        // 按住一小会儿就进入倾斜（轻点关闭浮层时不会误触发）
         holdTimer = window.setTimeout(() => {
+          if (!touching) return;
+          tiltActive = true;
           aim(touch.clientX, touch.clientY, true);
         }, HOLD_MS);
       };
@@ -1051,11 +1072,27 @@ const duePickerEl = document.getElementById("edit-due-picker");
         if (!touching) return;
         const touch = event.touches && event.touches[0];
         if (!touch) return;
-        aim(touch.clientX, touch.clientY, true);
+
+        // 手指一动就进入倾斜（不必等长按），并**阻止页面跟着滚**。
+        // 之前这里注册的是 { passive: true }，等于放弃了 preventDefault，
+        // 所以拖动图片时页面会一起上下滚。
+        if (!tiltActive) {
+          const dx = Math.abs(touch.clientX - startX);
+          const dy = Math.abs(touch.clientY - startY);
+          if (dx > DRAG_SLOP || dy > DRAG_SLOP) {
+            tiltActive = true;
+            window.clearTimeout(holdTimer);
+          }
+        }
+        if (tiltActive) {
+          event.preventDefault();
+          aim(touch.clientX, touch.clientY, true);
+        }
       };
 
       const onTouchEnd = () => {
         touching = false;
+        tiltActive = false;
         window.clearTimeout(holdTimer);
         neutral();
       };
@@ -1065,8 +1102,9 @@ const duePickerEl = document.getElementById("edit-due-picker");
         lightboxEl.addEventListener("pointerleave", onPointerLeave);
       }
       if (hasTouch) {
+        // touchmove 必须是 passive: false 才能 preventDefault（阻止滚动）
         lightboxEl.addEventListener("touchstart", onTouchStart, { passive: true });
-        lightboxEl.addEventListener("touchmove", onTouchMove, { passive: true });
+        lightboxEl.addEventListener("touchmove", onTouchMove, { passive: false });
         lightboxEl.addEventListener("touchend", onTouchEnd, { passive: true });
         lightboxEl.addEventListener("touchcancel", onTouchEnd, { passive: true });
       }
