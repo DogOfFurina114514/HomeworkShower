@@ -1052,9 +1052,10 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   --m3e-icon-button-size: 32px;
 }
 
-/* 手机端顶栏：日期框单独撑满一行，两个按钮平分下一行。
+/* 手机端顶栏：日期框单独撑满一行，两个按钮保持原本大小、一起靠右。
    用 grid 而不是 flex-wrap —— flex 下每个子项宽度由内容决定，日期框只占 260px，
-   右边会空出一条；按钮也挤在左边。两行两列是固定结构，grid 更直白。
+   右边会空出一条。列宽写 1fr auto auto：第一列吃掉剩下的空间，
+   两个按钮各占自己内容那么宽，于是自然就贴到右边去了（不拉伸）。
    （m3e-datepicker 是 position:fixed 的浮层，display:none 时不成为栅格项，
    打开时也已脱离文档流，不会来抢格子。） */
 @media (max-width: 700px) {
@@ -1066,7 +1067,7 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   .topbar__controls {
     display: grid;
     flex: 1 1 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr auto auto;
     align-items: center;
     gap: 8px;
   }
@@ -1078,14 +1079,25 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
     max-width: none;
   }
 
-  .topbar__controls > #back-button,
-  .topbar__controls > .account {
-    width: 100%;
+  /* 首页的「时光机」、时光机的「回到今天」：第二列，靠右 */
+  .topbar__controls > #timemachine-button,
+  .topbar__controls > #back-button {
+    grid-column: 2;
+    width: auto;
     min-width: 0;
+    justify-self: end;
+  }
+
+  /* 「登录」/「个人中心」：第三列（最右） */
+  .topbar__controls > .account {
+    grid-column: 3;
+    width: auto;
+    min-width: 0;
+    justify-self: end;
   }
 
   .topbar__controls > .account > m3e-button {
-    width: 100%;
+    width: auto;
   }
 
   /* 个人中心面板：手机上它必须整块留在屏幕里。

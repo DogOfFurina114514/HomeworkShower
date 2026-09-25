@@ -1,9 +1,9 @@
 {
-  "webVersion": "18",
-  "webVersionCode": 18,
-  "updatedAt": "2026-09-25T22:15:00+08:00",
+  "webVersion": "19",
+  "webVersionCode": 19,
+  "updatedAt": "2026-09-25T23:05:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 18：修作业卡片的阴影被截断。m3e-list 自带 overflow: auto，而卡片的阴影（悬停/选中时的 box-shadow）画在列表盒子边缘上，会被这一层在 padding box 上裁掉 —— 所以四周看着是硬边、右边最明显。给 .subject-homework-list 放开 overflow，资源版本号提到 v86。",
+  "webNote": "网页版本 19：手机端顶栏的两个按钮不再被强制拉伸 —— 保持原本大小，一起靠右（首页的「时光机/登录」、时光机的「回到今天/个人中心」同一套规则）；时光机的日期框仍然独占一行。资源版本号提到 v87。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
