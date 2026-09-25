@@ -1,9 +1,9 @@
 {
-  "webVersion": "19",
-  "webVersionCode": 19,
-  "updatedAt": "2026-09-25T23:05:00+08:00",
+  "webVersion": "20",
+  "webVersionCode": 20,
+  "updatedAt": "2026-09-25T23:45:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 19：手机端顶栏的两个按钮不再被强制拉伸 —— 保持原本大小，一起靠右（首页的「时光机/登录」、时光机的「回到今天/个人中心」同一套规则）；时光机的日期框仍然独占一行。资源版本号提到 v87。",
+  "webNote": "网页版本 20：仅用于把卡住的设备拉回来 —— 装 26.0.10 时内置网页版本(18)比用户已热更到的版本低，旧逻辑会把磁盘上的新版覆盖回内置版、版本号却还记着新版，于是检查更新认为「已是最新」、永远不再更新（现象就是「打开最新版 App，检查完直接进去了」）。这个 bug 已在 26.0.11 修掉，这里把版本号往前推一格，让已经中招的设备下次打开重新触发一次热更新。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
@@ -16,10 +16,10 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.10",
-  "apkVersionCode": 260010,
+  "apkVersion": "26.0.11",
+  "apkVersionCode": 260011,
   "apkMandatory": true,
-  "apkNotes": "①作业卡片的阴影不再被截断（m3e-list 自带的 overflow:auto 把卡片的悬停/选中阴影裁掉了，右侧最明显）；②强制更新不再留任何缺口：不管安装包下没下过、安装器有没有被取消，都只有「重新安装」或「退出」，没有「稍后/跳过」。",
+  "apkNotes": "修一个会让热更新永久失效的 bug：装新 APK 时，如果 APP 内置的网页版本比用户已经热更到的版本低，旧逻辑会把内部存储里较新的网页覆盖回内置版本，而记录里的版本号还留着较新的那个 —— 于是检查更新一算「本地=线上，已是最新」，从此再也不更新，用户一直跑着旧页面（表现就是「打开最新版 App，检查完更新直接进入了」）。现在：磁盘上已经是更新的一版就不再用内置资源覆盖；版本号高于磁盘实际内容时按磁盘为准自愈。",
   "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
@@ -28,6 +28,6 @@
     "webManifestTable": "app_web_manifest",
     "appReleaseTable": "app_releases"
   },
-  "apkMandatorySince": 260010,
+  "apkMandatorySince": 260011,
   "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
 }

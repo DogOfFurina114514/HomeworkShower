@@ -1,6 +1,6 @@
 {
-  "version": "19",
-  "versionCode": 19,
+  "version": "20",
+  "versionCode": 20,
   "entry": "index.html",
   "files": [
     {
@@ -155,8 +155,8 @@
     },
     {
       "path": "version.json",
-      "hash": "c427ae8c0d57e47a10b3d510d5cd6d746a088b753a00a195c5a5cce0786f21b6",
-      "bytes": 2106
+      "hash": "82c25eee2ccdc2f337238c148808623e50ff1a1bd9430125345ecac1d004cb50",
+      "bytes": 2591
     }
   ]
 }

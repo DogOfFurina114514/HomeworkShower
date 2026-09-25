@@ -59,17 +59,45 @@ object WebUpdater {
     /**
      * 首次运行：把 APK 内置的资产复制成基线，并记下基线版本号。
      * 这样即使网页目录被系统清掉，也能重新铺一份，而不是白屏。
+     *
+     * @param builtinAppCode APK 的 versionCode。**它只是"这份基线是从哪个包铺的"标记，
+     *   不是网页版本号。** 两者混用会让热更新永久失效：内部记录被写成 260011，
+     *   而线上网页版本才 20，`20 > 260011` 永远不成立，界面就一直是旧的那份。
+     *   网页版本号只能从内置清单（assets/site/manifest.json）的 `versionCode` 读。
      */
-    fun ensureBaseline(context: Context, builtinVersionCode: Int) {
+    fun ensureBaseline(context: Context, builtinAppCode: Int) {
         val (site, temp) = dirs(context)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val baseline = prefs.getInt(KEY_BASELINE, -1)
+        val recorded = UpdateChecker.localWebVersionCode(context)
+        val builtinWeb = readBuiltinManifest(context)?.optInt("versionCode", 0) ?: 0
 
-        if (File(site, "index.html").isFile && baseline == builtinVersionCode) {
+        // 自愈：记录里的网页版本号如果高于磁盘上的实际内容（被下面那段"用内置资源盖回去"
+        // 坑过的设备就是这个状态），以磁盘上的 manifest.versionCode 为准把记录拉回来，
+        // 下一次检查更新就会重新把它升上去。
+        val onDisk = readLocalManifest(context)?.optInt("versionCode", 0) ?: 0
+        if (onDisk > 0 && onDisk < recorded) {
+            UpdateChecker.saveWebVersionCode(context, onDisk)
+        }
+        val installed = UpdateChecker.localWebVersionCode(context)
+
+        if (File(site, "index.html").isFile && baseline == builtinAppCode) {
             // 基线已经是这一版内置资源了，但记录里的网页版本号可能还没写过
             // （首次启动就属于这种：铺完基线若直接 return，热更新会看到本地版本 0，
             //   于是刚装好就弹一次"有网页更新 0 → 26.0.0"）。
-            syncBuiltinVersion(context, builtinVersionCode)
+            syncBuiltinVersion(context)
+            return
+        }
+
+        // 磁盘上已经是比内置更新的一版网页：**不要**用内置资源把它盖回去。
+        //
+        // 踩过的坑：装新 APK 时，内置的网页版本可能比用户已经热更到的版本低
+        // （26.0.10 内置网页 18，用户那边已经热更到 19）。原来这里会把 site 目录
+        // 整个删掉重铺成内置的 18，可版本号还记着 19 —— 检查更新一算
+        // "本地 19，线上 19，已是最新"，于是**永远不再更新**，
+        // 用户就一直跑着旧页面，表现就是"打开最新版 App，检查完更新直接进去了"。
+        if (File(site, "index.html").isFile && installed > 0 && builtinWeb > 0 && installed >= builtinWeb) {
+            prefs.edit().putInt(KEY_BASELINE, builtinAppCode).apply()
             return
         }
 
@@ -86,10 +114,14 @@ object WebUpdater {
             copyTree(temp, site)
             temp.deleteRecursively()
         }
-        prefs.edit().putInt(KEY_BASELINE, builtinVersionCode).apply()
+        prefs.edit().putInt(KEY_BASELINE, builtinAppCode).apply()
+
+        // 磁盘上现在确实是"内置那一版"了，网页版本号必须跟着回到**内置清单里的网页版本号**，
+        // 否则检查更新会以为本地比磁盘实际的新，就会跳过该做的热更新。
+        if (builtinWeb > 0) UpdateChecker.saveWebVersionCode(context, builtinWeb)
 
         // 基线自带内置清单，因此热更新只会下载"相对内置版本有变化"的文件
-        syncBuiltinVersion(context, builtinVersionCode)
+        syncBuiltinVersion(context)
     }
 
     /**
@@ -98,14 +130,12 @@ object WebUpdater {
      * 的情况不会被覆盖回退。
      *
      * 注意内置清单的字段名是 `versionCode`（tools/web-manifest.mjs 生成的），
-     * 而 version.json 里叫 `webVersionCode` —— 两者不通用。
+     * 而 version.json 里叫 `webVersionCode` —— 两者不通用，另外它也**不是** APK 的 versionCode。
      */
-    private fun syncBuiltinVersion(context: Context, builtinVersionCode: Int) {
+    private fun syncBuiltinVersion(context: Context) {
         if (UpdateChecker.localWebVersionCode(context) > 0) return
-        val manifest = readBuiltinManifest(context)
-        val builtin = manifest?.optInt("versionCode", 0) ?: 0
-        val version = if (builtin > 0) builtin else builtinVersionCode
-        if (version > 0) UpdateChecker.saveWebVersionCode(context, version)
+        val builtin = readBuiltinManifest(context)?.optInt("versionCode", 0) ?: 0
+        if (builtin > 0) UpdateChecker.saveWebVersionCode(context, builtin)
     }
 
     /** APK 内置的 manifest.json（随 APK 一起打包，记录基线版本号与文件哈希） */

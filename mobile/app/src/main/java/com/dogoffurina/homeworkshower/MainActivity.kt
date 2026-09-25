@@ -558,6 +558,10 @@ class MainActivity : Activity() {
 
             // 热更新的基线：第一次启动把内置网页铺到内部存储
             // （this 在 Runnable 里指 Runnable，Context 必须用 this@MainActivity）
+            //
+            // 传进去的是 **APK 的 versionCode**，它在 ensureBaseline 里只当"基线是从哪个包铺的"
+            // 标记用；网页版本号一律从内置清单（assets/site/manifest.json）的 versionCode 读。
+            // 两者混用会让热更新永久失效（记录被写成 260011，而线上网页版本才 20）。
             val localAppCode = UpdateChecker.localVersionCode(this@MainActivity)
             WebUpdater.ensureBaseline(this@MainActivity, localAppCode)
 
