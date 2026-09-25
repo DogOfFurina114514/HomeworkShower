@@ -766,7 +766,15 @@ class MainActivity : Activity() {
                 // 防目录穿越
                 if (!file.canonicalPath.startsWith(base.canonicalPath)) return null
                 if (!file.isFile) return null
-                WebResourceResponse(mimeOf(relative), null, FileInputStream(file))
+                // 必须显式禁缓存：这些文件就是热更新的产物，每跑一次更新内容就变了，
+                // 但 URL 没变。不设 Cache-Control 时 WebView 会按默认启发式缓存，
+                // 结果"文件明明换新了，页面还在跑旧脚本"（改了半天用户那边没变化）。
+                // 读的是本地文件，每次都真读一遍的代价可以忽略。
+                val headers = mapOf(
+                    "Cache-Control" to "no-store, no-cache, must-revalidate",
+                    "Pragma" to "no-cache",
+                )
+                WebResourceResponse(mimeOf(relative), null, 200, "OK", headers, FileInputStream(file))
             } catch (error: Throwable) {
                 null
             }

@@ -1,9 +1,9 @@
 {
-  "webVersion": "16",
-  "webVersionCode": 16,
-  "updatedAt": "2026-09-25T21:10:00+08:00",
+  "webVersion": "17",
+  "webVersionCode": 17,
+  "updatedAt": "2026-09-25T21:35:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 16：修「发布者突然没权限」。根因是 getProfile() 读角色失败时会兜底成 user（每次操作前都会重读、30 秒一轮询，网络抖一下就命中），于是发布者被当场降权 —— 新建作业就说没权限。现在读失败按「身份未知」处理：重试一次，还不行就明确报错给重试按钮，绝不拿假身份覆盖已知角色；新建/修改/删除在用权限前也会拿当前角色再对一次账；被拒时的提示里会写出页面当前认为你是什么身份，方便定位。",
+  "webNote": "网页版本 17：把页面里静态资源的版本号从 v84/v78 统一提到 v85。App 内置站点没设 Cache-Control，WebView 会按默认启发式缓存，之前改了 board.js / client.js / app.css 却没提这个号 —— 热更新虽然换了文件，客户端仍可能继续跑缓存里的旧脚本（表现就是「推送了但用户那边没变化」，权限相关的修复也就到不了）。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
