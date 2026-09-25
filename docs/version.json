@@ -16,10 +16,10 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.8",
-  "apkVersionCode": 260008,
+  "apkVersion": "26.0.9",
+  "apkVersionCode": 260009,
   "apkMandatory": true,
-  "apkNotes": "①开屏的加载指示器改用官方 Material 组件 LoadingIndicator（就是 M3 那种转着转着换个形状的），不再自己画圆环；②下载更新时进度条移到百分比数字正上方一行。",
+  "apkNotes": "①网页热更新改成开屏自动进行，不再问「要不要更新」，只保留进度条；失败了才给「重试/退出」。②启动顺序固定为「先提示应用更新，再热更新」。③内置站点返回的响应加上 no-store —— 以前没有缓存头，WebView 会按默认启发式缓存，热更新换了文件页面却还在跑旧脚本（这正是「推送了但用户那边没变化」的来源）。",
   "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
@@ -28,6 +28,6 @@
     "webManifestTable": "app_web_manifest",
     "appReleaseTable": "app_releases"
   },
-  "apkMandatorySince": 260008,
+  "apkMandatorySince": 260009,
   "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
 }

@@ -37,8 +37,8 @@ import java.util.concurrent.Executors
  * 启动顺序：
  *   开屏「正在检查更新」→ 读 version.json（GitHub Pages，失败回退 Supabase）
  *     两个来源都连不上 → 开屏直接显示网络错误，不进主界面（进去了也看不到作业）
- *   有本体更新 → 先弹本体更新弹窗（可选的「稍后」、强制的「退出」）
- *   有热更新   → 再弹热更新弹窗（同样规则）
+ *   有本体更新 → 弹本体更新弹窗（可选的「稍后」、强制的「退出」）
+ *   有热更新   → **不弹确认，直接开始下**，只显示进度条
  *   都没有     → 进入主界面
  *
  * 网页资源从内部存储加载（filesDir/site），WebViewAssetLoader 负责把
@@ -363,6 +363,14 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ 本体更新
 
+    /**
+     * 顺序**必须是先本体、后热更新**，不能反过来：
+     *   1. 本体（APK）更新要用户确认、可能还要走系统安装器，必须先问；
+     *   2. 热更新是自动的，一旦先跑，用户会在"刚打开就被换掉网页"之后
+     *      才看到本体更新提示，观感很怪；
+     *   3. 而且新版的网页资源可能依赖新版 APK 的能力，反过来装就会出问题。
+     * 所以：有本体更新 → 只处理本体；用户选了"稍后"或不强制 → 再继续热更新。
+     */
     private fun checkAppUpdate(info: UpdateChecker.VersionInfo, localAppCode: Int) {
         if (!UpdateChecker.hasAppUpdate(info, localAppCode)) {
             checkWebUpdate(info)
@@ -453,21 +461,18 @@ class MainActivity : Activity() {
             return
         }
 
-        showSplash(
-            message = "有网页更新",
-            detail = "当前网页版本 $localWebCode → ${info.webVersion}（${info.webVersionCode}）\n\n" +
-                "只下载变化的文件，完成后会自动进入。",
-            buttonText = "立即更新",
-            onClick = { runWebUpdate(info) },
-            secondaryButtonText = "稍后",
-            onSecondary = { enterApp() }
-        )
+        // 热更新不给确认步骤：开屏检查完就直接开始下，进度条照常显示。
+        // 用户既不需要知道"有个网页更新"，也不该被问"要不要现在更新" ——
+        // 网页资源本来就和 App 是一体的，落后一版就会出现"我这儿怎么还是旧样子"。
+        runWebUpdate(info)
     }
 
     private fun runWebUpdate(info: UpdateChecker.VersionInfo) {
+        val localWebCode = UpdateChecker.localWebVersionCode(this)
         showSplash(
             message = "正在更新网页",
-            detail = "只下载有变化的文件。",
+            detail = "当前网页版本 $localWebCode → ${info.webVersion}（${info.webVersionCode}）\n" +
+                "只下载有变化的文件，完成后自动进入。",
             loading = true,
             percent = 0
         )
@@ -492,13 +497,16 @@ class MainActivity : Activity() {
             )
             main.post {
                 if (result.applied) enterApp() else {
+                    // 热更新是强制的（不给"稍后"），失败了也只给"重试/退出"：
+                    // 放进去就等于让人用着落后一版的网页，
+                    // 之后所有"我这儿怎么还是旧样子"的问题都会从这里来。
                     showSplash(
                         message = "网页更新失败",
-                        detail = result.message + "\n\n当前的网页版本没有被改动，可以先用着，稍后再试。",
+                        detail = result.message + "\n\n当前的网页版本没有被改动，重试即可。",
                         buttonText = "重试",
                         onClick = { runWebUpdate(info) },
-                        secondaryButtonText = "先进入",
-                        onSecondary = { enterApp() }
+                        secondaryButtonText = "退出",
+                        onSecondary = { finishAffinity() }
                     )
                 }
             }
