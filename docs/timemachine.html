@@ -218,7 +218,7 @@
 
       <m3e-dialog id="delete-dialog" alert dismissible>
         <m3e-heading slot="header" variant="headline" size="small" level="2">删除这条作业？</m3e-heading>
-        <p class="hint">删除后无法恢复。只有当天发布的内容可以修改或删除。</p>
+        <p class="hint">删除后无法恢复。只有未过期的作业可以修改或删除。</p>
         <p class="status" id="delete-message" hidden></p>
         <div slot="actions" end>
           <m3e-button variant="text" id="delete-cancel">取消</m3e-button>
@@ -246,7 +246,7 @@
         <m3e-heading slot="header" variant="headline" size="small" level="2">仅管理员可修改作业</m3e-heading>
         <p class="hint">
           当前身份是「<strong id="permission-role">用户</strong>」。只有发布者与管理员可以修改作业，
-          而且只能修改当天发布的内容。
+          而且只能修改未过期的作业。
         </p>
         <div slot="actions" end>
           <m3e-button variant="text" id="permission-ok">我知道了</m3e-button>

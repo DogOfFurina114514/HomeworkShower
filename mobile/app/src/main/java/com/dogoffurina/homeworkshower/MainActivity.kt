@@ -15,7 +15,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
-import android.view.animation.LinearInterpolator
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -122,38 +121,26 @@ class MainActivity : Activity() {
             setPadding(dp(28), 0, dp(28), dp(24))
         }
 
-        // 下载/更新：Material 官方的波浪形线性进度条
-        // 只是检查更新：CircularProgressIndicator（它自带 M3 的形状变换动效）
+        // "只是在忙、没有具体进度"时，顶部放官方 Material 的 LoadingIndicator：
+        // 它就是 M3 那个"转着转着换一个形状"的加载指示器，不用自己画。
         var wavyProgress: com.google.android.material.progressindicator.LinearProgressIndicator? = null
-        if (percent >= 0) {
-            wavyProgress = com.google.android.material.progressindicator.LinearProgressIndicator(this).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
+        if (percent < 0) {
+            if (loading) {
+                content.addView(
+                    com.google.android.material.loadingindicator.LoadingIndicator(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
+                        indicatorSize = dp(38)
+                        setIndicatorColor(Color.parseColor("#006877"))
+                    }
                 )
-                isIndeterminate = percentUnknown
-                if (!percentUnknown) setProgressCompat(percent, true)
-                // M3 的波浪形轨道
-                trackCornerRadius = dp(6)
-                trackThickness = dp(6)
-                setIndicatorColor(Color.parseColor("#006877"))
-                setTrackColor(Color.parseColor("#C9D4D8"))
-                tag = TAG_PROGRESS_BAR
+            } else {
+                content.addView(TextView(this).apply {
+                    text = if (buttonText != null) "⚠" else "•"
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+                    setTextColor(Color.parseColor("#006877"))
+                    gravity = Gravity.CENTER
+                })
             }
-        } else if (loading) {
-            // 自绘圆环：Material 的 CircularProgressIndicator 尺寸由它内部的 spec 决定，
-            // 设了 indicatorSize 在真机上依然被画成一个点，不如自己画一个可控的。
-            content.addView(M3RingView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
-                start()
-            })
-        } else {
-            content.addView(TextView(this).apply {
-                text = if (buttonText != null) "⚠" else "•"
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
-                setTextColor(Color.parseColor("#006877"))
-                gravity = Gravity.CENTER
-            })
         }
 
         content.addView(TextView(this).apply {
@@ -161,8 +148,45 @@ class MainActivity : Activity() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
             setTextColor(Color.parseColor("#171D1E"))
             gravity = Gravity.CENTER
-            setPadding(0, if (wavyProgress != null) dp(8) else dp(18), 0, 0)
+            setPadding(0, if (percent < 0) dp(18) else 0, 0, 0)
         })
+
+        // 进度条紧贴在百分比数字**上一行**：先条、后数字。
+        // 之前进度条画在最顶上，中间隔着说明文字，百分比和条离得很远，看着对不上。
+        if (percent >= 0) {
+            // 用官方 Material 的 LinearProgressIndicator（M3 外形：圆角轨道 + 末端停止点）。
+            //
+            // 关于"波浪"：Material 1.13.0 的 View 版确实带了 waveAmplitude /
+            // wavelengthDeterminate 属性，但实测画不出波浪 —— 振幅由 Drawable 的 level 决定
+            // （DeterminateDrawable.getAmplitudeFractionFromLevel：只有 level 落在
+            //  1000~9000 才给 1），而 View 层没有公开的入口去驱动它；
+            // 真要有波浪得引 Compose（LinearWavyProgressIndicator），为了一个进度条不划算。
+            // 结论：用官方直条，不自己画。
+            wavyProgress = com.google.android.material.progressindicator.LinearProgressIndicator(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(18) }
+                isIndeterminate = percentUnknown
+                if (!percentUnknown) setProgressCompat(percent, true)
+                trackCornerRadius = dp(6)
+                trackThickness = dp(6)
+                setIndicatorColor(Color.parseColor("#006877"))
+                setTrackColor(Color.parseColor("#C9D4D8"))
+                tag = TAG_PROGRESS_BAR
+            }
+            content.addView(wavyProgress)
+
+            content.addView(TextView(this).apply {
+                text = if (percentUnknown) "已下载 ${formatMb(downloadedBytes)}" else "$percent%"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+                setTextColor(Color.parseColor("#006877"))
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                setPadding(0, dp(8), 0, 0)
+                tag = TAG_PROGRESS_TEXT
+            })
+        }
 
         if (detail != null) {
             content.addView(TextView(this).apply {
@@ -172,18 +196,6 @@ class MainActivity : Activity() {
                 gravity = Gravity.CENTER
                 setLineSpacing(dp(4).toFloat(), 1f)
                 setPadding(0, dp(10), 0, 0)
-            })
-        }
-
-        if (percent >= 0) {
-            content.addView(TextView(this).apply {
-                text = if (percentUnknown) "已下载 ${formatMb(downloadedBytes)}" else "$percent%"
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-                setTextColor(Color.parseColor("#006877"))
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER
-                setPadding(0, dp(12), 0, 0)
-                tag = TAG_PROGRESS_TEXT
             })
         }
 
@@ -235,15 +247,11 @@ class MainActivity : Activity() {
             gravity = Gravity.START
         })
 
-        // 波浪进度条要占满宽度，所以放在有内边距的内容区外面
-        if (wavyProgress != null) {
-            page.addView(
-                wavyProgress,
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)).apply {
-                    topMargin = dp(10)
-                }
-            )
-        }
+        // 注意：波浪进度条现在是在 content 里、紧贴百分比数字上方那一个。
+        // 原来这里还有一处 page.addView(wavyProgress)（为了让进度条占满整宽），
+        // 同一个 View 被加进两个父容器，直接抛
+        // "The specified child already has a parent" —— 一进下载界面就崩。
+        // 进度条改成"跟在百分比上面"之后，这一处必须删掉。
 
         // 上方一段弹性空白 + 内容 + 下方一段弹性空白：这样内容才是"剩余空间的中间"，
         // 只给内容加 weight=1 会让它贴着标题往下排（看着偏上）。
@@ -325,82 +333,6 @@ class MainActivity : Activity() {
             }
             false // 不消费事件，交给 Button 自己处理点击
         }
-    }
-
-    /**
-     * 自绘的 M3 圆环加载指示器：一段圆弧持续旋转。
-     *
-     * 用自绘而不是 Material 的 CircularProgressIndicator：
-     * 后者的绘制尺寸由它内部 spec 决定，在真机上设了 indicatorSize 仍被画成一个点；
-     * 自绘能完全控制半径与线宽，不会再出现"只是一个点"。
-     */
-    private class M3RingView(context: android.content.Context) : View(context) {
-        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            style = android.graphics.Paint.Style.STROKE
-            strokeCap = android.graphics.Paint.Cap.ROUND
-            color = Color.parseColor("#006877")
-        }
-        private var angle = 0f
-        private var animator: android.animation.ValueAnimator? = null
-
-        /**
-         * 自己算测量尺寸，不依赖父容器给多大。
-         * 之前圆环会被画成一个点：父容器（垂直 LinearLayout 里的居中内容）
-         * 在某些约束下只给了它极小的高度，onDraw 里按 minOf(width,height) 算半径，
-         * 于是半径也极小。这里强制 ≥ 56dp 且保持正方形。
-         */
-        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            val want = dp(56)
-            val w = resolveSize(want, widthMeasureSpec).coerceAtLeast(want)
-            val h = resolveSize(want, heightMeasureSpec).coerceAtLeast(want)
-            val side = maxOf(w, h)
-            setMeasuredDimension(side, side)
-        }
-
-        fun start() {
-            if (animator != null) return
-            animator = android.animation.ValueAnimator.ofFloat(0f, 360f).apply {
-                duration = 1200L
-                repeatCount = android.animation.ValueAnimator.INFINITE
-                interpolator = LinearInterpolator()
-                addUpdateListener {
-                    angle = it.animatedValue as Float
-                    invalidate()
-                }
-                start()
-            }
-        }
-
-        override fun onAttachedToWindow() {
-            super.onAttachedToWindow()
-            start()
-        }
-
-        override fun onDetachedFromWindow() {
-            animator?.cancel()
-            animator = null
-            super.onDetachedFromWindow()
-        }
-
-        override fun onDraw(canvas: android.graphics.Canvas) {
-            super.onDraw(canvas)
-            val size = minOf(width, height).toFloat()
-            if (size <= 0f) return
-            val stroke = (size * 0.09f).coerceAtLeast(dp(3).toFloat())
-            paint.strokeWidth = stroke
-            val inset = stroke / 2f
-            val box = android.graphics.RectF(inset, inset, size - inset, size - inset)
-            // 底圈（淡）
-            paint.alpha = 46
-            canvas.drawArc(box, 0f, 360f, false, paint)
-            // 转动的那一段（约 100 度）
-            paint.alpha = 255
-            canvas.drawArc(box, angle, 100f, false, paint)
-        }
-
-        private fun dp(value: Int): Int = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
-        ).toInt()
     }
 
     /**

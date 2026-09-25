@@ -1,9 +1,9 @@
 {
-  "webVersion": "14",
-  "webVersionCode": 14,
-  "updatedAt": "2026-09-25T19:20:00+08:00",
+  "webVersion": "15",
+  "webVersionCode": 15,
+  "updatedAt": "2026-09-25T19:55:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 14：①修手机端「个人中心」面板被挤出屏幕（320px 的 min-width 在窄屏上把面板左半边顶到屏幕外，邮箱直接看不见）；②网页版本 13 的内容：修改权限改成「未过期的都能改」（含时光机）、手机端时光机日期框独占一行+两个按钮平分一行、灯箱阴影不再被屏幕边缘吃掉且关闭时图片飞回原位、分栏按实测高度装箱且高的列一定在最左边。",
+  "webNote": "网页版本 15：把页面上还留着的旧说法改掉 —— 权限早就从「只能改当天发布的」改成「未过期的都能改」了，但首页横幅、删除确认框、无权限提示里还写着「仅限当天」。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
@@ -16,10 +16,10 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.7",
-  "apkVersionCode": 260007,
+  "apkVersion": "26.0.8",
+  "apkVersionCode": 260008,
   "apkMandatory": true,
-  "apkNotes": "修掉开屏检查更新只显示一个圆点：showSplash 少了 loading=true，走成了文字兜底分支。",
+  "apkNotes": "①开屏的加载指示器改用官方 Material 组件 LoadingIndicator（就是 M3 那种转着转着换个形状的），不再自己画圆环；②下载更新时进度条移到百分比数字正上方一行。",
   "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
@@ -28,6 +28,6 @@
     "webManifestTable": "app_web_manifest",
     "appReleaseTable": "app_releases"
   },
-  "apkMandatorySince": 260007,
+  "apkMandatorySince": 260008,
   "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
 }

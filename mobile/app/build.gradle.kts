@@ -28,10 +28,10 @@ android {
     applicationId = "com.dogoffurina.homeworkshower"
     minSdk = 24
     targetSdk = 34
-    // App 版本号规则：26.0.7 = 年份(26).大功能(0).小补丁(7)，打包号 260007
+    // App 版本号规则：26.0.8 = 年份(26).大功能(0).小补丁(8)，打包号 260008
     // 注意：这与网页版本（docs/version.json 里的 webVersionCode，纯递增数字）是两套。
-    versionCode = 260007
-    versionName = "26.0.7"
+    versionCode = 260008
+    versionName = "26.0.8"
   }
 
   signingConfigs {
@@ -73,5 +73,5 @@ dependencies {
   implementation("androidx.core:core-ktx:1.13.1")
   // Material Components：M3 的进度条（波浪形 LinearProgressIndicator）、涟漪、
   // 动效插值器都用官方实现，不再自己画 —— 自绘的观感比不上官方组件。
-  implementation("com.google.android.material:material:1.12.0")
+  implementation("com.google.android.material:material:1.13.0")
 }
