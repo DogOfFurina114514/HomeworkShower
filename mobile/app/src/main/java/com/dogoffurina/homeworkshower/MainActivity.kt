@@ -378,6 +378,9 @@ class MainActivity : Activity() {
         }
         // 累积强制规则：本地低于历史最高强制版本 → 强制更新到最新
         val mandatory = UpdateChecker.isMandatory(info, localAppCode)
+        // 只用来决定按钮文案（下过一次就写「重新安装」），**不用来决定要不要放行**。
+        val alreadyDownloaded = UpdateChecker.downloadedApkVersion(this) >= info.apkVersionCode
+
         val notes = if (info.apkNotes.isBlank()) "" else "\n\n更新内容：${info.apkNotes}"
         val detail = "当前版本 ${UpdateChecker.localVersionName(this)}（$localAppCode）\n" +
             "最新版本 ${info.apkVersion}（${info.apkVersionCode}）" + notes +
@@ -386,9 +389,11 @@ class MainActivity : Activity() {
         showSplash(
             message = if (mandatory) "需要更新应用" else "发现新版本",
             detail = detail,
-            buttonText = "立即更新",
-            onClick = { downloadAppUpdate(info) },
-            // 强制更新时不给"稍后"，只给"退出"
+            buttonText = if (alreadyDownloaded) "重新安装" else "立即更新",
+            onClick = { downloadAppUpdate(info, mandatory) },
+            // 强制更新**任何情况下都不给「稍后」**：安装包下过没有、安装器有没有被取消，
+            // 都不改变"这个版本必须装"这件事 —— 给一条"稍后"的路等于强制形同虚设。
+            // 装不上只能重装，或者退出。
             secondaryButtonText = if (mandatory) "退出" else "稍后",
             onSecondary = {
                 if (mandatory) finishAffinity() else checkWebUpdate(info)
@@ -396,7 +401,7 @@ class MainActivity : Activity() {
         )
     }
 
-    private fun downloadAppUpdate(info: UpdateChecker.VersionInfo) {
+    private fun downloadAppUpdate(info: UpdateChecker.VersionInfo, mandatory: Boolean) {
         showSplash(
             message = "正在下载安装包",
             detail = "下载完成后会自动打开系统安装器。",
@@ -423,29 +428,45 @@ class MainActivity : Activity() {
                         message = "下载失败",
                         detail = result.message + "\n\n可以重试，或到 GitHub Releases 手动下载。",
                         buttonText = "重试",
-                        onClick = { downloadAppUpdate(info) },
-                        secondaryButtonText = "先跳过",
-                        onSecondary = { checkWebUpdate(info) }
+                        onClick = { downloadAppUpdate(info, mandatory) },
+                        // 强制更新没有"先跳过"：重试或退出
+                        secondaryButtonText = if (mandatory) "退出" else "先跳过",
+                        onSecondary = {
+                            if (mandatory) finishAffinity() else checkWebUpdate(info)
+                        }
                     )
                     return@post
                 }
+                // 记下"这个版本已经下好了"，只用于把按钮文案换成「重新安装」
+                UpdateChecker.saveDownloadedApkVersion(this, info.apkVersionCode)
                 try {
                     ApkUpdater.install(this, file)
-                    // 安装器已经拉起，回到"稍后/跳过"这一步，避免用户取消安装后卡在这里
+                    // 强制更新时这里也**不能**放行：安装器被取消是很常见的，
+                    // 一旦给了"先跳过"，用户就绕过强制更新了。
                     showSplash(
                         message = "已交给系统安装器",
-                        detail = "按提示完成安装即可。装好后重新打开应用会自动进入。",
-                        buttonText = "先跳过",
-                        onClick = { checkWebUpdate(info) },
-                        secondaryButtonText = "退出",
-                        onSecondary = { finishAffinity() }
+                        detail = if (mandatory) {
+                            "按提示完成安装即可。\n\n如果安装器被取消，点「重新安装」再来一次 —— 这个版本必须装好才能继续使用。"
+                        } else {
+                            "按提示完成安装即可。\n\n没装成也没关系，点「先跳过」照样能进应用。"
+                        },
+                        buttonText = if (mandatory) "重新安装" else "先跳过",
+                        onClick = {
+                            if (mandatory) downloadAppUpdate(info, true) else checkWebUpdate(info)
+                        },
+                        secondaryButtonText = if (mandatory) "退出" else null,
+                        onSecondary = if (mandatory) ({ finishAffinity() }) else null
                     )
                 } catch (error: Throwable) {
                     showSplash(
                         message = "无法拉起安装器",
                         detail = "安装包已下载到：\n${file.absolutePath}\n\n请手动打开安装；若系统提示，请允许本应用安装未知应用。",
-                        buttonText = "知道了",
-                        onClick = { checkWebUpdate(info) }
+                        buttonText = if (mandatory) "重新安装" else "知道了",
+                        onClick = {
+                            if (mandatory) downloadAppUpdate(info, true) else checkWebUpdate(info)
+                        },
+                        secondaryButtonText = if (mandatory) "退出" else null,
+                        onSecondary = if (mandatory) ({ finishAffinity() }) else null
                     )
                 }
             }

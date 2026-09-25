@@ -247,6 +247,11 @@ html.hs-booting body {
 .subject-homework-list {
   display: block;
   width: 100%;
+  /* m3e-list 自己带着 overflow: auto，而卡片的阴影是画在 M3E 内部那层 surface 上的 ——
+     宿主这一层的 overflow 会在自己的 padding box 上把它裁掉，表现就是
+     "卡片四周的阴影被切平了，右边最明显"。
+     这里放开裁切，让阴影能画到列表盒子外面去。 */
+  overflow: visible;
   --m3e-segmented-list-segment-gap: 0.125rem;
   --m3e-segmented-list-container-shape: 0.75rem;
   --m3e-segmented-list-item-container-color: var(--md-sys-color-surface-container-low, #eff4f6);

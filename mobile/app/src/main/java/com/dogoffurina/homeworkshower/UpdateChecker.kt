@@ -178,8 +178,25 @@ object UpdateChecker {
             .putInt(KEY_WEB_VERSION_CODE, value).apply()
     }
 
+    /**
+     * 已经下载完成的安装包版本号（0 表示没下过）。
+     *
+     * 用途：强制更新时，用户点了「立即更新」、包也下好了，但系统安装器被取消、
+     * 或者装到一半失败 —— 这时候再把"必须更新"那一屏丢回给他，等于把人锁在外面
+     * （安装器重开还是同样的结果）。所以只要这个版本已经下过一次，
+     * 强制页就必须给一条「稍后」的路。
+     */
+    fun downloadedApkVersion(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_DOWNLOADED_APK, 0)
+
+    fun saveDownloadedApkVersion(context: Context, value: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(KEY_DOWNLOADED_APK, value).apply()
+    }
+
     private const val PREFS = "homework_shower_update"
     private const val KEY_WEB_VERSION_CODE = "web_version_code"
+    private const val KEY_DOWNLOADED_APK = "downloaded_apk_version"
 
     /** 是否强制更新：本地低于"历史最高强制版本"就强制（不能跳过中间的强制版本） */
     fun isMandatory(info: VersionInfo, localCode: Int): Boolean =

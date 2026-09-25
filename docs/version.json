@@ -1,9 +1,9 @@
 {
-  "webVersion": "17",
-  "webVersionCode": 17,
-  "updatedAt": "2026-09-25T21:35:00+08:00",
+  "webVersion": "18",
+  "webVersionCode": 18,
+  "updatedAt": "2026-09-25T22:15:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 17：把页面里静态资源的版本号从 v84/v78 统一提到 v85。App 内置站点没设 Cache-Control，WebView 会按默认启发式缓存，之前改了 board.js / client.js / app.css 却没提这个号 —— 热更新虽然换了文件，客户端仍可能继续跑缓存里的旧脚本（表现就是「推送了但用户那边没变化」，权限相关的修复也就到不了）。",
+  "webNote": "网页版本 18：修作业卡片的阴影被截断。m3e-list 自带 overflow: auto，而卡片的阴影（悬停/选中时的 box-shadow）画在列表盒子边缘上，会被这一层在 padding box 上裁掉 —— 所以四周看着是硬边、右边最明显。给 .subject-homework-list 放开 overflow，资源版本号提到 v86。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
@@ -16,10 +16,10 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.9",
-  "apkVersionCode": 260009,
+  "apkVersion": "26.0.10",
+  "apkVersionCode": 260010,
   "apkMandatory": true,
-  "apkNotes": "①网页热更新改成开屏自动进行，不再问「要不要更新」，只保留进度条；失败了才给「重试/退出」。②启动顺序固定为「先提示应用更新，再热更新」。③内置站点返回的响应加上 no-store —— 以前没有缓存头，WebView 会按默认启发式缓存，热更新换了文件页面却还在跑旧脚本（这正是「推送了但用户那边没变化」的来源）。",
+  "apkNotes": "①作业卡片的阴影不再被截断（m3e-list 自带的 overflow:auto 把卡片的悬停/选中阴影裁掉了，右侧最明显）；②强制更新不再留任何缺口：不管安装包下没下过、安装器有没有被取消，都只有「重新安装」或「退出」，没有「稍后/跳过」。",
   "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
@@ -28,6 +28,6 @@
     "webManifestTable": "app_web_manifest",
     "appReleaseTable": "app_releases"
   },
-  "apkMandatorySince": 260009,
+  "apkMandatorySince": 260010,
   "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
 }
