@@ -1,9 +1,9 @@
 {
-  "webVersion": "12",
-  "webVersionCode": 12,
-  "updatedAt": "2026-09-25T15:10:00+08:00",
+  "webVersion": "13",
+  "webVersionCode": 13,
+  "updatedAt": "2026-09-25T18:40:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本是独立的递增数字（1、2、3…），与 App 版本完全分开：只改网页时把这个数字 +1，apkVersion 保持不动，App 就会走热更新。",
+  "webNote": "网页版本 13：①修改权限从「只能改当天发布的」改成「未过期的都能改」（含时光机）；②手机端时光机日期框独占一行、两个按钮平分一行；③灯箱阴影不再被屏幕边缘吃掉、关闭时图片飞回原位、打开时卡片里的原图不再留一张；④分栏改成按实测高度装箱，高的列一定在最左边。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

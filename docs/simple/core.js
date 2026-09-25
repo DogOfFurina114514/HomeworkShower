@@ -32,6 +32,8 @@
   }
 
   function isExpired(due) { return due ? String(due) < todayString() : false; }
+  // 一整行是否过期 = 发布者显式作废 或 期限已过（与后端 RLS can_edit_homework 一致）
+  function isRowExpired(row) { return !row ? false : (!!row.expired || isExpired(row.due_date)); }
 
   /* ---------------------------------------------------------- 自绘图标 */
 
@@ -369,17 +371,18 @@
       return '<div class="col">' + bucket.map(function (group) {
         return '<section class="group"><h2>' + escapeHtml(group.subject) + "</h2>" +
           group.items.map(function (item) {
-            var expired = isExpired(item.due_date);
+            var expired = isRowExpired(item);
+            var editable = !!options.canManage && !expired;
             var selected = options.selectedId && String(options.selectedId) === String(item.id);
             var content = item.content_html ? item.content_html : escapeHtml(item.content).replace(/\n/g, "<br>");
             var tags = (item.tags || []).length ? '<span class="tags">' + item.tags.map(function (tag) {
               return '<span class="tag">' + escapeHtml(tag) + "</span>";
             }).join("") + "</span>" : "";
-            var actions = options.canManage ? '<span class="actions">' +
+            var actions = editable ? '<span class="actions">' +
               '<button class="pill text" data-edit="' + item.id + '">' + icon("edit", 18) + "修改</button>" +
               '<button class="pill text" data-delete="' + item.id + '">' + icon("trash", 18) + "删除</button></span>" : "";
             return '<div class="item' + (expired ? " expired" : "") + (selected ? " selected" : "") +
-              (options.canManage ? " clickable" : "") + '" data-id="' + item.id + '">' + content + tags + actions + "</div>";
+              (editable ? " clickable" : "") + '" data-id="' + item.id + '">' + content + tags + actions + "</div>";
           }).join("") + "</section>";
       }).join("") + "</div>";
     }).join("") + "</div>";
@@ -472,7 +475,14 @@
   }
   /* ---------------------------------------------------------- 页面：看板 */
 
-  function pageIndex() {
+
+  /* ------------------------------------------------------------------
+   *  看板共享状态与动作
+   *
+   *  提到模块作用域的原因：主界面（pageIndex）和时光机（pageTimemachine）现在
+   *  共用同一套「点击卡片 → 选中/修改/删除」，时光机也能改未过期的作业。
+   *  这几个函数只依赖模块级的 api/renderBoard/message/dialog/config，搬出来是安全的。
+   * ------------------------------------------------------------------ */
     var rows = [];
     var selectedId = null;
     var currentDate = "";
@@ -503,10 +513,11 @@
 
     function loadDay(date) {
       message("正在加载…");
-      api("homeworks?select=id,subject,content,content_html,tags,due_date,sort_order&published_on=eq." + date + "&order=subject.asc,sort_order.asc")
+      api("homeworks?select=id,subject,content,content_html,tags,due_date,expired,sort_order&published_on=eq." + date + "&order=subject.asc,sort_order.asc")
         .then(function (data) {
-          rows = data.filter(function (row) { return !isExpired(row.due_date); });
-          manage = canEdit() && date === todayString();
+          rows = data;
+          // 权限只看角色，过不过期是逐条判定的
+          manage = canEdit();
           message(formatDate(date) + " · 共 " + rows.length + " 条作业" + (manage ? " · 点击作业可修改或删除" : ""));
           renderBoard(rows, { canManage: manage, selectedId: selectedId, emptyText: "今天没有需要做的作业" });
         })
@@ -560,7 +571,7 @@
       if (!manage) return void message("你的修改权限已被撤销", true);
       dialog({
         title: "删除这条作业？",
-        body: "<p>删除后无法恢复。只有当天发布的内容可以修改或删除。</p>",
+        body: "<p>删除后无法恢复。只有未过期的作业可以修改或删除。</p>",
         actions: [
           { label: "取消" },
           {
@@ -576,40 +587,9 @@
       });
     }
 
-    topbar({ title: config.siteName || "作业", showTimemachine: true });
-    if (!session()) {
-      var banner = document.createElement("div");
-      banner.className = "banner";
-      banner.innerHTML = "<span>还没有登录：登录后可以用时光机查看以前的作业，也才能发布或修改（仅限当天）。</span>" +
-        '<a class="pill primary" href="login.html">登录 / 注册</a>';
-      document.body.insertBefore(banner, $("board"));
-    } else {
-      $("account-label").innerHTML = "个人中心";
-      $("account-button").setAttribute("href", "#");
-      $("account-button").onclick = function (event) {
-        event.preventDefault();
-        dialog({
-          title: "个人中心",
-          body: "<p>当前身份：<b>" + roleLabel(profile ? profile.role : "user") + "</b><br>" +
-            escapeHtml((session() || {}).email || "") + "</p>",
-          actions: [
-            {
-              label: "退出登录",
-              onClick: function (close) {
-                close();
-                try { window.localStorage.removeItem(STORAGE_KEY); } catch (error) {}
-                location.href = "login.html";
-              }
-            },
-            { label: "关闭", primary: true }
-          ]
-        });
-      };
-    }
-    bindAccount();
-    fab(exportJson);
-
-    $("board").onclick = function (event) {
+    /** 作业卡片的点击/选中/编辑入口。主界面和时光机共用同一套（时光机现在也能改未过期的作业）。 */
+    function bindBoard() {
+      $("board").onclick = function (event) {
       var editId = event.target.getAttribute && event.target.getAttribute("data-edit");
       var deleteId = event.target.getAttribute && event.target.getAttribute("data-delete");
       if (editId) return void editItem(editId);
@@ -617,10 +597,12 @@
       var node = event.target;
       while (node && node !== this && !(node.getAttribute && node.getAttribute("data-id"))) node = node.parentNode;
       if (!node || node === this || !node.getAttribute || !node.getAttribute("data-id")) return;
+      // 已过期的行没有 clickable，点了也不该弹「申请管理员」——先说过期
+      if (node.className && node.className.indexOf("expired") >= 0) return void message("已过期的作业不能修改", true);
       if (!manage) {
         dialog({
           title: "仅管理员可修改作业",
-          body: "<p>当前身份是「" + roleLabel(profile ? profile.role : "user") + "」。只有发布者与管理员可以修改作业，而且只能修改当天发布的内容。</p>",
+          body: "<p>当前身份是「" + roleLabel(profile ? profile.role : "user") + "」。只有发布者与管理员可以修改作业，而且只能修改未过期的作业。</p>",
           actions: [
             { label: "我知道了" },
             {
@@ -653,7 +635,43 @@
       }
       selectedId = selectedId === node.getAttribute("data-id") ? null : node.getAttribute("data-id");
       renderBoard(rows, { canManage: manage, selectedId: selectedId });
-    };
+      };
+    }
+
+  function pageIndex() {
+    topbar({ title: config.siteName || "作业", showTimemachine: true });
+    if (!session()) {
+      var banner = document.createElement("div");
+      banner.className = "banner";
+      banner.innerHTML = "<span>还没有登录：登录后可以用时光机查看以前的作业，也才能发布或修改（仅限未过期的作业）。</span>" +
+        '<a class="pill primary" href="login.html">登录 / 注册</a>';
+      document.body.insertBefore(banner, $("board"));
+    } else {
+      $("account-label").innerHTML = "个人中心";
+      $("account-button").setAttribute("href", "#");
+      $("account-button").onclick = function (event) {
+        event.preventDefault();
+        dialog({
+          title: "个人中心",
+          body: "<p>当前身份：<b>" + roleLabel(profile ? profile.role : "user") + "</b><br>" +
+            escapeHtml((session() || {}).email || "") + "</p>",
+          actions: [
+            {
+              label: "退出登录",
+              onClick: function (close) {
+                close();
+                try { window.localStorage.removeItem(STORAGE_KEY); } catch (error) {}
+                location.href = "login.html";
+              }
+            },
+            { label: "关闭", primary: true }
+          ]
+        });
+      };
+    }
+    bindAccount();
+    fab(exportJson);
+    bindBoard();
 
     api("publish_batches?select=published_on&order=published_on.desc&limit=400")
       .then(function (batches) {
@@ -668,7 +686,7 @@
     window.setInterval(function () {
       refreshProfile().then(function () {
         if (profile && profile.banned) return void (location.href = "ban.html");
-        var next = canEdit() && currentDate === todayString();
+        var next = canEdit();
         if (next !== manage) {
           manage = next;
           if (!manage) selectedId = null;
@@ -687,6 +705,7 @@
 
     var picker = $("date-picker");
     bindAccount();
+    bindBoard();
     message("请选择一个日期");
 
     api("publish_batches?select=published_on&order=published_on.desc&limit=400")
@@ -715,10 +734,17 @@
     picker.onchange = function () {
       if (!picker.value) return;
       message("正在加载…");
-      api("homeworks?select=id,subject,content,content_html,tags,due_date,sort_order&published_on=eq." + picker.value + "&order=subject.asc,sort_order.asc")
-        .then(function (rows) {
-          message(formatDate(picker.value) + " · 共 " + rows.length + " 条作业");
-          renderBoard(rows, { emptyText: "这一天没有作业" });
+      api("homeworks?select=id,subject,content,content_html,tags,due_date,expired,sort_order&published_on=eq." + picker.value + "&order=subject.asc,sort_order.asc")
+        .then(function (data) {
+          rows = data;
+          currentDate = picker.value;
+          selectedId = null;
+          // 时光机也能改未过期的作业：权限只看角色，过不过期逐条判定
+          manage = canEdit();
+          var editableCount = rows.filter(function (row) { return !isRowExpired(row); }).length;
+          message(formatDate(picker.value) + " · 共 " + rows.length + " 条作业" +
+            (manage ? (editableCount ? " · " + editableCount + " 条未过期可修改" : " · 这一天的作业都已过期") : ""));
+          renderBoard(rows, { canManage: manage, selectedId: selectedId, emptyText: "这一天没有作业" });
         })
         .catch(function (error) { message("加载失败：" + error.message, true); });
     };
@@ -732,7 +758,7 @@
     var card = document.createElement("div");
     card.className = "card";
     card.innerHTML = "<h2>登录 / 注册</h2>" +
-      '<p class="status" id="status">登录后可以用时光机，也才能发布或修改作业（仅限当天）。</p>' +
+      '<p class="status" id="status">登录后可以用时光机，也才能发布或修改作业（仅限未过期的作业）。</p>' +
       '<label class="field"><span>邮箱</span><input id="email" type="email" /></label>' +
       '<label class="field"><span>密码（至少 8 位）</span><input id="password" type="password" /></label>' +
       '<label class="field" id="confirm-row" style="display:none"><span>确认密码</span><input id="confirm" type="password" /></label>' +

@@ -61,6 +61,16 @@
     return String(dueDate) < todayString();
   }
 
+  /**
+   * 一整行是否过期 = 发布者显式作废 或 期限已过。
+   * 这套判定必须和后端 RLS 的 can_edit_homework(expired, due_date) 完全一致，
+   * 否则会出现「按钮点了却报 42501」这种前后端各说各话的情况。
+   */
+  function isRowExpired(row) {
+    if (!row) return false;
+    return Boolean(row.expired) || isExpired(row.due_date);
+  }
+
   function showStatus(message, isError = false) {
     if (!statusEl) return;
     statusEl.textContent = message;
@@ -90,6 +100,8 @@
 
 /** 选中导致的局部重绘：跳过入场动画，只让卡片自己缩放 */
   let skipEnterAnimation = false;
+  /** 渲染序号：异步分栏回来时用它判断"这次渲染是不是已经过期了" */
+  let renderToken = 0;
 
   function renderBoard(rows) {
     if (!rows.length) {
@@ -111,7 +123,10 @@
         const content = homework.content_html
           ? hs.sanitizeHtml(homework.content_html)
           : hs.escapeHtml(homework.content).replace(/\n/g, "<br>");
-        const expired = isExpired(homework.due_date);
+        const expired = isRowExpired(homework);
+        // 权限按「单条是否过期」判定：有过期标记或期限已过的，任何人都只能看。
+        // 与后端 RLS 的 can_edit_homework(expired, due_date) 一一对应。
+        const editable = canManage && !expired;
         // dataset.id 是字符串，数据库 id 是数字，必须统一成字符串比较
         const selected = String(selectedId) === String(homework.id);
         const tags = (homework.tags || []).length
@@ -120,14 +135,14 @@
               .join("")}</div>`
           : "";
         // 操作按钮常驻卡片内（绝对定位浮在右下角，不占布局），选中时用 CSS 淡入
-        const actions = canManage
+        const actions = editable
           ? `<span class="homework-actions">
               <m3e-icon-button data-action="edit" data-id="${homework.id}" aria-label="修改作业" title="修改作业"><m3e-icon variant="outlined" name="edit"></m3e-icon></m3e-icon-button>
               <m3e-icon-button data-action="delete" data-id="${homework.id}" aria-label="删除作业" title="删除作业"><m3e-icon variant="outlined" name="delete"></m3e-icon></m3e-icon-button>
             </span>`
           : "";
         return `
-          <m3e-list-action style="--i: ${homeworks.indexOf(homework)}" class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${canManage ? " homework-item--clickable" : ""}" data-id="${homework.id}">
+          <m3e-list-action style="--i: ${homeworks.indexOf(homework)}" class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${editable ? " homework-item--clickable" : ""}" data-id="${homework.id}">
             <span class="homework-content">
               <span class="homework-marker" aria-hidden="true"></span>
               <span class="homework-text">${content}</span>
@@ -144,13 +159,19 @@
         </section>`);
     }
 
-    // 先算好分栏，再把结果一次性插进页面 —— 不能先显示未分栏的内容再挪位置，
-    // 那样用户会看到"跳一下"。
+    // 先把内容整块插进页面（还没分栏），藏起来量到版面稳定，再分栏、再显示。
+    // 这样用户看到的永远是"排好了的结果"，不会先看到一版错的再跳一下。
     const noAnimClass = skipEnterAnimation ? " masonry-columns--no-anim" : "";
     boardEl.innerHTML = `<div class="masonry-columns${noAnimClass}">${sections.join("")}</div>`;
-    splitIntoColumns(boardEl.querySelector(".masonry-columns"));
-    // 注意：这里不再安排"延迟校正"。装箱用的是与字体无关的内容权重，
-    // 字体晚一点就绪也不会改变分配结果；之前那两次延迟校正反而让页面动了两下。
+    const wrap = boardEl.querySelector(".masonry-columns");
+    const token = ++renderToken;
+    boardEl.classList.add("homework-board--measuring");
+    Promise.all([whenImagesSettled(wrap), whenLayoutStable(wrap)]).then(() => {
+      // 期间又渲染了一次，或者这块 DOM 已经被换掉，就交给新的那次去做
+      if (token !== renderToken || !document.contains(wrap)) return;
+      splitIntoColumns(wrap);
+      boardEl.classList.remove("homework-board--measuring");
+    });
     skipEnterAnimation = false;
   }
 
@@ -181,6 +202,89 @@
     return weight;
   }
 
+  /**
+   * 等"能量准高度"的那一刻：m3e 组件升级完 + 字体加载完。
+   *
+   * 为什么值得等：分栏装箱和"高列放左边"都要靠真实高度，这两件事没就绪时
+   * 量出来的卡片是瘪的（实测一张 394px 的作文卡当时只有 56px）。
+   * 等待有上限（1.5 秒），超时就用内容权重估算兜底 ——
+   * 宁可排得差一点，也不能让页面一直空着。
+   */
+  let layoutReadyPromise = null;
+  function layoutReady() {
+    if (!layoutReadyPromise) {
+      const parts = [];
+      try {
+        parts.push(customElements.whenDefined("m3e-list-action"));
+      } catch (error) {
+        /* 浏览器不支持就跳过 */
+      }
+      try {
+        if (document.fonts && document.fonts.ready) parts.push(document.fonts.ready);
+      } catch (error) {
+        /* 忽略 */
+      }
+      layoutReadyPromise = Promise.race([
+        Promise.all(parts).catch(() => undefined),
+        new Promise((resolve) => window.setTimeout(resolve, 1500)),
+      ]);
+    }
+    return layoutReadyPromise;
+  }
+
+  /**
+   * 等正文里的图片加载完。
+   *
+   * 为什么单独等：没加载完的 <img> 高度很小但**很稳定**，
+   * 「连续两帧高度不变」这个判据会被它骗过去 —— 实测一张图能顶 340px，
+   * 少了它，那一列会被算矮，装箱也就不匀了。
+   * 上限 2000ms：图再多再慢也不能一直不显示。
+   */
+  function whenImagesSettled(root) {
+    const images = Array.from(root.querySelectorAll("img")).filter((img) => !img.complete);
+    if (!images.length) return Promise.resolve();
+    const all = Promise.all(
+      images.map(
+        (img) =>
+          new Promise((resolve) => {
+            img.addEventListener("load", resolve, { once: true });
+            img.addEventListener("error", resolve, { once: true });
+          })
+      )
+    );
+    return Promise.race([all, new Promise((resolve) => window.setTimeout(resolve, 2000))]);
+  }
+
+  /**
+   * 等版面稳定下来（连续两帧高度不变）再去分栏。
+   *
+   * 为什么不能"插进 DOM 就量"：m3e 的组件是异步升级的，它的样式还放在 shadow root
+   * 里另外加载 —— 实测 1034ms 时每个科目组量出来是 0 高（只剩 margin-bottom 的 36），
+   * 真实尺寸要再等一会儿才长出来。量早了装箱和排序都是错的。
+   *
+   * 上限 2000ms：网慢或组件一直不 ready 时也不能让页面永远空着，
+   * 到点就按当时量到的尺寸分栏（拿不到就退回内容权重兜底）。
+   */
+  function whenLayoutStable(element) {
+    return new Promise((resolve) => {
+      const started = performance.now();
+      let last = -1;
+      let sameCount = 0;
+      const tick = () => {
+        const height = Math.round(element.getBoundingClientRect().height);
+        if (height > 0 && height === last) sameCount += 1;
+        else sameCount = 0;
+        last = height;
+        if (sameCount >= 2 || performance.now() - started > 2000) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
   function splitIntoColumns(wrap) {
     if (!wrap) return;
     const groups = Array.from(wrap.querySelectorAll(".subject-group"));
@@ -189,11 +293,14 @@
     const boardWidth = boardEl.clientWidth || window.innerWidth || 1024;
     const count = Math.max(1, Math.min(groups.length, Math.floor((boardWidth - 48) / 358) || 1));
 
-    // 权重：内容特征，与字体无关
+    // 权重：内容特征，与字体无关（量不到真实高度时的兜底）
     const weights = groups.map((group) => contentWeight(group));
-    // 同时量一遍真实高度，仅用于最后把"高列排到左边"
+    // 同时量一遍真实高度，用来装箱 + 把"高列排到左边"
     const probe = document.createElement("div");
-    probe.className = "masonry-columns";
+    // 必须带上 --js：否则会命中 app.css 里那条"原生多列兜底"规则
+    // （.masonry-columns:not(.masonry-columns--js) 是 display:block + column-count:3），
+    // 探针里每列宽度会变成 1/3 而不是 1/count，量出来的高度就是错的。
+    probe.className = "masonry-columns masonry-columns--js";
     probe.style.position = "absolute";
     probe.style.left = "-100000px";
     probe.style.top = "0";
@@ -219,8 +326,17 @@
     });
     probe.remove();
 
-    // 装箱：按权重大小依次放进"当前总权重最小"的列
-    const assign = solveAssignment(weights, count);
+    // 装箱依据：优先**实测高度**（准），量不出来时才退回内容权重（稳）。
+    // 权重只是"内容量"的估算，和真实像素高度差得远：实测同一页里
+    // 「3 张卡 293 字 + 1 张图」=530px，而「3 张卡 304 字」只有 210px ——
+    // 一张图就顶 300 多像素，权重里的固定值根本反映不出来，
+    // 于是按权重装出来的列实际是 566/246/325/403，既不匀、也不是从高到低。
+    const trustMeasured = measured.length === groups.length &&
+      measured.every((value) => value > 0) && measured.some((value) => value > 120);
+    const sizes = trustMeasured ? measured : weights;
+
+    // 装箱：让"最高的一列"尽量矮，同高时让各列尽量均匀
+    const assign = solveAssignment(sizes, count);
 
     // 一次性重建
     wrap.classList.add("masonry-columns--js");
@@ -241,22 +357,38 @@
 
     // 高的一列放左边。
     //
-    // 不用"列总权重"排序：三列的权重可能几乎相同（实测 473/471/468），
-    // 排了等于没排。改用**该列里最重的那个组**做代表值 ——
-    // 一列高不高，主要由它最大的那块内容决定。
-    // 这个值固定，不随字体/时机变化，所以不会出现"加载后又动一下"。
+    // 依据是**实测列高**，不是权重。
+    // 之前用"该列里最重的那个组"当代表值，理由是权重不随字体变化、排序稳；
+    // 但它和眼睛看到的东西对不上 —— 实测过 566/246/325/403 这种：权重那边
+    // 排好了，屏幕上还是乱的。列已经建好，这里只是换顺序、不改任何一列的内容，
+    // 所以不会出现"加载后又动一下"。
     const columnLead = new Array(count).fill(0);
     weights.forEach((weight, index) => {
       const bin = assign[index];
       if (weight > columnLead[bin]) columnLead[bin] = weight;
     });
+    const columnHeight = columns.map((column) => column.getBoundingClientRect().height);
+    const orderOk = columnHeight.every((value) => value > 0) &&
+      columnHeight.some((value) => value > 120);
+    const rank = (index) => (orderOk ? columnHeight[index] : columnLead[index]);
     const order = columns
       .map((column, index) => ({ column, index }))
-      .sort((a, b) => columnLead[b.index] - columnLead[a.index]);
+      .sort((a, b) => rank(b.index) - rank(a.index));
     order.forEach(({ column }) => wrap.appendChild(column));
     window.__hsColumns = {
       count,
+      trustMeasured,
+      orderOk,
+      atMs: Math.round(performance.now()),
+      wrapWidth: Math.round(wrap.getBoundingClientRect().width),
+      boardWidth,
+      measured: measured.map((v) => Math.round(v)),
+      measuredNamed: groups.map((group, index) => {
+        const heading = group.querySelector("m3e-heading");
+        return `${heading ? heading.textContent.trim() : "?"}=${Math.round(measured[index])}`;
+      }),
       columnLead: columnLead.map((v) => Math.round(v)),
+      columnHeight: columnHeight.map((v) => Math.round(v)),
       order: order.map((o) => o.index),
       firstOfColumn: order.map(({ column }) => {
         const heading = column.querySelector("m3e-heading");
@@ -268,20 +400,32 @@
   /**
    * 装箱：组数不多就穷举，多则按高度降序放进最矮的列（LPT 近似）。
    *
-   * 打分标准是"最高列尽量矮"，同时在最高列相同的情况下让各列尽量均匀 ——
-   * 只看最高列会挑出 584/571/403 这种，最高列是矮了，但右边空一大块。
+   * 两个目标，按先后比较（不是加权求和）：
+   *   1. 最高的一列尽量矮 —— 页面高度由它决定；
+   *   2. 一样高的话，各列离平均值的平方偏差越小越好 —— 否则会出现
+   *      550/431/266/266 这种：最高列是压住了，中间那列却还高出一截。
+   * 之前把两条揉成 max*10000 + (max-min)，只看"最高和最低之差"，
+   * 550/431/266/266 和 550/376/321/266 得分完全一样，于是挑中了前者。
    */
   function solveAssignment(sizes, count) {
-    const score = (totals) => {
+    const evaluate = (totals) => {
       const max = Math.max(...totals);
-      const min = Math.min(...totals);
-      // 最高列优先（权重拉开量级），同等最高列时列间差距越小越好
-      return max * 10000 + (max - min);
+      const mean = totals.reduce((sum, value) => sum + value, 0) / totals.length;
+      let spread = 0;
+      totals.forEach((value) => {
+        spread += (value - mean) * (value - mean);
+      });
+      return { max, spread };
+    };
+    const isBetter = (candidate, best) => {
+      if (!best) return true;
+      if (candidate.max !== best.max) return candidate.max < best.max;
+      return candidate.spread < best.spread;
     };
 
     if (sizes.length <= 12) {
       const total = Math.pow(count, sizes.length);
-      let bestScore = Infinity;
+      let best = null;
       let bestAssign = null;
       for (let code = 0; code < total; code += 1) {
         const totals = new Array(count).fill(0);
@@ -293,9 +437,9 @@
           assign[i] = bin;
           totals[bin] += sizes[i];
         }
-        const s = score(totals);
-        if (s < bestScore) {
-          bestScore = s;
+        const current = evaluate(totals);
+        if (isBetter(current, best)) {
+          best = current;
           bestAssign = assign;
         }
       }
@@ -353,7 +497,7 @@
     const { data, error } = await hs.withTimeout(
       client
         .from("homeworks")
-        .select("id,subject,content,content_html,tags,due_date,sort_order")
+        .select("id,subject,content,content_html,tags,due_date,expired,sort_order")
         .eq("published_on", date)
         .order("subject", { ascending: true })
         .order("sort_order", { ascending: true }),
@@ -381,12 +525,14 @@
     showStatus("正在加载…");
     const rows = await fetchDay(batch);
     if (!rows) return;
+    await layoutReady();
 
-    const pending = rows.filter((row) => !isExpired(row.due_date));
+    const pending = rows.filter((row) => !isRowExpired(row));
     currentRows = pending;
     currentDate = batch;
     selectedId = null;
-    canManage = Boolean(profile && hs.canEditToday(profile) && batch === todayString());
+    // 主界面只列未过期的作业 —— 这里每一条都可以改
+    canManage = Boolean(profile && hs.canEditToday(profile));
     showStatus(
       (pending.length === rows.length
         ? `${formatDateLabel(batch)} · 共 ${pending.length} 条作业`
@@ -412,12 +558,22 @@
     showStatus("正在加载…");
     const rows = await fetchDay(date);
     if (!rows) return;
+    await layoutReady();
     currentRows = rows;
     currentDate = date;
     selectedId = null;
-    // 时光机是只读回看，不允许任何编辑；只有主界面（latest）才能改当天的内容
-    canManage = false;
-    showStatus(`${formatDateLabel(date)} · 共 ${rows.length} 条作业`);
+    // 时光机也能改：只要这一天的作业还没过期（后端 RLS 与这里同一套判定）。
+    // 已过期的行不带 homework-item--clickable，点了不会进选中态。
+    canManage = Boolean(profile && hs.canEditToday(profile));
+    const editableCount = rows.filter((row) => !isRowExpired(row)).length;
+    showStatus(
+      `${formatDateLabel(date)} · 共 ${rows.length} 条作业` +
+        (canManage
+          ? editableCount
+            ? ` · ${editableCount} 条未过期可修改`
+            : " · 这一天的作业都已过期"
+          : ""),
+    );
     renderBoard(rows);
   }
 
@@ -702,6 +858,10 @@
       }
       const row = findRow(id);
       if (!row || !editDialog) return;
+      if (isRowExpired(row)) {
+        hs.toast("已过期的作业不能修改");
+        return;
+      }
       setEditDialogMode(false);
       document.getElementById("edit-subject").value = row.subject || "";
       const duePicker = document.getElementById("edit-due-picker");
@@ -796,7 +956,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
           denied
             ? creating
               ? "新建失败：只有发布者与管理员可以新建作业。"
-              : "保存失败：只能修改当天发布的内容。"
+              : "保存失败：只能修改未过期的作业。"
             : `${creating ? "新建" : "保存"}失败：${error.message}`,
         );
         return;
@@ -809,6 +969,11 @@ const duePickerEl = document.getElementById("edit-due-picker");
     function openDelete(id) {
       if (!canManage) {
         hs.toast("你的修改权限已被撤销");
+        return;
+      }
+      const row = findRow(id);
+      if (row && isRowExpired(row)) {
+        hs.toast("已过期的作业不能删除");
         return;
       }
       if (!deleteDialog) return;
@@ -828,7 +993,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
         setDialogMessage(
           "delete-message",
           String(error.message).includes("row-level security") || error.code === "42501"
-            ? "删除失败：只能修改当天发布的内容。"
+            ? "删除失败：只能删除未过期的作业。"
             : `删除失败：${error.message}`,
         );
         return;
@@ -916,6 +1081,8 @@ const duePickerEl = document.getElementById("edit-due-picker");
     const lightboxImage = document.getElementById("lightbox-image");
     const lightboxDownloadLabel = document.getElementById("lightbox-download-label");
     let lightboxSrc = "";
+    /** 触发这次放大的那张原图：关闭时用它算"飞回原位"的目标位置 */
+    let lightboxSourceImage = null;
 
     /**
      * 只有**应用内**才写「保存到手机」（那里点了会走系统下载管理器）。
@@ -1131,6 +1298,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
     function openLightbox(image) {
       if (!lightboxEl || !lightboxImage) return;
       lightboxSrc = image.currentSrc || image.src || "";
+      lightboxSourceImage = image;
 
       const from = image.getBoundingClientRect();
       // 上一轮如果还在收尾（或动画留了 fill 残留），先全部取消，
@@ -1152,6 +1320,11 @@ const duePickerEl = document.getElementById("edit-due-picker");
         const fromWidth = from.width || to.width;
         const fromHeight = from.height || to.height;
         if (to.width <= 0 || to.height <= 0 || fromWidth <= 0 || fromHeight <= 0) return;
+
+        // 大图已经就位，这时候才把卡片里那张原图藏起来。
+        // 藏早了（大图还在加载）会出现"两张都看不见"的空档；
+        // 不藏的话，放大图飞到中间后原位置还留着一张小图 —— 看着就像没动过。
+        hideSourceImage();
 
         const dx = (from.left + fromWidth / 2) - (to.left + to.width / 2);
         const dy = (from.top + fromHeight / 2) - (to.top + to.height / 2);
@@ -1205,6 +1378,19 @@ const duePickerEl = document.getElementById("edit-due-picker");
       };
     }
 
+    /**
+     * 灯箱打开期间把卡片里的原图藏起来。
+     * 用 visibility 而不是 display/opacity：visibility 保留盒子，
+     * 关闭时那张图"飞回来"要用的 getBoundingClientRect() 才不会变成 0。
+     */
+    function hideSourceImage() {
+      if (lightboxSourceImage) lightboxSourceImage.style.visibility = "hidden";
+    }
+
+    function showSourceImage() {
+      if (lightboxSourceImage) lightboxSourceImage.style.visibility = "";
+    }
+
     /** 真正收尾：停掉动画、清掉 src 与残留，避免大图占内存、下次打开带旧位移 */
     function finishCloseLightbox() {
       lightboxCleanup?.();
@@ -1212,6 +1398,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
       // 会盖在元素上 —— 表现就是"第二次打开什么都没了，只有关闭动画"
       clearLightboxAnimations();
       lightboxEl.hidden = true;
+      showSourceImage();
       if (lightboxImage) {
         lightboxImage.removeAttribute("src");
         lightboxImage.style.transition = "";
@@ -1221,10 +1408,10 @@ const duePickerEl = document.getElementById("edit-due-picker");
       const actions = lightboxEl.querySelector(".lightbox__actions");
       if (actions) actions.style.opacity = "";
       lightboxSrc = "";
+      lightboxSourceImage = null;
     }
 
-    /** 取消灯箱上所有还在生效的动画（含 fill 残留） */
-    function clearLightboxAnimations() {
+    /** 取消灯箱上所有还在生效的动画（含 fill 残留） */    function clearLightboxAnimations() {
       if (!lightboxEl) return;
       try {
         if (lightboxEl.getAnimations) {
@@ -1350,6 +1537,27 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
     /** 灯箱出场：按钮与图片先淡出，背景再褪成透明 —— 播完才真正隐藏 */
     function animateLightboxOut(onDone) {
+      // 让图片"飞回它原来在卡片里的位置"，而不是原地淡出。
+      // 卡片可能已经滚出视口，那就先把页面滚回去（平滑滚动），滚动完再飞 ——
+      // 否则图片会飞向屏幕外，看着莫名其妙。
+      const target = lightboxSourceImage;
+      const rect = target && document.contains(target) ? target.getBoundingClientRect() : null;
+      const inView = rect && rect.bottom > 0 && rect.top < window.innerHeight &&
+        rect.right > 0 && rect.left < window.innerWidth;
+
+      if (target && rect && !inView) {
+        try {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch (error) {
+          target.scrollIntoView();
+        }
+        window.setTimeout(() => playOut(onDone), 320);
+        return;
+      }
+      playOut(onDone);
+    }
+
+    function playOut(onDone) {
       const actions = lightboxEl.querySelector(".lightbox__actions");
       const animations = [];
 
@@ -1357,26 +1565,57 @@ const duePickerEl = document.getElementById("edit-due-picker");
         animations.push(
           actions.animate(
             [{ opacity: 1 }, { opacity: 0 }],
-            { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+            { duration: 140, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
           )
         );
       }
-      if (lightboxImage && lightboxImage.animate) {
+
+      // 图片：按原位置/原大小飞回去（FLIP 的逆过程）
+      const target = lightboxSourceImage;
+      const rect = target && document.contains(target) ? target.getBoundingClientRect() : null;
+      let flying = false;
+      if (rect && lightboxImage && lightboxImage.animate && rect.width > 0 && rect.height > 0) {
+        const here = lightboxImage.getBoundingClientRect();
+        if (here.width > 0 && here.height > 0) {
+          const dx = (rect.left + rect.width / 2) - (here.left + here.width / 2);
+          const dy = (rect.top + rect.height / 2) - (here.top + here.height / 2);
+          const scale = Math.min(rect.width / here.width, rect.height / here.height);
+          flying = true;
+          animations.push(
+            lightboxImage.animate(
+              [
+                { transform: "translate(0px, 0px) scale(1)", opacity: 1, borderRadius: "12px" },
+                { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0.15, borderRadius: "8px" },
+              ],
+              { duration: 340, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "both" }
+            )
+          );
+        }
+      }
+      if (!flying && lightboxImage && lightboxImage.animate) {
+        // 找不到原图就退回淡出
         animations.push(
           lightboxImage.animate(
-            [{ opacity: 1, transform: getComputedStyle(lightboxImage).transform }, { opacity: 0 }],
+            [{ opacity: 1 }, { opacity: 0 }],
             { duration: 180, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
           )
         );
       }
+
       if (lightboxEl.animate) {
+        // 背景等图片飞得差不多了再褪掉
         animations.push(
           lightboxEl.animate(
             [
               { backgroundColor: "rgba(12, 18, 20, 0.88)", backdropFilter: "blur(2px)", webkitBackdropFilter: "blur(2px)" },
               { backgroundColor: "rgba(12, 18, 20, 0)", backdropFilter: "blur(0px)", webkitBackdropFilter: "blur(0px)" },
             ],
-            { duration: 200, delay: 80, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "both" }
+            {
+              duration: 220,
+              delay: flying ? 160 : 60,
+              easing: "cubic-bezier(0.4, 0, 1, 1)",
+              fill: "both",
+            }
           )
         );
       }
@@ -1386,9 +1625,14 @@ const duePickerEl = document.getElementById("edit-due-picker");
         return;
       }
       let remaining = animations.length;
+      let settled = false;
       const finish = () => {
+        if (settled) return;
         remaining -= 1;
-        if (remaining <= 0) onDone();
+        if (remaining <= 0) {
+          settled = true;
+          onDone();
+        }
       };
       animations.forEach((animation) => {
         animation.addEventListener("finish", finish);
@@ -1523,8 +1767,12 @@ const duePickerEl = document.getElementById("edit-due-picker");
         hs.toast("只有发布者和管理员可以修改作业");
         return;
       }
-      if (!canManage) {
-        hs.toast("只能修改当天发布的作业");
+      if (item.classList.contains("homework-item--expired")) {
+        hs.toast("已过期的作业不能修改");
+        return;
+      }
+      if (!item.classList.contains("homework-item--clickable")) {
+        hs.toast("你没有修改这条作业的权限");
         return;
       }
       // 只切 class：不重绘 → 多栏布局不重排、过渡能真正播放
@@ -1543,11 +1791,12 @@ const duePickerEl = document.getElementById("edit-due-picker");
      * 避免"撤销管理员后不刷新仍能继续修改"。
      */
     async function syncPermissions() {
-      if (mode !== "latest" || !currentDate) return;
+      if (!currentDate) return;
       try {
         const latest = await hs.getProfile();
         if (!latest) return;
-        const nextCanManage = Boolean(hs.canEditToday(latest) && currentDate === todayString());
+        // 「可编辑」只看角色，不看日期：过不过期是逐条判定的（RLS 与前端同一套规则）
+        const nextCanManage = Boolean(hs.canEditToday(latest));
         const changed = !profile || latest.role !== profile.role || nextCanManage !== canManage;
         profile = latest;
         if (!changed) return;
@@ -1716,7 +1965,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
               contentHtml: row.content_html ?? null,
               tags: row.tags || [],
               dueDate: row.due_date,
-              expired: isExpired(row.due_date),
+              expired: isRowExpired(row),
             });
           }
           const payload = { format: "stickyhomeworks2.homeworks", publishedOn: currentDate, subjects };

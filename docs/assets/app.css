@@ -163,6 +163,13 @@ html.hs-booting body {
   padding: 24px 20px 96px;
 }
 
+/* 分栏前先量版面：量的时候把内容藏起来。
+   用 visibility 而不是 display:none —— 后者量不到尺寸（全 0）；visibility 保留布局，
+   元素照样有真实宽高，只是用户看不见。排好了再显示，用户就不会看到"跳一下"。 */
+.homework-board--measuring {
+  visibility: hidden;
+}
+
 /* 列由 JS 分配：先量出每个科目组的高度，再装箱（见 board.js 的 layoutColumns）。
    JS 分栏时会给容器加 .masonry-columns--js，把下面的多列兜底关掉。 */
 .masonry-columns {
@@ -556,7 +563,12 @@ html body button {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  padding: 24px;
+  /* 左右内边距做成变量：下面要拿它算"图片最大宽度"，好给阴影留出余量 */
+  --lightbox-pad-x: 32px;
+  /* 阴影模糊半径 30px，图片外面至少要留这么多，否则阴影会一直铺到屏幕边缘，
+     看上去就像被切了一刀（手机上最明显）。 */
+  --lightbox-shadow-room: 26px;
+  padding: 36px var(--lightbox-pad-x);
   background: rgb(12 18 20 / 88%);
   backdrop-filter: blur(2px);
   /* 让放大后的图片能做"电子收藏卡"那种跟随鼠标的轻微立体倾斜 */
@@ -568,14 +580,21 @@ html body button {
 }
 
 .lightbox img {
-  max-width: min(1100px, 94vw);
-  /* 给下面的按钮留出位置 */
-  max-height: min(76vh, 900px);
+  /* 宽度上限 = 视口 - 两侧内边距 - 两侧阴影余量。
+     以前写 90vw：390px 的手机上只剩 19px 边距，而阴影要 30px，
+     于是右边（倾斜时翘得更高的一侧）最先被屏幕边缘吃掉。 */
+  max-width: min(
+    1100px,
+    calc(100vw - 2 * (var(--lightbox-pad-x) + var(--lightbox-shadow-room)))
+  );
+  /* 给下面的按钮留出位置，同时给阴影留出余量 */
+  max-height: min(64vh, 780px);
   object-fit: contain;
   border-radius: 12px;
   background: #fff;
   transform-style: preserve-3d;
   backface-visibility: hidden;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
 }
 
 .lightbox__actions {
@@ -595,12 +614,15 @@ html body button {
 
 @media (max-width: 700px) {
   .lightbox {
-    padding: 16px;
+    /* 手机上也要给阴影与倾斜留余量，别把 padding 压得太狠 */
+    --lightbox-pad-x: 18px;
+    --lightbox-shadow-room: 24px;
+    padding: 22px var(--lightbox-pad-x);
     gap: 14px;
   }
 
   .lightbox img {
-    max-height: 70vh;
+    max-height: 60vh;
   }
 }
 
@@ -959,12 +981,7 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   min-width: 260px;
 }
 
-/* 手机上窄，仍允许换行 */
-@media (max-width: 700px) {
-  .topbar__controls {
-    flex-wrap: wrap;
-  }
-}
+/* 手机上窄，改成固定两行两列（见文件末尾的移动端规则） */
 
 /* 右下角按钮：脱离可能建立包含块的祖先，避免点击时随页面"飞" */
 #fab-host {
@@ -1028,11 +1045,40 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   --m3e-icon-button-size: 32px;
 }
 
-/* 手机上顶栏会换行，收一点内边距，别让它显得格外高 */
+/* 手机端顶栏：日期框单独撑满一行，两个按钮平分下一行。
+   用 grid 而不是 flex-wrap —— flex 下每个子项宽度由内容决定，日期框只占 260px，
+   右边会空出一条；按钮也挤在左边。两行两列是固定结构，grid 更直白。
+   （m3e-datepicker 是 position:fixed 的浮层，display:none 时不成为栅格项，
+   打开时也已脱离文档流，不会来抢格子。） */
 @media (max-width: 700px) {
   .topbar {
     padding: 8px 14px;
     gap: 8px;
+  }
+
+  .topbar__controls {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar__controls > #date-field {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .topbar__controls > #back-button,
+  .topbar__controls > .account {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topbar__controls > .account > m3e-button {
+    width: 100%;
   }
 }
 

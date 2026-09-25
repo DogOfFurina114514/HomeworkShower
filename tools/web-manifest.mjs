@@ -58,9 +58,19 @@ const values = files.map((f) => `('${esc(f.path)}', '${f.hash}', ${f.bytes})`).j
 const paths = files.map((f) => `'${esc(f.path)}'`).join(", ");
 
 const sql = `
-insert into public.app_web_release (version, version_code, entry)
-values ('${esc(versionInfo.webVersion)}', ${Number(versionInfo.webVersionCode)}, '${esc(versionInfo.entry || "index.html")}')
-on conflict do nothing;
+-- 这张表被 check 约束钉死成单行（id = 1），所以必须显式写 id 并 on conflict (id)：
+-- 用 on conflict do nothing 的话没有任何唯一键会命中，就会去 insert 第二行，
+-- 直接被 app_web_release_single_row 顶回来（400）。
+-- 另外只允许版本号往前走，避免旧版本的回执把新版本盖回去。
+insert into public.app_web_release (id, version, version_code, entry, epoch)
+values (1, '${esc(versionInfo.webVersion)}', ${Number(versionInfo.webVersionCode)}, '${esc(versionInfo.entry || "index.html")}', now())
+on conflict (id) do update
+  set version = excluded.version,
+      version_code = excluded.version_code,
+      entry = excluded.entry,
+      published_at = now(),
+      epoch = now()
+where excluded.version_code >= public.app_web_release.version_code;
 
 insert into public.app_web_manifest (path, hash, bytes) values
   ${values}
