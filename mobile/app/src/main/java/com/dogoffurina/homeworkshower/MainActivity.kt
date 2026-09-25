@@ -83,7 +83,7 @@ class MainActivity : Activity() {
             WebView.setWebContentsDebuggingEnabled(false)
             root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             setContentView(root)
-            showSplash("正在检查更新…")
+            showSplash(message = "正在检查更新…", loading = true)
             startUpdateCheck()
         } catch (error: Throwable) {
             showCrash(error)
@@ -343,6 +343,20 @@ class MainActivity : Activity() {
         private var angle = 0f
         private var animator: android.animation.ValueAnimator? = null
 
+        /**
+         * 自己算测量尺寸，不依赖父容器给多大。
+         * 之前圆环会被画成一个点：父容器（垂直 LinearLayout 里的居中内容）
+         * 在某些约束下只给了它极小的高度，onDraw 里按 minOf(width,height) 算半径，
+         * 于是半径也极小。这里强制 ≥ 56dp 且保持正方形。
+         */
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val want = dp(56)
+            val w = resolveSize(want, widthMeasureSpec).coerceAtLeast(want)
+            val h = resolveSize(want, heightMeasureSpec).coerceAtLeast(want)
+            val side = maxOf(w, h)
+            setMeasuredDimension(side, side)
+        }
+
         fun start() {
             if (animator != null) return
             animator = android.animation.ValueAnimator.ofFloat(0f, 360f).apply {
@@ -389,7 +403,14 @@ class MainActivity : Activity() {
         ).toInt()
     }
 
-    /** 换界面时淡入淡出，避免"啪"地一下换掉 */
+    /**
+     * 换界面时淡入淡出。
+     *
+     * 注意：**不能让"是否可见"依赖动画是否真的跑起来**。
+     * 之前是 next.alpha = 0f 之后再 animate() 到 1；如果那一刻 Activity 还没真正显示，
+     * 属性动画不会执行，页面就永远停在 alpha = 0 —— 布局树里有节点、屏幕上却一片白。
+     * 现在先把新页面设为可见再加进去，只有淡出旧页面用动画。
+     */
     private fun crossFadeTo(next: View) {
         val container = root
         val params = LinearLayout.LayoutParams(
@@ -397,18 +418,15 @@ class MainActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT
         )
         val previous = if (container.childCount > 0) container.getChildAt(0) else null
-        if (previous == null) {
-            next.alpha = 0f
-            container.addView(next, params)
-            next.animate().alpha(1f).setDuration(220L).setInterpolator(DecelerateInterpolator()).start()
-            return
-        }
-        next.alpha = 0f
+
+        next.alpha = 1f
         container.addView(next, params)
-        previous.animate().alpha(0f).setDuration(160L).withEndAction {
-            container.removeView(previous)
-        }.start()
-        next.animate().alpha(1f).setDuration(240L).setInterpolator(DecelerateInterpolator()).start()
+
+        if (previous != null) {
+            previous.animate().alpha(0f).setDuration(160L).withEndAction {
+                container.removeView(previous)
+            }.start()
+        }
     }
 
     // ------------------------------------------------------------------ 本体更新

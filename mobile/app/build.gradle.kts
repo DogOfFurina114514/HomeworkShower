@@ -28,10 +28,10 @@ android {
     applicationId = "com.dogoffurina.homeworkshower"
     minSdk = 24
     targetSdk = 34
-    // App 版本号规则：26.0.6 = 年份(26).大功能(0).小补丁(6)，打包号 260006
+    // App 版本号规则：26.0.7 = 年份(26).大功能(0).小补丁(7)，打包号 260007
     // 注意：这与网页版本（docs/version.json 里的 webVersionCode，纯递增数字）是两套。
-    versionCode = 260006
-    versionName = "26.0.6"
+    versionCode = 260007
+    versionName = "26.0.7"
   }
 
   signingConfigs {
