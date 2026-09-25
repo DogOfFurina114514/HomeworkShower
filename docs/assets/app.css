@@ -118,6 +118,8 @@ html.hs-booting body {
   top: calc(100% + 8px);
   z-index: 25;
   min-width: 320px;
+  /* 兜底：面板锚在按钮右边缘，屏幕不够宽时它会往左溢出到屏幕外 */
+  max-width: calc(100vw - 32px);
   display: grid;
   gap: 8px;
   padding: 22px 22px 18px;
@@ -1078,6 +1080,21 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   }
 
   .topbar__controls > .account > m3e-button {
+    width: 100%;
+  }
+
+  /* 个人中心面板：手机上它必须整块留在屏幕里。
+     面板是 absolute + inset-inline-end:0，锚在「个人中心」按钮的右边缘；
+     按钮本身靠右（最多到屏幕右内边距），320px 的 min-width 会把面板左边缘
+     顶到屏幕外（实测邮箱那行直接看不见了）。所以手机上放开 min-width、
+     限制最大宽度，让它自己收缩。 */
+  .account__panel {
+    min-width: 0;
+    max-width: calc(100vw - 32px);
+    padding: 18px 16px 14px;
+  }
+
+  .account__panel m3e-button {
     width: 100%;
   }
 }

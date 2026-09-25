@@ -1,6 +1,6 @@
 {
-  "version": "13",
-  "versionCode": 13,
+  "version": "14",
+  "versionCode": 14,
   "entry": "index.html",
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "assets/app.css",
-      "hash": "ef3614b4b90e5e6eda98bee56e720df13aa53be82ea6c706217b303066c90d2f",
-      "bytes": 25746
+      "hash": "f9ea722ba6c13cff715d0dda55a90c6fa17a657435d0c717e3d108c3f76082a9",
+      "bytes": 26449
     },
     {
       "path": "assets/auth.js",
@@ -155,8 +155,8 @@
     },
     {
       "path": "version.json",
-      "hash": "dbc4fe1c5ecb9bf78d78046a5f4c0bc98a068bf126b63e0458d4042adef98ccc",
-      "bytes": 2005
+      "hash": "e9654afd128f86b1f8b51794ca794b669107943594243f0a0701a7b60cfe496c",
+      "bytes": 2090
     }
   ]
 }

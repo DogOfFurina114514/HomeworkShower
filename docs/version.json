@@ -1,9 +1,9 @@
 {
-  "webVersion": "13",
-  "webVersionCode": 13,
-  "updatedAt": "2026-09-25T18:40:00+08:00",
+  "webVersion": "14",
+  "webVersionCode": 14,
+  "updatedAt": "2026-09-25T19:20:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 13：①修改权限从「只能改当天发布的」改成「未过期的都能改」（含时光机）；②手机端时光机日期框独占一行、两个按钮平分一行；③灯箱阴影不再被屏幕边缘吃掉、关闭时图片飞回原位、打开时卡片里的原图不再留一张；④分栏改成按实测高度装箱，高的列一定在最左边。",
+  "webNote": "网页版本 14：①修手机端「个人中心」面板被挤出屏幕（320px 的 min-width 在窄屏上把面板左半边顶到屏幕外，邮箱直接看不见）；②网页版本 13 的内容：修改权限改成「未过期的都能改」（含时光机）、手机端时光机日期框独占一行+两个按钮平分一行、灯箱阴影不再被屏幕边缘吃掉且关闭时图片飞回原位、分栏按实测高度装箱且高的列一定在最左边。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
