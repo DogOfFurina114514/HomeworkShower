@@ -84,11 +84,22 @@
     const { data: userData } = await withTimeout(client.auth.getUser(), 10000, "读取账号信息");
     const user = userData?.user;
     if (!user) return null;
-    const { data } = await withTimeout(
+    const { data, error } = await withTimeout(
       client.from("profiles").select("role,email,banned,deletion_requested_at,deleted_at").eq("id", user.id).maybeSingle(),
       10000,
       "读取角色",
     );
+    // 读角色失败时**绝对不能**退回 "user"。
+    //
+    // 这个函数每次操作前都会被调一遍（board.js 的 syncPermissions，点一下就查、30 秒一轮询），
+    // 只要有一次请求抖动读到 error，role 就变成 "user"，发布者当场被降权 ——
+    // 用户看到的就是"我明明是发布者，怎么突然没权限了/新建作业也没权限了"。
+    // 所以这里把"读失败"和"确实是普通用户"分开：读失败返回 null（身份未知），
+    // 调用方会重试或报错，而不是拿一个编出来的 user 身份去覆盖已知的角色。
+    if (error) {
+      if (window.console) console.warn("[hs] 读取角色失败，按「身份未知」处理：", error.message);
+      return null;
+    }
     const profile = {
       user,
       email: data?.email || user.email || "",

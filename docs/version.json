@@ -1,9 +1,9 @@
 {
-  "webVersion": "15",
-  "webVersionCode": 15,
-  "updatedAt": "2026-09-25T19:55:00+08:00",
+  "webVersion": "16",
+  "webVersionCode": 16,
+  "updatedAt": "2026-09-25T21:10:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 15：把页面上还留着的旧说法改掉 —— 权限早就从「只能改当天发布的」改成「未过期的都能改」了，但首页横幅、删除确认框、无权限提示里还写着「仅限当天」。",
+  "webNote": "网页版本 16：修「发布者突然没权限」。根因是 getProfile() 读角色失败时会兜底成 user（每次操作前都会重读、30 秒一轮询，网络抖一下就命中），于是发布者被当场降权 —— 新建作业就说没权限。现在读失败按「身份未知」处理：重试一次，还不行就明确报错给重试按钮，绝不拿假身份覆盖已知角色；新建/修改/删除在用权限前也会拿当前角色再对一次账；被拒时的提示里会写出页面当前认为你是什么身份，方便定位。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

@@ -790,6 +790,26 @@
 
     profile = session ? await hs.getProfile() : null;
 
+    // 有登录态、但身份没读出来（/rest/v1/profiles 那一下失败）：
+    // 重试一次；还不行就明确报错 + 给重试按钮。
+    // 绝不能落到下面的「未登录」分支 —— 那会让人以为掉登录了；
+    // 更不能当成普通用户 —— 那等于把发布者悄悄降成只读。
+    if (session && !profile) {
+      profile = await hs.getProfile();
+    }
+    if (session && !profile) {
+      boardEl.classList.add("homework-board--prompt");
+      boardEl.innerHTML = `
+        <div class="homework-empty-state homework-empty-state--prompt">
+          <m3e-icon variant="outlined" name="error"></m3e-icon>
+          <m3e-heading variant="title" size="large" level="2">没读到你的身份</m3e-heading>
+          <m3e-button variant="filled" id="retry-profile-button">重试</m3e-button>
+        </div>`;
+      showStatus("登录状态是好的，但读取角色失败了（多半是网络抖动）。点「重试」即可。", true);
+      document.getElementById("retry-profile-button")?.addEventListener("click", () => location.reload());
+      return;
+    }
+
     if (!profile) {
       // 未登录：右上角按钮变成「登录」，顶部给一条红色横幅
       if (accountButtonLabel) accountButtonLabel.textContent = "登录";
@@ -852,7 +872,7 @@
     }
 
     function openEdit(id) {
-      if (!canManage) {
+      if (!ensureCanManage()) {
         hs.toast("你的修改权限已被撤销");
         return;
       }
@@ -881,11 +901,25 @@
     }
 
     /**
+     * 在真正要用权限的时候，拿"当前角色"再对一次账。
+     *
+     * canManage 是页面加载时算出来的缓存值，中间任何一次角色同步出岔子都可能让它停在
+     * false —— 表现就是"我明明是发布者，新建作业却说没权限"。
+     * 这里只做"恢复"（角色确实还是发布者/管理员就把它放回来），不做"撤销"
+     * （撤销由 syncPermissions 在角色真的变了时负责）。
+     * 后端 RLS 仍然是最终关卡，所以这里放宽不会造成越权。
+     */
+    function ensureCanManage() {
+      if (!canManage && profile && hs.canEditToday(profile)) canManage = true;
+      return canManage;
+    }
+
+    /**
      * 新建作业：和「修改作业」用的是同一个对话框，只是标题换成「新建」、字段清空。
      * 保存时走 create_homework（单条插入），不会像发布页那样覆盖当天整批作业。
      */
     function openCreate() {
-      if (!canManage || !editDialog) {
+      if (!ensureCanManage() || !editDialog) {
         if (!canManage) hs.toast("你没有新建作业的权限");
         return;
       }
@@ -905,7 +939,7 @@
     }
 
     async function saveEdit() {
-      if (!editDialog || !canManage) return;
+      if (!editDialog || !ensureCanManage()) return;
       const id = editDialog.dataset.id;
       const creating = !id;
       const subject = document.getElementById("edit-subject").value.trim() || "其它";
@@ -951,12 +985,15 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
       if (error) {
         const denied = String(error.message).includes("row-level security") || error.code === "42501";
+        // 被拒时把"页面认为你是什么身份"写出来 —— 这类问题多半出在
+        // 前端拿到的角色不对（比如某次角色读取失败），只说"没权限"根本查不下去。
+        const who = `${hs.roleLabel(profile?.role || "user")}${profile?.email ? `（${profile.email}）` : ""}`;
         setDialogMessage(
           "edit-message",
           denied
             ? creating
-              ? "新建失败：只有发布者与管理员可以新建作业。"
-              : "保存失败：只能修改未过期的作业。"
+              ? `新建失败：只有发布者与管理员可以新建作业。页面当前认为你是：${who}。`
+              : `保存失败：只能修改未过期的作业。页面当前认为你是：${who}。`
             : `${creating ? "新建" : "保存"}失败：${error.message}`,
         );
         return;
@@ -967,7 +1004,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
     }
 
     function openDelete(id) {
-      if (!canManage) {
+      if (!ensureCanManage()) {
         hs.toast("你的修改权限已被撤销");
         return;
       }

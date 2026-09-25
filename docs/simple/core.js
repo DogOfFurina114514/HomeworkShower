@@ -105,12 +105,17 @@
     return fetch(config.supabaseUrl + "/rest/v1/profiles?select=id,role,banned,deletion_requested_at,deleted_at&id=eq." + current.userId, {
       headers: { apikey: config.supabaseKey, Authorization: "Bearer " + current.accessToken }
     })
-      .then(function (response) { return response.ok ? response.json() : []; })
+      .then(function (response) {
+        if (!response.ok) return null; // 读失败：身份未知，别拿假身份覆盖
+        return response.json();
+      })
       .then(function (rows) {
-        profile = rows && rows[0] ? rows[0] : { id: current.userId, role: "user", banned: false, deletion_requested_at: null, deleted_at: null };
+        if (!rows) return profile; // 请求失败：保留上一次已知的角色
+        // rows 为空数组才算"确实没有这条 profile"，这时兜底成 user 是对的
+        profile = rows[0] || { id: current.userId, role: "user", banned: false, deletion_requested_at: null, deleted_at: null };
         return profile;
       })
-      .catch(function () { return null; });
+      .catch(function () { return profile; });
   }
 
   function isPublisher() { return !!(profile && profile.role === "publisher" && !profile.banned); }

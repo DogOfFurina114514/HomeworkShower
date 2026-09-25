@@ -1,6 +1,6 @@
 {
-  "version": "15",
-  "versionCode": 15,
+  "version": "16",
+  "versionCode": 16,
   "entry": "index.html",
   "files": [
     {
@@ -25,13 +25,13 @@
     },
     {
       "path": "assets/board.js",
-      "hash": "a8aa0cfca7cd8cdf055fd935fb6b6fa52c4addca4aed0e05685c3349019cb51e",
-      "bytes": 83321
+      "hash": "4066f4be19c76e842b5b56c2c38ce47d16feae9b290021cb58e58e6cb43772ff",
+      "bytes": 85580
     },
     {
       "path": "assets/client.js",
-      "hash": "9db9276661154adfd8c2ace68959bb8561a05312fa127793b6f1b55a35d96c8c",
-      "bytes": 9719
+      "hash": "5767fc45c15845db054c2c719f8196f4e53dc67e90633d35c6ffb9db07554752",
+      "bytes": 10499
     },
     {
       "path": "assets/config.js",
@@ -105,8 +105,8 @@
     },
     {
       "path": "simple/core.js",
-      "hash": "70ca0f9f508c0dc9f2fc0fbe77aba74b5312bfa684b2ff6420ba192b9972878a",
-      "bytes": 55090
+      "hash": "d60ac7d357a7b950d134b7f57bd767f76a84b8e49329b0fefed4fe70e9191ccd",
+      "bytes": 55342
     },
     {
       "path": "simple/index.html",
@@ -155,8 +155,8 @@
     },
     {
       "path": "version.json",
-      "hash": "fba33073c029a49f34d79a6c93225892123147b14373ec474c2c984a5c064a7b",
-      "bytes": 1960
+      "hash": "013344427ef8419876b513fe91b1ed4904174acacecdca55626d48b685821f57",
+      "bytes": 2287
     }
   ]
 }
