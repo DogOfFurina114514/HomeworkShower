@@ -11,6 +11,8 @@
 (function () {
   var config = window.HOMEWORK_SHOWER_CONFIG || {};
   var STORAGE_KEY = config.authStorageKey || "homeworkshower.auth.v1";
+  /** 站点状态页（与完整版顶栏「网站状态」按钮指向同一地址），新标签页打开 */
+  var STATUS_PAGE_URL = "https://statuspage.flashcat.cloud/homeworkshower";
 
   function $(id) { return document.getElementById(id); }
 
@@ -48,7 +50,9 @@
     trash: "M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
     warn: "M12 3 L2 20 L22 20 Z M11 9 L13 9 L13 14 L11 14 Z M11 16 L13 16 L13 18 L11 18 Z",
     block: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM5.7 7.1l11.2 11.2A8 8 0 0 1 5.7 7.1zm1.4-1.4a8 8 0 0 1 11.2 11.2L7.1 5.7z",
-    back: "M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z"
+    back: "M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z",
+    // 网站状态：圆形勾（与完整版顶栏按钮图标一致）
+    status: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
   };
 
   function icon(name, size) {
@@ -202,6 +206,11 @@
     ".banner span{flex:1 1 200px}",
     ".status{margin:16px 20px 0;padding:10px 14px;border:1px solid #bfc8cb;border-radius:12px;background:#eff4f6;color:#3f484a;font-size:14px}",
     ".status.error{border-color:#ba1a1a;color:#ba1a1a}",
+    /* 错误红条 + 右侧「前往状态页」按钮的横排布局（仅数据访问失败时启用） */
+    ".status--with-link{display:flex;align-items:center;gap:12px;flex-wrap:wrap}",
+    ".status--with-link .status__text{flex:1 1 auto;min-width:0}",
+    ".status__link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:#ba1a1a;color:#fff;font-size:13px;text-decoration:none;white-space:nowrap;flex:0 0 auto}",
+    ".status__link:active{filter:brightness(.94)}",
     "main.board{padding:24px 20px 96px}",
     ".cols{display:flex;align-items:flex-start;gap:8px}",
     ".col{flex:1 1 0;min-width:0}",
@@ -275,6 +284,11 @@
     var current = session();
     var html = '<header class="topbar"><h1>' + escapeHtml(options.title || config.siteName || "作业") +
       '</h1><div class="controls">';
+    // 网站状态：全局入口，所有页面都显示（除非显式传 hideStatus: true），放在最左，新标签页打开
+    if (!options.hideStatus) {
+      html += '<a class="pill" href="' + STATUS_PAGE_URL + '" target="_blank" rel="noopener">' +
+        icon("status", 18) + "网站状态</a>";
+    }
     if (options.datePicker) {
       html += '<label class="datewrap">' + icon("calendar", 18) + "<span>发布日期</span>" +
         '<input type="date" id="date-picker" /></label>';
@@ -341,11 +355,30 @@
     return close;
   }
 
+  /**
+   * 显示状态消息。
+   * 当且仅当是「数据访问失败」类错误时，在右侧挂一个「前往状态页」按钮。
+   * 前端校验类错误（密码 / 邮箱 / 输入格式 / JSON 解析等）不挂。
+   */
   function message(text, isError) {
     var el = $("status");
     if (!el) return;
-    el.innerHTML = escapeHtml(text);
-    el.className = isError ? "status error" : "status";
+    var t = String(text === null || text === undefined ? "" : text);
+    var looksLikeBackendFailure =
+      /(失败|加载|读取|发布|保存|删除|发送|提交|登录|注册)/.test(t) &&
+      !/(密码|邮箱格式|请填写|请选择|原样输入|不一致|JSON\s*解析)/.test(t);
+    var wantLink = !!isError && looksLikeBackendFailure;
+
+    if (wantLink) {
+      el.innerHTML =
+        '<span class="status__text">' + escapeHtml(text) + "</span>" +
+        '<a class="status__link" href="' + STATUS_PAGE_URL + '" target="_blank" rel="noopener">' +
+        "前往状态页</a>";
+      el.className = "status error status--with-link";
+    } else {
+      el.innerHTML = escapeHtml(text);
+      el.className = isError ? "status error" : "status";
+    }
   }
 
   function renderBoard(rows, options) {
@@ -1116,34 +1149,3 @@
     message: message
   };
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
