@@ -211,6 +211,8 @@
     ".status--with-link .status__text{flex:1 1 auto;min-width:0}",
     ".status__link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:#ba1a1a;color:#fff;font-size:13px;text-decoration:none;white-space:nowrap;flex:0 0 auto}",
     ".status__link:active{filter:brightness(.94)}",
+    /* 卡片内的状态条，需要去掉默认外边距（避免和卡片里的其它字段打架） */
+    ".card .status{margin:0 0 12px}",
     "main.board{padding:24px 20px 96px}",
     ".cols{display:flex;align-items:flex-start;gap:8px}",
     ".col{flex:1 1 0;min-width:0}",
@@ -246,6 +248,7 @@
     ".field textarea{min-height:150px;resize:vertical;font-size:14px}",
     ".card{max-width:460px;margin:24px auto;padding:24px;border:1px solid #bfc8cb;border-radius:24px;background:#eff4f6}",
     ".card h2{margin:0 0 14px;font-size:22px;font-weight:500}",
+    ".card h2:not(:first-child){margin-top:22px}",
     ".tabs{display:flex;gap:8px;margin:0 0 12px}.tabs .pill{flex:1;justify-content:center}",
     "@media(max-width:700px){.cols{display:block}.topbar{padding:10px 14px}}"
   ].join("");
@@ -894,23 +897,33 @@
   /* ---------------------------------------------------- 页面：安全中心 */
 
   function pageSecurity() {
-    topbar({ title: "安全中心", back: "index.html" });
+    // 顶栏只留「返回看板」：不显示网站状态、不显示个人中心、也不用时光机那套「回到今天」
+    topbar({ title: "安全中心", hideStatus: true, hideAccount: true, backLink: "index.html", backLabel: "返回看板" });
     if (!session()) return void (location.href = "login.html");
-    var card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = "<h2>更改邮箱</h2>" +
+
+    /* —— 卡片 1：更改邮箱 —— */
+    var emailCard = document.createElement("div");
+    emailCard.className = "card";
+    emailCard.innerHTML = "<h2>更改邮箱</h2>" +
       '<p class="status" id="status">当前账号：' + escapeHtml((session() || {}).email || "") + "</p>" +
       '<label class="field"><span>当前邮箱（旧）</span><input id="old-email" readonly /></label>' +
       '<label class="field"><span>新邮箱</span><input id="new-email" type="email" /></label>' +
       '<div class="dialogactions"><button class="pill primary" id="do-email">发送验证邮件到新邮箱</button></div>' +
-      '<div class="dialogactions"><button class="pill text" id="appeal">旧邮箱不可用，去申诉</button></div>' +
-      "<h2 style='margin-top:22px'>更改密码</h2>" +
+      '<div class="dialogactions"><button class="pill text" id="appeal">旧邮箱不可用，去申诉</button></div>';
+    document.body.appendChild(emailCard);
+    $("old-email").value = (session() || {}).email || "";
+
+    /* —— 卡片 2：更改密码 —— */
+    var passwordCard = document.createElement("div");
+    passwordCard.className = "card";
+    passwordCard.innerHTML = "<h2>更改密码</h2>" +
+      '<p class="hint">需要邮箱验证：提交后系统会向你的当前邮箱发送验证邮件，点开链接后即可设置新密码。</p>' +
       '<label class="field"><span>新密码（至少 8 位）</span><input id="new-password" type="password" /></label>' +
       '<label class="field"><span>确认新密码</span><input id="confirm-password" type="password" /></label>' +
       '<div class="dialogactions"><button class="pill primary" id="do-password">发送验证邮件到当前邮箱</button></div>';
-    document.body.appendChild(card);
-    $("old-email").value = (session() || {}).email || "";
-    // —— 注销账号：先验证邮箱，再逐字输入短语，提交后全平台登出 ——
+    document.body.appendChild(passwordCard);
+
+    /* —— 卡片 3：注销账号 —— */
     var PHRASE = "我确认注销账号，并允许服务器将我的账号数据继续存放60天";
     var block = document.createElement("div");
     block.className = "card";
