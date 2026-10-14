@@ -45,6 +45,13 @@
     <title>作业</title>
     <link rel="stylesheet" href="assets/app.css?v88" />
     <link rel="icon" href="assets/icon.svg?v88" type="image/svg+xml" />
+    <style>
+      /* 状态条：错误红条 + 右侧「前往状态页」按钮（仅数据访问失败时由脚本显示） */
+      .hs-status-row { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; }
+      .hs-status-row > .status { margin: 0; flex: 1 1 auto; min-width: 0; }
+      .hs-status-row > #status-page-link { flex: 0 0 auto; }
+      .hs-status-row[hidden] { display: none !important; }
+    </style>
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -124,6 +131,20 @@
       <header class="topbar">
         <m3e-heading class="topbar__title" variant="title" size="large" level="1" id="site-title">作业</m3e-heading>
         <div class="topbar__controls">
+          <!-- 网站状态：自绘圆形勾图标，新标签页打开 -->
+          <m3e-button
+            variant="tonal"
+            id="status-button"
+            onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+          >
+            <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+              />
+            </svg>
+            网站状态
+          </m3e-button>
           <m3e-button variant="tonal" id="timemachine-button">
             <m3e-icon variant="outlined" slot="icon" name="schedule"></m3e-icon>
             时光机
@@ -153,7 +174,24 @@
         <m3e-button variant="filled" id="banner-login-button">登录 / 注册</m3e-button>
       </div>
 
-      <p class="status" id="status" hidden></p>
+      <!-- 状态条：错误红条 + 右侧「前往状态页」按钮（只在数据访问失败时显示） -->
+      <div class="hs-status-row" id="hs-status-row" hidden>
+        <p class="status" id="status" hidden></p>
+        <m3e-button
+          variant="tonal"
+          id="status-page-link"
+          hidden
+          onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+        >
+          <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+            />
+          </svg>
+          前往状态页
+        </m3e-button>
+      </div>
 
       <main class="homework-board" id="board">
         <div class="homework-empty-state"><m3e-icon variant="outlined" name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
@@ -269,97 +307,36 @@
         </div>
       </m3e-dialog>
     </m3e-theme>
+
+    <script>
+      /* 状态条联动：只有当 #status 是 error 且可见时，才在右侧显示「前往状态页」按钮。
+         非错误（正在加载 / 共 N 条作业）和隐藏状态都同步收起。 */
+      (function () {
+        function setup() {
+          var status = document.getElementById("status");
+          var link = document.getElementById("status-page-link");
+          var row = document.getElementById("hs-status-row");
+          if (!status || !link || !row) return;
+          function sync() {
+            if (status.hidden) {
+              row.hidden = true;
+              return;
+            }
+            row.hidden = false;
+            link.hidden = !status.classList.contains("error");
+          }
+          new MutationObserver(sync).observe(status, {
+            attributes: true,
+            attributeFilter: ["class", "hidden"],
+          });
+          sync();
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", setup);
+        } else {
+          setup();
+        }
+      })();
+    </script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
