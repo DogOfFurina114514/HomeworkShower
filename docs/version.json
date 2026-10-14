@@ -1,9 +1,9 @@
 {
-  "webVersion": "21",
-  "webVersionCode": 21,
-  "updatedAt": "2026-09-26T00:20:00+08:00",
+  "webVersion": "22",
+  "webVersionCode": 22,
+  "updatedAt": "2026-10-14T19:45:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 21：手机端首页顶栏不再白占一行 —— 「时光机 / 登录」本来就和标题放得下，现在和标题同一行、靠右；只有带日期框的时光机页才让控件区独占一行（日期框撑满，两个按钮靠右）。资源版本号提到 v88。",
+  "webNote": "网页版本 22：添加状态页入口",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
