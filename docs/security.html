@@ -35,11 +35,19 @@
         if (ok) return;
         if (location.pathname.indexOf("/simple/") >= 0) return;
         var name = location.pathname.replace(/.*\//, "") || "security.html";
-        location.replace(location.pathname.replace(/[^/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
+        location.replace(location.pathname.replace(/[^\/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
       })();
     </script>
     <link rel="stylesheet" href="assets/app.css?v88" />
     <link rel="icon" href="assets/icon.svg?v88" type="image/svg+xml" />
+    <style>
+      /* 状态条：错误红条 + 右侧「前往状态页」按钮（仅数据访问失败时由脚本显示） */
+      .hs-status-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .hs-status-row[hidden] { display: none !important; }
+      .hs-status-row > .status { margin: 0; flex: 1 1 auto; min-width: 0; }
+      .hs-status-row > .hs-status-row__link { flex: 0 0 auto; }
+      m3e-button[hidden] { display: none !important; }
+    </style>
     <script src="vendor/m3e.js?v88" defer></script>
     <script src="vendor/supabase.js?v88" defer></script>
     <script src="assets/config.js?v88" defer></script>
@@ -74,7 +82,24 @@
             <input id="current-email" readonly />
           </m3e-form-field>
 
-          <p class="status" id="email-message" hidden></p>
+          <!-- 状态条：错误红条 + 右侧「前往状态页」按钮（只在数据访问失败时显示） -->
+          <div class="hs-status-row" id="email-message-row" hidden>
+            <p class="status" id="email-message" hidden></p>
+            <m3e-button
+              variant="tonal"
+              class="hs-status-row__link"
+              hidden
+              onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+            >
+              <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+                />
+              </svg>
+              前往状态页
+            </m3e-button>
+          </div>
 
           <!-- 第一步：先验证旧邮箱 -->
           <div id="email-step-old">
@@ -120,7 +145,24 @@
             <input id="confirm-password" type="password" autocomplete="new-password" />
           </m3e-form-field>
 
-          <p class="status" id="password-message" hidden></p>
+          <!-- 状态条：错误红条 + 右侧「前往状态页」按钮（只在数据访问失败时显示） -->
+          <div class="hs-status-row" id="password-message-row" hidden>
+            <p class="status" id="password-message" hidden></p>
+            <m3e-button
+              variant="tonal"
+              class="hs-status-row__link"
+              hidden
+              onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+            >
+              <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+                />
+              </svg>
+              前往状态页
+            </m3e-button>
+          </div>
 
           <div class="auth__actions">
             <m3e-button variant="filled" id="change-password">发送验证码到当前邮箱</m3e-button>
@@ -144,7 +186,24 @@
             提交后你会从所有设备退出登录，账号将在 3 天后进入已注销状态。
           </p>
 
-          <p class="status" id="deletion-message" hidden></p>
+          <!-- 状态条：错误红条 + 右侧「前往状态页」按钮（只在数据访问失败时显示） -->
+          <div class="hs-status-row" id="deletion-message-row" hidden>
+            <p class="status" id="deletion-message" hidden></p>
+            <m3e-button
+              variant="tonal"
+              class="hs-status-row__link"
+              hidden
+              onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+            >
+              <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+                />
+              </svg>
+              前往状态页
+            </m3e-button>
+          </div>
 
           <div class="auth__actions" id="deletion-step-send">
             <m3e-button variant="filled" id="request-deletion">申请注销，先验证邮箱</m3e-button>
@@ -204,35 +263,33 @@
         location.assign("index.html");
       });
     </script>
+
+    <script>
+      /* 状态条联动：只有当 .status 有 error 且可见时，才显示同一行里的「前往状态页」按钮。 */
+      (function () {
+        function setup() {
+          var rows = document.querySelectorAll(".hs-status-row");
+          Array.prototype.forEach.call(rows, function (row) {
+            var status = row.querySelector(".status");
+            var link = row.querySelector(".hs-status-row__link");
+            if (!status || !link) return;
+            function sync() {
+              row.hidden = status.hidden;
+              link.hidden = status.hidden || !status.classList.contains("error");
+            }
+            new MutationObserver(sync).observe(status, {
+              attributes: true,
+              attributeFilter: ["class", "hidden"],
+            });
+            sync();
+          });
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", setup);
+        } else {
+          setup();
+        }
+      })();
+    </script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
