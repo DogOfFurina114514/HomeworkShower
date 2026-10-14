@@ -45,6 +45,14 @@
     <title>时光机 · 作业</title>
     <link rel="stylesheet" href="assets/app.css?v88" />
     <link rel="icon" href="assets/icon.svg?v88" type="image/svg+xml" />
+    <style>
+      /* 状态条：错误红条 + 右侧「前往状态页」按钮（仅数据访问失败时由脚本显示） */
+      .hs-status-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 20px 0; }
+      .hs-status-row[hidden] { display: none !important; }
+      .hs-status-row > .status { margin: 0; flex: 1 1 auto; min-width: 0; }
+      .hs-status-row > .hs-status-row__link { flex: 0 0 auto; }
+      m3e-button[hidden] { display: none !important; }
+    </style>
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -133,6 +141,20 @@
             </m3e-icon-button>
           </m3e-form-field>
           <m3e-datepicker id="date-picker" variant="auto" label="选择发布日期" previous-month-label="上个月" next-month-label="下个月" previous-year-label="上一年" next-year-label="下一年" clear-label="清除" confirm-label="确定" dismiss-label="取消"></m3e-datepicker>
+          <!-- 网站状态：自绘圆形勾图标，新标签页打开 -->
+          <m3e-button
+            variant="tonal"
+            id="status-button"
+            onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+          >
+            <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+              />
+            </svg>
+            网站状态
+          </m3e-button>
           <m3e-button variant="text" id="back-button">
             <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
             回到今天
@@ -157,7 +179,24 @@
         </div>
       </header>
 
-      <p class="status" id="status" hidden></p>
+      <!-- 状态条：错误红条 + 右侧「前往状态页」按钮（只在数据访问失败时显示） -->
+      <div class="hs-status-row" id="hs-status-row" hidden>
+        <p class="status" id="status" hidden></p>
+        <m3e-button
+          variant="tonal"
+          class="hs-status-row__link"
+          hidden
+          onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+        >
+          <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+            />
+          </svg>
+          前往状态页
+        </m3e-button>
+      </div>
 
       <main class="homework-board" id="board">
         <div class="homework-empty-state"><m3e-icon variant="outlined" name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
@@ -273,103 +312,33 @@
         </div>
       </m3e-dialog>
     </m3e-theme>
+
+    <script>
+      /* 状态条联动：只有当 .status 有 error 且可见时，才显示同一行里的「前往状态页」按钮。 */
+      (function () {
+        function setup() {
+          var rows = document.querySelectorAll(".hs-status-row");
+          Array.prototype.forEach.call(rows, function (row) {
+            var status = row.querySelector(".status");
+            var link = row.querySelector(".hs-status-row__link");
+            if (!status || !link) return;
+            function sync() {
+              row.hidden = status.hidden;
+              link.hidden = status.hidden || !status.classList.contains("error");
+            }
+            new MutationObserver(sync).observe(status, {
+              attributes: true,
+              attributeFilter: ["class", "hidden"],
+            });
+            sync();
+          });
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", setup);
+        } else {
+          setup();
+        }
+      })();
+    </script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
