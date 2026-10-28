@@ -1,9 +1,9 @@
 {
-  "webVersion": "27",
-  "webVersionCode": 27,
-  "updatedAt": "2026-10-28T22:05:00+08:00",
+  "webVersion": "28",
+  "webVersionCode": 28,
+  "updatedAt": "2026-10-28T22:25:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 27：① 站内跳转一律省略 .html（/login、/timemachine…），首页收敛成 /，地址栏更简洁；App 端同步支持无后缀加载，所以两端行为一致。② 顶栏按钮放不下时自动等比缩小，最多缩到 75%，尽量保持一行；缩到 75% 仍不够才换行。③ 未登录也能查看公告（点开是只读详情，富文本、图片可放大，无编辑按钮），「仅发布者可改」只限制编辑不影响任何人查看。④ 个人中心里去掉「发布作业」（右下角按钮菜单已有该入口）。⑤ 补上 docs/CNAME（homework.fucku.top）—— 之前仓库里缺这个文件，GitHub Pages 下次部署会把自定义域名清掉。README 的在线地址也改为新域名。资源版本号提到 v93。",
+  "webNote": "网页版本 28：修正顶栏排布策略 —— 原来一放不下就缩字保持单行，现在改成：单行放不下直接换行（按钮保持自然大小），两行还放不下（排到第三行）才等比缩小、最多缩到 75%。实测 414/390/360 宽都是两行且按钮原尺寸（116×40），320 宽原本三行，缩到 0.90 压回两行（105×36）。资源版本号提到 v94。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

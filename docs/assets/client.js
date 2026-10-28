@@ -371,18 +371,45 @@
   }
 
   /**
-   * 顶栏按钮放不下时自动等比缩小，最多缩到 75%。
+   * 顶栏按钮的排布策略：**先换行，两行都放不下才缩小**（最多缩到 75%）。
    *
-   * 为什么需要：中文界面里按钮不少（时光机 / 网站状态 / 个人中心…），
-   * 390px 宽的手机上纯排布会换到第二行，把首屏内容往下挤。
-   * 这里改成不换行 + 按需缩放：只要缩到 75% 及以上能塞进一行，就缩；
-   * 真的塞不下（比如 320px 小屏 + 按钮更多）就放弃缩放，让它照旧换行，
-   * 免得把字挤到看不清。
+   *   1 行放得下  → 保持原样
+   *   1 行放不下  → 直接换成两行（不缩放，按钮保持自然大小）
+   *   两行还放不下（排到第 3 行去了）→ 等比缩小，目标是压回两行，下限 75%
+   *
+   * 为什么缩放放最后：字体缩到 75% 之后可读性明显下降，
+   * 而多一行只是占一点纵向空间。能靠换行解决就别缩字。
    *
    * 用 zoom 而不是 transform: scale() —— transform 不改变布局盒尺寸，
-   * 视觉上缩小了但占位还是原样，该溢出还是溢出。
+   * 视觉上缩小了但占位照旧，该溢出还是溢出。
    */
   const TOPBAR_MIN_SCALE = 0.75;
+  const TOPBAR_MAX_ROWS = 2;
+
+  /**
+   * 数整个顶栏排了几行。
+   *
+   * 不能只数 .topbar__controls 内部 —— 标题（"XXXX · 共 N 条作业"）自己也占一行，
+   * 所以 390px 下"标题一行 + 按钮一行"已经是 2 行（允许的上限，不缩放），
+   * 而 320px 下"标题一行 + 按钮两行"是 3 行，才该缩。
+   */
+  function countBarRows(bar) {
+    const items = [];
+    const title = bar.querySelector(".topbar__title") || bar.querySelector("h1");
+    if (title && title.offsetParent !== null) items.push(title);
+    const controls = bar.querySelector(".topbar__controls");
+    if (controls) {
+      for (const child of controls.children) {
+        if (child.offsetParent !== null) items.push(child);
+      }
+    }
+    const tops = [];
+    for (const item of items) {
+      const top = Math.round(item.getBoundingClientRect().top);
+      if (!tops.some((t) => Math.abs(t - top) < 4)) tops.push(top);
+    }
+    return tops.length;
+  }
 
   function fitTopbar() {
     const bar = document.querySelector(".topbar");
@@ -390,34 +417,29 @@
     const controls = bar.querySelector(".topbar__controls");
     if (!controls) return;
 
-    // 每次先复位再测量，否则上一轮的 zoom 会把"自然宽度"也算进去
+    // 每次先复位再测量，否则上一轮的 zoom 会被算进"自然尺寸"
     controls.style.zoom = "";
-    controls.style.flexWrap = "nowrap";
+    controls.style.flexWrap = ""; // 交回 CSS（.topbar__controls 是 wrap）
 
-    const barStyle = getComputedStyle(bar);
-    const paddingX =
-      (parseFloat(barStyle.paddingLeft) || 0) + (parseFloat(barStyle.paddingRight) || 0);
-    const gap = parseFloat(barStyle.columnGap) || parseFloat(barStyle.gap) || 12;
-    const title = bar.querySelector(".topbar__title") || bar.querySelector("h1");
-    const titleWidth = title ? title.getBoundingClientRect().width : 0;
+    // 一行或两行都算正常 —— 单行放不下就直接换行，按钮保持自然大小
+    if (countBarRows(bar) <= TOPBAR_MAX_ROWS) return;
 
-    const available = bar.clientWidth - paddingX - titleWidth - gap;
-    if (available <= 0) return;
+    // 已经排到第 3 行：把按钮区压回单行，整体就回到两行
+    const visible = [...controls.children].filter((c) => c.offsetParent !== null);
+    if (!visible.length) return;
 
-    // 按钮都是 M3E 组件（含 shadow DOM），scrollWidth 已经把它们算进去
-    const needed = controls.scrollWidth;
-    if (!needed || needed <= available) return;
+    const style = getComputedStyle(controls);
+    const gap = parseFloat(style.columnGap) || parseFloat(style.gap) || 8;
+    const totalWidth =
+      visible.reduce((sum, c) => sum + c.getBoundingClientRect().width, 0) +
+      (visible.length - 1) * gap;
+    const available = controls.clientWidth;
+    if (!available || !totalWidth) return;
 
-    const scale = available / needed;
-    if (scale < TOPBAR_MIN_SCALE) {
-      // 缩到 75% 也放不下（比如 320px 小屏 + 标题本来就长）：
-      // 不硬缩，改回换行。这里必须显式写 "wrap" —— CSS 里
-      // .topbar__controls 本身是 nowrap，清空内联样式只会恢复 nowrap，
-      // 结果控件区照样撑出顶栏右边界。
-      controls.style.flexWrap = "wrap";
-      return;
-    }
-    controls.style.zoom = String(scale);
+    const scale = available / totalWidth;
+    if (scale >= 1) return; // 其实放得下（测量误差），不缩
+
+    controls.style.zoom = String(Math.max(TOPBAR_MIN_SCALE, scale));
   }
 
   /** 节流：一帧只量一次，避免 resize 时反复重排 */

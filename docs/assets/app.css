@@ -1318,8 +1318,13 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   min-width: 0;
 }
 
+/* 顶栏控件的排布交给 client.js 的 fitTopbar() 统一处理：
+   单行放不下就先换行（按钮保持自然大小），
+   两行还放不下才等比缩到 75% 以内。
+   所以这里必须是 wrap —— 之前的 nowrap 会挡住"换行"这一步，
+   导致单行放不下时直接溢出顶栏右边界。 */
 .topbar__controls {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 #date-field {
