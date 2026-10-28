@@ -1,14 +1,14 @@
 {
-  "webVersion": "25",
-  "webVersionCode": 25,
-  "updatedAt": "2026-10-28T21:20:00+08:00",
+  "webVersion": "27",
+  "webVersionCode": 27,
+  "updatedAt": "2026-10-28T22:05:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 25：公告编辑框的两处交互改进 —— ①四个选项（置顶/管理员可修改/内部/永不过期）由 chip 改成开关（M3E 无 switch 组件，用原生 checkbox + CSS 做 M3 外观，语义与键盘操作仍是原生的）；②勾选「永不过期」时截止日期字段平滑收起、取消勾选时平滑展开（hidden/display:none 无法过渡，改用 max-height + opacity + 位移，280ms）。完整版与简版同步。资源版本号提到 v91。",
+  "webNote": "网页版本 27：① 站内跳转一律省略 .html（/login、/timemachine…），首页收敛成 /，地址栏更简洁；App 端同步支持无后缀加载，所以两端行为一致。② 顶栏按钮放不下时自动等比缩小，最多缩到 75%，尽量保持一行；缩到 75% 仍不够才换行。③ 未登录也能查看公告（点开是只读详情，富文本、图片可放大，无编辑按钮），「仅发布者可改」只限制编辑不影响任何人查看。④ 个人中心里去掉「发布作业」（右下角按钮菜单已有该入口）。⑤ 补上 docs/CNAME（homework.fucku.top）—— 之前仓库里缺这个文件，GitHub Pages 下次部署会把自定义域名清掉。README 的在线地址也改为新域名。资源版本号提到 v93。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
     "https://gh.llkk.cc/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
-    "https://dogoffurina114514.github.io/HomeworkShower/"
+    "https://homework.fucku.top/"
   ],
   "apkMirrors": [
     "https://gh.dpik.top/",
@@ -16,11 +16,11 @@
     ""
   ],
   "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
-  "apkVersion": "26.0.11",
-  "apkVersionCode": 260011,
+  "apkVersion": "26.1.0",
+  "apkVersionCode": 260100,
   "apkMandatory": true,
-  "apkNotes": "修一个会让热更新永久失效的 bug：装新 APK 时，如果 APP 内置的网页版本比用户已经热更到的版本低，旧逻辑会把内部存储里较新的网页覆盖回内置版本，而记录里的版本号还留着较新的那个 —— 于是检查更新一算「本地=线上，已是最新」，从此再也不更新，用户一直跑着旧页面（表现就是「打开最新版 App，检查完更新直接进入了」）。现在：磁盘上已经是更新的一版就不再用内置资源覆盖；版本号高于磁盘实际内容时按磁盘为准自愈。",
-  "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
+  "apkNotes": "26.1.0（必须更新）：支持从无后缀地址加载页面（/login 自动对应 login.html、/site/ 对应 index.html），与网页端新的简洁地址保持一致。旧版本不会识别无后缀地址，因此这次设为强制更新 —— 请更新后再使用。",
+  "manifestUrl": "https://homework.fucku.top/manifest.json",
   "fallback": {
     "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
     "supabaseKey": "sb_publishable_woB0DFosxaxHE1101sjfHA_Bt0SJMxG",
@@ -28,6 +28,6 @@
     "webManifestTable": "app_web_manifest",
     "appReleaseTable": "app_releases"
   },
-  "apkMandatorySince": 260011,
+  "apkMandatorySince": 260100,
   "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
 }

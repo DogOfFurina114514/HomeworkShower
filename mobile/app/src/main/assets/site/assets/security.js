@@ -76,7 +76,7 @@
     button.removeAttribute("disabled");
     show(
       emailMessage,
-      error ? `发送失败：${error.message}` : `验证邮件已发送到 ${email}，请点开邮件里的链接（同时也会让你重新登录一次）。`,
+      error ? hs.describeAuthError(error, "发送验证邮件") : `验证邮件已发送到 ${email}，请点开邮件里的链接（同时也会让你重新登录一次）。`,
       Boolean(error),
     );
   }
@@ -96,7 +96,7 @@
 
     if (error) {
       const text = String(error.message || "").toLowerCase();
-      show(emailMessage, text.includes("already") ? "这个邮箱已经被其它账号使用了。" : `发送失败：${error.message}`);
+      show(emailMessage, text.includes("already") ? "这个邮箱已经被其它账号使用了。" : hs.describeAuthError(error, "发送验证邮件"));
       return;
     }
 
@@ -115,7 +115,7 @@
     resendButton.setAttribute("disabled", "");
     const { error } = await client.auth.updateUser({ email: pendingEmail });
     resendButton.removeAttribute("disabled");
-    show(emailMessage, error ? `重发失败：${error.message}` : "验证邮件已重新发送，请查收（也看看垃圾箱）。", Boolean(error));
+    show(emailMessage, error ? hs.describeAuthError(error, "重发验证邮件") : "验证邮件已重新发送，请查收（也看看垃圾箱）。", Boolean(error));
   }
 
   /** 更改密码：先发验证码，再在页面上校验，通过后直接设置新密码（不用邮件链接） */
@@ -133,7 +133,7 @@
       redirectTo: new URL("security.html", location.href).href,
     });
     button.removeAttribute("disabled");
-    if (error) return show(passwordMessage, `发送失败：${error.message}`);
+    if (error) return show(passwordMessage, hs.describeAuthError(error, "发送验证码"));
 
     if (passwordStepCode) passwordStepCode.hidden = false;
     show(passwordMessage, `验证码已发送到 ${profile?.email || "你的邮箱"}，请填入下面的输入框。`, false);
@@ -149,11 +149,11 @@
     const { error } = await client.auth.verifyOtp({ email: profile?.email || "", token, type: "recovery" });
     if (error) {
       button.removeAttribute("disabled");
-      return show(passwordMessage, `验证码不正确或已过期：${error.message}`);
+      return show(passwordMessage, hs.describeAuthError(error, "校验验证码"));
     }
     const { error: updateError } = await client.auth.updateUser({ password: pendingPassword });
     button.removeAttribute("disabled");
-    if (updateError) return show(passwordMessage, `设置新密码失败：${updateError.message}`);
+    if (updateError) return show(passwordMessage, hs.describeAuthError(updateError, "设置新密码"));
     pendingPassword = "";
     if (passwordStepCode) passwordStepCode.hidden = true;
     if (newPasswordInput) newPasswordInput.value = "";
@@ -193,7 +193,7 @@
     }
     show(
       deletionMessage,
-      error ? `发送失败：${error.message}` : `验证邮件已发送到 ${email}：请把邮件里的数字验证码填到下面。`,
+      error ? hs.describeAuthError(error, "发送验证邮件") : `验证邮件已发送到 ${email}：请把邮件里的数字验证码填到下面。`,
       Boolean(error),
     );
   }
@@ -207,7 +207,7 @@
     show(deletionMessage, "正在校验…", false);
     const { error } = await client.auth.verifyOtp({ email: profile?.email || "", token, type: "recovery" });
     button.removeAttribute("disabled");
-    if (error) return show(deletionMessage, `验证码不正确或已过期：${error.message}`);
+    if (error) return show(deletionMessage, hs.describeAuthError(error, "校验验证码"));
     if (deletionStepCode) deletionStepCode.hidden = true;
     if (deletionStepConfirm) deletionStepConfirm.hidden = false;
     show(deletionMessage, "邮箱已验证，请按下面的提示输入确认短语。", false);
@@ -226,19 +226,26 @@
     const { error } = await client.rpc("request_account_deletion");
     if (error) {
       button.removeAttribute("disabled");
-      return show(deletionMessage, `提交失败：${error.message}`);
+      return show(deletionMessage, hs.describeAuthError(error, "提交注销申请"));
     }
 
     // 申请已记录 → 发"通知邮件"：说明已收到，并带 Magic link 供随时取消
     let notified = false;
+    // 失败原因要带到说明页：否则用户以为邮箱里会有一封"可随时取消"的信，
+    // 一直等，反而错过 3 天窗口。原来这里只 console.warn，页面上一字不提。
+    let mailFailure = "";
     try {
       const { error: mailError } = await client.auth.signInWithOtp({
         email: profile?.email || "",
         options: { emailRedirectTo: new URL("security.html?deletion=cancelled", location.href).href },
       });
       notified = !mailError;
-      if (mailError) console.warn("[HomeworkShower] 通知邮件发送失败：", mailError.message);
+      if (mailError) {
+        mailFailure = hs.describeAuthError(mailError, "发送通知邮件");
+        console.warn("[HomeworkShower] 通知邮件发送失败：", mailError.message);
+      }
     } catch (error) {
+      mailFailure = hs.describeAuthError(error, "发送通知邮件");
       console.warn("[HomeworkShower] 通知邮件发送失败：", error);
     }
 
@@ -248,13 +255,14 @@
     } catch (ignored) {
       await client.auth.signOut();
     }
-    location.replace(`deleted.html?state=requested&notified=${notified ? "1" : "0"}`);
+    const reason = notified ? "" : `&reason=${encodeURIComponent(mailFailure.slice(0, 120))}`;
+    location.replace(`deleted.html?state=requested&notified=${notified ? "1" : "0"}${reason}`);
   }
 
   /** 反悔：清掉申请（也用于 3 天内回来时的手动取消） */
   async function cancelDeletion() {
     const { error } = await client.rpc("cancel_account_deletion");
-    if (error) return show(deletionMessage, `取消失败：${error.message}`);
+    if (error) return show(deletionMessage, hs.describeAuthError(error, "取消注销申请"));
     show(deletionMessage, "已取消注销申请，账号保持正常。", false);
     if (deletionStepConfirm) deletionStepConfirm.hidden = true;
     if (deletionStepSend) deletionStepSend.hidden = false;

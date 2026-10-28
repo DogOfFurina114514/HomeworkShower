@@ -38,7 +38,7 @@
     titleEl.textContent = title;
     hintEl.textContent = hint;
     continueButton.textContent = success ? "进入作业看板" : "返回登录";
-    continueButton.dataset.target = success ? "index.html" : "login.html";
+    continueButton.dataset.target = success ? "./" : hs.pageUrl("login");
     document.body.dataset.authState = failure ? "failure" : success ? "success" : "neutral";
   }
 
@@ -71,7 +71,7 @@
   }
 
   continueButton.addEventListener("click", () => {
-    location.assign(continueButton.dataset.target || "index.html");
+    location.assign(continueButton.dataset.target || "./");
   });
 
   resendButton?.addEventListener("click", async () => {

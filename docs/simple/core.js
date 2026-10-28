@@ -65,6 +65,20 @@
       '" aria-hidden="true" focusable="false"><path fill="currentColor" d="' + path + '"/></svg>';
   }
 
+  /**
+   * 页面地址：一律省略 .html。
+   * 网页端与 App 端都支持无后缀（App 侧是 LocalSiteHandler 做的回落）。
+   */
+  function pageUrl(path) {
+    var parts = String(path).split("?");
+    var name = parts[0];
+    var query = parts[1] || "";
+    // 首页收敛成 "./"，地址栏不该出现 index.html
+    if (name === "index" || name === "index.html") return query ? "./?" + query : "./";
+    var clean = name.replace(/\.html$/, "");
+    return query ? clean + "?" + query : clean;
+  }
+
   /* ---------------------------------------------------------- 登录态 */
 
   var profile = null;
@@ -307,10 +321,10 @@
         escapeHtml(options.backLabel || "返回") + "</a>";
     }
     if (options.showTimemachine) {
-      html += '<a class="pill" href="timemachine.html">' + icon("clock", 18) + "时光机</a>";
+      html += '<a class="pill" href="' + pageUrl("timemachine") + '">' + icon("clock", 18) + "时光机</a>";
     }
     if (!options.hideAccount) {
-      html += '<a class="pill" id="account-button" href="login.html">' + icon("account", 18) +
+      html += '<a class="pill" id="account-button" href="' + pageUrl("login") + '">' + icon("account", 18) +
         '<span id="account-label">' + (current ? "个人中心" : "登录") + "</span></a>";
     }
     html += "</div></header>";
@@ -332,7 +346,7 @@
       menu.className = menu.className.indexOf("open") >= 0 ? "fabmenu" : "fabmenu open";
     };
     if ($("menu-announcement")) $("menu-announcement").onclick = function () { openAnnouncementDialog(); };
-    if ($("menu-publish")) $("menu-publish").onclick = function () { location.href = "publish.html"; };
+    if ($("menu-publish")) $("menu-publish").onclick = function () { location.href = pageUrl("publish"); };
     $("menu-export").onclick = onExport || function () {};
   }
 
@@ -491,7 +505,7 @@
         label: "安全中心",
         onClick: function (close) {
           close();
-          location.href = "security.html";
+          location.href = pageUrl("security");
         }
       });
       if (isPublisher()) {
@@ -508,7 +522,7 @@
         onClick: function (close) {
           close();
           try { window.localStorage.removeItem(STORAGE_KEY); } catch (error) {}
-          location.href = "login.html";
+          location.href = pageUrl("login");
         }
       });
       actions.push({ label: "关闭", primary: true });
@@ -982,6 +996,33 @@
   }
 
   /** 公告点击/新建入口的绑定，主界面与时光机共用 */
+  /**
+   * 只读查看公告（简版）。
+   * 公告是公开内容，未登录也该能看 —— 原来这里会弹"登录后可以查看公告"，
+   * 而内容其实就显示在页面上，那句提示自相矛盾。
+   * 注意「仅发布者可改」只限制编辑，不影响可见性。
+   */
+  function viewAnnouncement(item) {
+    var content = item.content_html
+      ? item.content_html
+      : escapeHtml(item.content || "").replace(/\n/g, "<br>");
+    var tags = [];
+    if (item.pinned) tags.push("置顶");
+    tags.push(IMPORTANCE_LABELS[item.importance] || item.importance);
+    if (item.internal) tags.push("内部");
+    if (!item.admin_only_edit) tags.push("仅发布者可改");
+    if (item.never_expires) tags.push("长期有效");
+    else if (item.expires_on) tags.push("截止 " + String(item.expires_on).replace(/-/g, "/"));
+    if (item.author_role) tags.push(roleLabel(item.author_role) + "发布");
+
+    dialog({
+      title: "公告",
+      body: '<div class="anntext">' + content + "</div>" +
+        '<p class="annmeta" style="margin-top:10px">' + escapeHtml(tags.join(" · ")) + "</p>",
+      actions: [{ label: "关闭", primary: true }]
+    });
+  }
+
   function bindAnnouncementBar() {
     var bar = ensureAnnouncementBar();
     bar.onclick = function (event) {
@@ -993,9 +1034,9 @@
         if (String(announcements[i].id) === String(id)) { item = announcements[i]; break; }
       }
       if (!item) return;
-      if (!canEdit()) return void message("登录后可以查看公告；发布者与管理员可以维护公告", true);
-      if (!item.can_edit) return void message("这条公告只有发布者可改", true);
-      openAnnouncementDialog(item.id);
+      // 有编辑权限才进编辑框，否则进只读详情（未登录也能看）
+      if (item.can_edit && canEdit()) openAnnouncementDialog(item.id);
+      else viewAnnouncement(item);
     };
   }
 
@@ -1005,7 +1046,7 @@
       var banner = document.createElement("div");
       banner.className = "banner";
       banner.innerHTML = "<span>还没有登录：登录后可以用时光机查看以前的作业，也才能发布或修改（仅限未过期的作业）。</span>" +
-        '<a class="pill primary" href="login.html">登录 / 注册</a>';
+        '<a class="pill primary" href="' + pageUrl("login") + '">登录 / 注册</a>';
       document.body.insertBefore(banner, $("board"));
     } else {
       $("account-label").innerHTML = "个人中心";
@@ -1022,7 +1063,7 @@
               onClick: function (close) {
                 close();
                 try { window.localStorage.removeItem(STORAGE_KEY); } catch (error) {}
-                location.href = "login.html";
+                location.href = pageUrl("login");
               }
             },
             { label: "关闭", primary: true }
@@ -1048,7 +1089,7 @@
 
     window.setInterval(function () {
       refreshProfile().then(function () {
-        if (profile && profile.banned) return void (location.href = "ban.html");
+        if (profile && profile.banned) return void (location.href = pageUrl("ban"));
         var next = canEdit();
         if (next !== manage) {
           manage = next;
@@ -1063,8 +1104,8 @@
   /* ------------------------------------------------------ 页面：时光机 */
 
   function pageTimemachine() {
-    topbar({ title: (config.siteName || "作业") + " · 时光机", datePicker: true, back: "index.html" });
-    if (!session()) return void (location.href = "login.html");
+    topbar({ title: (config.siteName || "作业") + " · 时光机", datePicker: true, back: "./" });
+    if (!session()) return void (location.href = pageUrl("login"));
 
     var picker = $("date-picker");
     bindAccount();
@@ -1118,7 +1159,7 @@
   /* -------------------------------------------------- 页面：登录注册 */
 
   function pageLogin() {
-    topbar({ title: config.siteName || "作业", hideAccount: true, backLink: "index.html", backLabel: "返回" });
+    topbar({ title: config.siteName || "作业", hideAccount: true, backLink: "./", backLabel: "返回" });
     var mode = "login";
     var card = document.createElement("div");
     card.className = "card";
@@ -1132,7 +1173,7 @@
       '<div class="dialogactions"><button class="pill primary" id="submit">登录</button></div>';
     document.body.appendChild(card);
 
-    if (session()) return void refreshProfile().then(function () { location.href = "index.html"; });
+    if (session()) return void refreshProfile().then(function () { location.href = "./"; });
 
     function setMode(next) {
       mode = next;
@@ -1160,8 +1201,8 @@
       message("正在登录…");
       login(email, password)
         .then(function () {
-          if (profile && profile.banned) return void (location.href = "ban.html");
-          location.href = "index.html";
+          if (profile && profile.banned) return void (location.href = pageUrl("ban"));
+          location.href = "./";
         })
         .catch(function (error) {
           if (String(error.message).toLowerCase().indexOf("confirm") >= 0) {
@@ -1176,7 +1217,7 @@
   /* ---------------------------------------------------- 页面：发布作业 */
 
   function pagePublish() {
-    topbar({ title: "发布作业", back: "index.html" });
+    topbar({ title: "发布作业", back: "./" });
     var card = document.createElement("div");
     card.className = "card";
     card.innerHTML = '<p class="status" id="status">正在检查权限…</p><div id="form" style="display:none">' +
@@ -1222,8 +1263,8 @@
 
   function pageSecurity() {
     // 顶栏只留「返回看板」：不显示网站状态、不显示个人中心、也不用时光机那套「回到今天」
-    topbar({ title: "安全中心", hideStatus: true, hideAccount: true, backLink: "index.html", backLabel: "返回看板" });
-    if (!session()) return void (location.href = "login.html");
+    topbar({ title: "安全中心", hideStatus: true, hideAccount: true, backLink: "./", backLabel: "返回看板" });
+    if (!session()) return void (location.href = pageUrl("login"));
 
     /* —— 卡片 1：更改邮箱 —— */
     var emailCard = document.createElement("div");
@@ -1272,7 +1313,7 @@
 
     $("ask-deletion").onclick = function () {
       var current = session();
-      if (!current) return void (location.href = "login.html");
+      if (!current) return void (location.href = pageUrl("login"));
       deletionStatus("正在发送验证邮件…", false);
       // 验证邮件只做验证：走 recovery 验证码（reauthenticate 的 nonce 校验不稳定）
       fetch(config.supabaseUrl + "/auth/v1/recover", {
@@ -1423,7 +1464,7 @@
     var card = document.createElement("div");
     card.className = "card";
     card.innerHTML = '<h2 id="title">邮箱验证</h2><p class="status" id="status">正在读取验证结果…</p>' +
-      '<div class="dialogactions"><a class="pill primary" href="index.html">进入作业看板</a></div>';
+      '<div class="dialogactions"><a class="pill primary" href="./">进入作业看板</a></div>';
     document.body.appendChild(card);
 
     if (hash.indexOf("error") >= 0) {
@@ -1454,7 +1495,7 @@
     };
     refreshProfile().then(function () {
       if (profile && profile.banned && page !== "auth") {
-        location.href = "ban.html";
+        location.href = pageUrl("ban");
         return;
       }
       if (profile && profile.deleted_at && page !== "auth") {

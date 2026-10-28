@@ -43,8 +43,15 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>作业</title>
-    <link rel="stylesheet" href="assets/app.css?v84" />
-    <link rel="icon" href="assets/icon.svg?v84" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v93" />
+    <link rel="icon" href="assets/icon.svg?v93" type="image/svg+xml" />
+    <style>
+      /* 状态条：错误红条 + 右侧「前往状态页」按钮（仅数据访问失败时由脚本显示） */
+      .hs-status-row { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; }
+      .hs-status-row > .status { margin: 0; flex: 1 1 auto; min-width: 0; }
+      .hs-status-row > #status-page-link { flex: 0 0 auto; }
+      .hs-status-row[hidden] { display: none !important; }
+    </style>
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -112,11 +119,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v84" defer></script>
-    <script src="vendor/supabase.js?v84" defer></script>
-    <script src="assets/config.js?v84" defer></script>
-    <script src="assets/client.js?v84" defer></script>
-    <script src="assets/board.js?v84" defer></script>
+    <script src="vendor/m3e.js?v93" defer></script>
+    <script src="vendor/supabase.js?v93" defer></script>
+    <script src="assets/config.js?v93" defer></script>
+    <script src="assets/client.js?v93" defer></script>
+    <script src="assets/board.js?v93" defer></script>
   </head>
 
   <body>
@@ -124,6 +131,20 @@
       <header class="topbar">
         <m3e-heading class="topbar__title" variant="title" size="large" level="1" id="site-title">作业</m3e-heading>
         <div class="topbar__controls">
+          <!-- 网站状态：自绘圆形勾图标，新标签页打开 -->
+          <m3e-button
+            variant="tonal"
+            id="status-button"
+            onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+          >
+            <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+              />
+            </svg>
+            网站状态
+          </m3e-button>
           <m3e-button variant="tonal" id="timemachine-button">
             <m3e-icon variant="outlined" slot="icon" name="schedule"></m3e-icon>
             时光机
@@ -139,7 +160,6 @@
                 <span>当前身份</span>
               </div>
               <span class="role-chip" id="account-role">用户</span>
-              <m3e-button variant="text" id="publish-link" hidden>发布作业</m3e-button>
               <m3e-button variant="text" id="security-link" hidden>安全中心</m3e-button>
               <m3e-button variant="text" id="manage-users-button" hidden>管理用户</m3e-button>
               <m3e-button variant="text" id="logout-button">退出登录</m3e-button>
@@ -149,11 +169,37 @@
       </header>
 
       <div class="banner" id="login-banner" hidden>
-        <span class="banner__text">还没有登录：登录后可以用时光机查看以前的作业，也才能发布或修改（仅限当天）。</span>
+        <span class="banner__text">还没有登录：登录后可以用时光机查看以前的作业，也才能发布或修改（仅限未过期的作业）。</span>
         <m3e-button variant="filled" id="banner-login-button">登录 / 注册</m3e-button>
       </div>
 
-      <p class="status" id="status" hidden></p>
+      <!-- 公告栏：每条一行，无公告时由脚本加 hidden 自动收起（见 board.js renderAnnouncements） -->
+      <section class="announcement-bar" id="announcement-bar" hidden aria-label="公告">
+        <div class="announcement-bar__head">
+          <m3e-icon variant="outlined" name="assignment" aria-hidden="true"></m3e-icon>
+          <m3e-heading variant="title" size="small" level="2">公告</m3e-heading>
+        </div>
+        <m3e-list class="announcement-list" id="announcement-list" variant="segmented"></m3e-list>
+      </section>
+
+      <!-- 状态条：错误红条 + 右侧「前往状态页」按钮（只在数据访问失败时显示） -->
+      <div class="hs-status-row" id="hs-status-row" hidden>
+        <p class="status" id="status" hidden></p>
+        <m3e-button
+          variant="tonal"
+          id="status-page-link"
+          hidden
+          onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+        >
+          <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+            />
+          </svg>
+          前往状态页
+        </m3e-button>
+      </div>
 
       <main class="homework-board" id="board">
         <div class="homework-empty-state"><m3e-icon variant="outlined" name="hourglass_top"></m3e-icon><span>正在加载…</span></div>
@@ -212,9 +258,105 @@
         </div>
       </m3e-dialog>
 
+      <!-- 公告编辑：等级与开关用可点击 chip（M3E 没有 switch / checkbox / select 组件） -->
+      <m3e-dialog id="announcement-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2" id="announcement-dialog-title">新建公告</m3e-heading>
+        <div class="edit-form">
+          <div class="form-row">
+            <span>重要等级</span>
+            <div class="chip-row" id="announcement-importance" role="radiogroup" aria-label="重要等级">
+              <button type="button" class="chip-toggle" data-value="LOW" role="radio" aria-checked="false">低</button>
+              <button type="button" class="chip-toggle" data-value="NORMAL" role="radio" aria-checked="true">普通</button>
+              <button type="button" class="chip-toggle" data-value="MODERATE" role="radio" aria-checked="false">中等</button>
+              <button type="button" class="chip-toggle" data-value="IMPORTANT" role="radio" aria-checked="false" id="importance-critical">重要</button>
+            </div>
+            <p class="hint" id="importance-hint" hidden>只有发布者可以把公告设为「重要」。</p>
+          </div>
+
+          <div class="form-row">
+            <span>选项</span>
+            <div class="switch-list" id="announcement-flags">
+              <label class="switch-item">
+                <input type="checkbox" class="switch" data-flag="pinned" />
+                <span class="switch-item__text">置顶</span>
+              </label>
+              <label class="switch-item" id="flag-admin-edit-row">
+                <input type="checkbox" class="switch" data-flag="admin_only_edit" id="flag-admin-edit" checked />
+                <span class="switch-item__text">管理员可修改</span>
+              </label>
+              <label class="switch-item">
+                <input type="checkbox" class="switch" data-flag="internal" />
+                <span class="switch-item__text">内部（仅管理员与发布者可见）</span>
+              </label>
+              <label class="switch-item">
+                <input type="checkbox" class="switch" data-flag="never_expires" />
+                <span class="switch-item__text">永不过期</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="ann-expiry-slot" id="ann-expiry-slot">
+            <m3e-form-field variant="outlined" id="announcement-expiry-field">
+              <label slot="label" for="announcement-expiry-input">截止日期</label>
+              <input id="announcement-expiry-input" readonly autocomplete="off" />
+              <m3e-icon-button slot="suffix" aria-label="选择截止日期">
+                <m3e-icon variant="outlined" name="calendar_today"></m3e-icon>
+                <m3e-datepicker-toggle for="announcement-expiry-picker"></m3e-datepicker-toggle>
+              </m3e-icon-button>
+            </m3e-form-field>
+          </div>
+          <m3e-datepicker id="announcement-expiry-picker" variant="auto" label="选择截止日期" clear-label="清除" confirm-label="确定" dismiss-label="取消"></m3e-datepicker>
+
+          <div class="form-row">
+            <span>内容</span>
+            <div class="rich-editor">
+              <div class="rich-toolbar" role="toolbar" aria-label="文字格式">
+                <m3e-icon-button data-cmd="bold" aria-label="加粗" title="加粗"><m3e-icon variant="outlined" name="format_bold"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="italic" aria-label="斜体" title="斜体"><m3e-icon variant="outlined" name="format_italic"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="underline" aria-label="下划线" title="下划线"><m3e-icon variant="outlined" name="format_underlined"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertUnorderedList" aria-label="无序列表" title="无序列表"><m3e-icon variant="outlined" name="format_list_bulleted"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertOrderedList" aria-label="有序列表" title="有序列表"><m3e-icon variant="outlined" name="format_list_numbered"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="createLink" aria-label="插入链接" title="插入链接"><m3e-icon variant="outlined" name="link"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="insertImage" aria-label="插入图片" title="插入图片"><m3e-icon variant="outlined" name="image"></m3e-icon></m3e-icon-button>
+                <m3e-icon-button data-cmd="removeFormat" aria-label="清除格式" title="清除格式"><m3e-icon variant="outlined" name="format_clear"></m3e-icon></m3e-icon-button>
+              </div>
+              <input type="file" accept="image/*" class="rich-image-input" hidden />
+              <div class="rich-surface" id="announcement-content" contenteditable="true" role="textbox" aria-multiline="true"></div>
+            </div>
+          </div>
+        </div>
+        <p class="status" id="announcement-message" hidden></p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="announcement-delete" hidden>删除</m3e-button>
+          <m3e-button variant="text" id="announcement-cancel">取消</m3e-button>
+          <m3e-button variant="filled" id="announcement-save">保存</m3e-button>
+        </div>
+      </m3e-dialog>
+
+      <!-- 删除公告确认：alert 型对话框，两个动作按钮 -->
+      <m3e-dialog id="announcement-confirm-dialog" alert>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">删除这条公告？</m3e-heading>
+        <p class="hint">删除后不再显示，且无法恢复。</p>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="announcement-confirm-cancel">取消</m3e-button>
+          <m3e-button variant="filled" id="announcement-confirm-ok">删除</m3e-button>
+        </div>
+      </m3e-dialog>
+
+
+      <!-- 公告详情（只读）：未登录或无编辑权限时点公告进来，只给「关闭」 -->
+      <m3e-dialog id="announcement-view-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">公告</m3e-heading>
+        <div class="announcement-view__meta" id="announcement-view-meta"></div>
+        <div class="announcement-view" id="announcement-view-body"></div>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="announcement-view-close">关闭</m3e-button>
+        </div>
+      </m3e-dialog>
+
       <m3e-dialog id="delete-dialog" alert dismissible>
         <m3e-heading slot="header" variant="headline" size="small" level="2">删除这条作业？</m3e-heading>
-        <p class="hint">删除后无法恢复。只有当天发布的内容可以修改或删除。</p>
+        <p class="hint">删除后无法恢复。只有未过期的作业可以修改或删除。</p>
         <p class="status" id="delete-message" hidden></p>
         <div slot="actions" end>
           <m3e-button variant="text" id="delete-cancel">取消</m3e-button>
@@ -242,7 +384,7 @@
         <m3e-heading slot="header" variant="headline" size="small" level="2">仅管理员可修改作业</m3e-heading>
         <p class="hint">
           当前身份是「<strong id="permission-role">用户</strong>」。只有发布者与管理员可以修改作业，
-          而且只能修改当天发布的内容。
+          而且只能修改未过期的作业。
         </p>
         <div slot="actions" end>
           <m3e-button variant="text" id="permission-ok">我知道了</m3e-button>
@@ -269,97 +411,36 @@
         </div>
       </m3e-dialog>
     </m3e-theme>
+
+    <script>
+      /* 状态条联动：只有当 #status 是 error 且可见时，才在右侧显示「前往状态页」按钮。
+         非错误（正在加载 / 共 N 条作业）和隐藏状态都同步收起。 */
+      (function () {
+        function setup() {
+          var status = document.getElementById("status");
+          var link = document.getElementById("status-page-link");
+          var row = document.getElementById("hs-status-row");
+          if (!status || !link || !row) return;
+          function sync() {
+            if (status.hidden) {
+              row.hidden = true;
+              return;
+            }
+            row.hidden = false;
+            link.hidden = !status.classList.contains("error");
+          }
+          new MutationObserver(sync).observe(status, {
+            attributes: true,
+            attributeFilter: ["class", "hidden"],
+          });
+          sync();
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", setup);
+        } else {
+          setup();
+        }
+      })();
+    </script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -143,7 +143,7 @@
     event.preventDefault();
     void doPublish();
   });
-  if (backButton) backButton.addEventListener("click", () => location.assign("index.html"));
+  if (backButton) backButton.addEventListener("click", () => location.assign("./"));
 
   void (async () => {
     const session = await hs.requireSession();

@@ -2,7 +2,7 @@
 
 同学打开网页就能看到今天的作业。作业由桌面端 **StickyHomeworks2** 导出后发布上来，同一天重复发布会覆盖当天内容。
 
-在线地址：**https://dogoffurina114514.github.io/HomeworkShower/**
+在线地址：**https://homework.fucku.top/**
 
 ---
 

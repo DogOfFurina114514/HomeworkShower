@@ -32,8 +32,12 @@
 
   const nextUrl = (() => {
     const next = new URLSearchParams(location.search).get("next");
-    if (!next) return "index.html";
-    return /^[\w.-]+\.html(\?[^#]*)?$/.test(next) ? next : "index.html";
+    if (!next) return hs.pageUrl("index");
+    // 只接受站内页面名（现在链接里通常不带 .html，旧链接可能带），
+    // 统一交给 hs.pageUrl 决定要不要补扩展名。
+    const match = /^([\w.-]+?)(?:\.html)?(\?[^#]*)?$/.exec(next);
+    if (!match) return hs.pageUrl("index");
+    return hs.pageUrl((match[1] || "index") + (match[2] || ""));
   })();
 
   let lastFocused = null;
@@ -269,7 +273,7 @@
       history.back();
       return;
     }
-    location.assign("index.html");
+    location.assign("./");
   }
 
   document.getElementById("back-button")?.addEventListener("click", goBack);

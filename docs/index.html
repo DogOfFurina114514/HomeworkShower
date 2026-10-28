@@ -43,8 +43,8 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>作业</title>
-    <link rel="stylesheet" href="assets/app.css?v91" />
-    <link rel="icon" href="assets/icon.svg?v91" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v93" />
+    <link rel="icon" href="assets/icon.svg?v93" type="image/svg+xml" />
     <style>
       /* 状态条：错误红条 + 右侧「前往状态页」按钮（仅数据访问失败时由脚本显示） */
       .hs-status-row { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; }
@@ -119,11 +119,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v91" defer></script>
-    <script src="vendor/supabase.js?v91" defer></script>
-    <script src="assets/config.js?v91" defer></script>
-    <script src="assets/client.js?v91" defer></script>
-    <script src="assets/board.js?v91" defer></script>
+    <script src="vendor/m3e.js?v93" defer></script>
+    <script src="vendor/supabase.js?v93" defer></script>
+    <script src="assets/config.js?v93" defer></script>
+    <script src="assets/client.js?v93" defer></script>
+    <script src="assets/board.js?v93" defer></script>
   </head>
 
   <body>
@@ -160,7 +160,6 @@
                 <span>当前身份</span>
               </div>
               <span class="role-chip" id="account-role">用户</span>
-              <m3e-button variant="text" id="publish-link" hidden>发布作业</m3e-button>
               <m3e-button variant="text" id="security-link" hidden>安全中心</m3e-button>
               <m3e-button variant="text" id="manage-users-button" hidden>管理用户</m3e-button>
               <m3e-button variant="text" id="logout-button">退出登录</m3e-button>
@@ -341,6 +340,17 @@
         <div slot="actions" end>
           <m3e-button variant="text" id="announcement-confirm-cancel">取消</m3e-button>
           <m3e-button variant="filled" id="announcement-confirm-ok">删除</m3e-button>
+        </div>
+      </m3e-dialog>
+
+
+      <!-- 公告详情（只读）：未登录或无编辑权限时点公告进来，只给「关闭」 -->
+      <m3e-dialog id="announcement-view-dialog" dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">公告</m3e-heading>
+        <div class="announcement-view__meta" id="announcement-view-meta"></div>
+        <div class="announcement-view" id="announcement-view-body"></div>
+        <div slot="actions" end>
+          <m3e-button variant="text" id="announcement-view-close">关闭</m3e-button>
         </div>
       </m3e-dialog>
 

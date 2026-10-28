@@ -22,7 +22,6 @@
   const accountEmail = document.getElementById("account-email");
   const accountRole = document.getElementById("account-role");
   const logoutButton = document.getElementById("logout-button");
-  const publishLink = document.getElementById("publish-link");
   const timemachineButton = document.getElementById("timemachine-button");
   const backButton = document.getElementById("back-button");
   const accountButtonLabel = document.getElementById("account-button-label");
@@ -1236,16 +1235,67 @@
       if (!row) return;
       const item = announcements.find((row2) => String(row2.id) === String(row.dataset.announcementId));
       if (!item) return;
-      if (!canPostAnnouncements()) {
-        hs.toast("登录后可以查看公告；发布者与管理员可以维护公告");
-        return;
+
+      // 公告是公开内容：任何人不登录也能"查看"。
+      // 有编辑权限才进编辑框，否则进只读详情 —— 不再弹"登录后可以查看公告"
+      // 那种提示（内容都显示在眼前了，说不能查看是自相矛盾的）。
+      if (item.can_edit && canPostAnnouncements()) {
+        openAnnouncementEdit(item.id);
+      } else {
+        openAnnouncementView(item);
       }
-      if (!item.can_edit) {
-        hs.toast("这条公告只有发布者可改");
-        return;
-      }
-      openAnnouncementEdit(item.id);
     });
+
+    // 只读详情：关闭按钮 + 点图片放大
+    document.getElementById("announcement-view-close")?.addEventListener("click", () => {
+      document.getElementById("announcement-view-dialog")?.hide();
+    });
+    document.getElementById("announcement-view-body")?.addEventListener("click", (event) => {
+      const image = event.target.closest("img");
+      if (image && openLightboxHook) {
+        event.stopPropagation();
+        openLightboxHook(image);
+      }
+    });
+  }
+
+  /**
+   * 只读查看公告：未登录、或没有编辑权限的人点公告进这里。
+   *
+   * 之前未登录点公告会提示"登录后可以查看公告" —— 内容明明已经渲染在页面上，
+   * 这句提示自相矛盾。现在改成打开详情：完整富文本给足阅读区域，
+   * 图片可点开放大，底部只有「关闭」，不涉及任何写权限。
+   */
+  function openAnnouncementView(item) {
+    if (!item) return;
+    const dialog = document.getElementById("announcement-view-dialog");
+    const body = document.getElementById("announcement-view-body");
+    const meta = document.getElementById("announcement-view-meta");
+    if (!dialog || !body) return;
+
+    body.innerHTML = item.content_html
+      ? hs.sanitizeHtml(item.content_html)
+      : hs.escapeHtml(item.content || "").replace(/\n/g, "<br>");
+
+    if (meta) {
+      const parts = [];
+      if (item.pinned) parts.push('<span class="announcement-tag announcement-tag--pinned">置顶</span>');
+      parts.push(
+        `<span class="announcement-tag announcement-tag--${item.importance}">${IMPORTANCE_LABELS[item.importance] || item.importance}</span>`
+      );
+      if (item.internal) parts.push('<span class="announcement-tag announcement-tag--internal">内部</span>');
+      if (!item.admin_only_edit) parts.push('<span class="announcement-tag">仅发布者可改</span>');
+      const expiry = item.never_expires
+        ? "长期有效"
+        : item.expires_on
+          ? `截止 ${String(item.expires_on).replace(/-/g, "/")}`
+          : "";
+      if (expiry) parts.push(`<span>${expiry}</span>`);
+      if (item.author_role) parts.push(`<span>· ${hs.roleLabel(item.author_role)}发布</span>`);
+      meta.innerHTML = parts.join("");
+    }
+
+    dialog.show();
   }
 
   async function init() {
@@ -1286,7 +1336,7 @@
         </div>`;
       showStatus("");
       document.getElementById("prompt-login-button")?.addEventListener("click", () => {
-        location.assign(`login.html?next=${encodeURIComponent("timemachine.html")}`);
+        location.assign(`login?next=${encodeURIComponent("timemachine")}`);
       });
       return;
     }
@@ -1316,19 +1366,18 @@
     if (!profile) {
       // 未登录：右上角按钮变成「登录」，顶部给一条红色横幅
       if (accountButtonLabel) accountButtonLabel.textContent = "登录";
-      accountButton.addEventListener("click", () => location.assign("login.html"));
+      accountButton.addEventListener("click", () => location.assign(hs.pageUrl("login")));
       if (loginBanner) loginBanner.hidden = false;
-      if (bannerLoginButton) bannerLoginButton.addEventListener("click", () => location.assign("login.html"));
+      if (bannerLoginButton) bannerLoginButton.addEventListener("click", () => location.assign(hs.pageUrl("login")));
     } else {
       accountEmail.textContent = profile.email;
       accountRole.textContent = hs.roleLabel(profile.role);
-      if (publishLink) publishLink.hidden = !hs.isPublisher(profile);
       const manageUsersButton = document.getElementById("manage-users-button");
       if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(profile);
       const securityLink = document.getElementById("security-link");
       if (securityLink) {
         securityLink.hidden = false;
-        securityLink.addEventListener("click", () => location.assign("security.html"));
+        securityLink.addEventListener("click", () => location.assign(hs.pageUrl("security")));
       }
 
       accountButton.addEventListener("click", () => {
@@ -1338,13 +1387,12 @@
         if (!accountPanel.hidden && !event.target.closest(".account")) accountPanel.hidden = true;
       });
       logoutButton.addEventListener("click", () => void hs.signOut());
-      if (publishLink) publishLink.addEventListener("click", () => location.assign("publish.html"));
     }
 
     if (timemachineButton) {
-      timemachineButton.addEventListener("click", () => location.assign(session ? "timemachine.html" : "login.html"));
+      timemachineButton.addEventListener("click", () => location.assign(hs.pageUrl(session ? "timemachine" : "login")));
     }
-    if (backButton) backButton.addEventListener("click", () => location.assign("index.html"));
+    if (backButton) backButton.addEventListener("click", () => location.assign("./"));
 
     // ---------- 选中与编辑/删除（只有发布者/管理员，且只有当天） ----------
 
@@ -2294,7 +2342,6 @@ const duePickerEl = document.getElementById("edit-due-picker");
         if (accountRole) accountRole.textContent = hs.roleLabel(latest.role);
         const manageUsersButton = document.getElementById("manage-users-button");
         if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(latest);
-        if (publishLink) publishLink.hidden = !hs.isPublisher(latest);
         renderBoard(currentRows);
         hs.toast(nextCanManage ? "权限已更新" : "你的修改权限已被撤销");
       } catch (error) {
@@ -2446,7 +2493,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
           </m3e-fab-menu>`;
         document.getElementById("fab-new")?.addEventListener("click", () => openCreate());
         document.getElementById("fab-announcement")?.addEventListener("click", () => openAnnouncementCreate());
-        document.getElementById("fab-publish")?.addEventListener("click", () => location.assign("publish.html"));
+        document.getElementById("fab-publish")?.addEventListener("click", () => location.assign(hs.pageUrl("publish")));
         document.getElementById("fab-save")?.addEventListener("click", () => {
           const subjects = [];
           for (const row of currentRows) {

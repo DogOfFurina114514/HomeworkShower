@@ -144,8 +144,9 @@
 
   /** 被封禁：跳到封禁页，并且不允许通过退出登录绕过 */
   function bannedRedirect() {
-    if (location.pathname.indexOf("ban.html") >= 0) return;
-    location.replace("ban.html");
+    // 兼容 /ban 与 /ban.html（网页端已不带后缀）
+    if (/\/ban(?:\.html)?$/.test(location.pathname)) return;
+    location.replace(pageUrl("ban"));
   }
 
   async function signOut() {
@@ -155,7 +156,7 @@
       return;
     }
     await client.auth.signOut();
-    location.replace("login.html");
+    location.replace(pageUrl("login"));
   }
 
   /** 只有发布者能发布作业 */
@@ -351,6 +352,110 @@
     return true;
   }
 
+  /**
+   * 页面地址：一律省略 .html。
+   *
+   * 两端都支持无后缀：
+   *   · 网页端 —— GitHub Pages 与 homework.fucku.top 都会把 /login 解析到 login.html
+   *   · App 内 —— MainActivity.LocalSiteHandler 把 /login 回落到 login.html，
+   *     把目录请求 /site/ 回落到 index.html
+   * 所以这里不再按 host 分支，地址栏保持简洁。
+   */
+  function pageUrl(path) {
+    // path 可以带查询串，如 "login?next=timemachine"
+    const [name, query] = String(path).split("?");
+    // 首页收敛成 "./"，地址栏不该出现 index.html
+    if (name === "index" || name === "index.html") return query ? "./?" + query : "./";
+    const clean = name.replace(/\.html$/, "");
+    return query ? clean + "?" + query : clean;
+  }
+
+  /**
+   * 顶栏按钮放不下时自动等比缩小，最多缩到 75%。
+   *
+   * 为什么需要：中文界面里按钮不少（时光机 / 网站状态 / 个人中心…），
+   * 390px 宽的手机上纯排布会换到第二行，把首屏内容往下挤。
+   * 这里改成不换行 + 按需缩放：只要缩到 75% 及以上能塞进一行，就缩；
+   * 真的塞不下（比如 320px 小屏 + 按钮更多）就放弃缩放，让它照旧换行，
+   * 免得把字挤到看不清。
+   *
+   * 用 zoom 而不是 transform: scale() —— transform 不改变布局盒尺寸，
+   * 视觉上缩小了但占位还是原样，该溢出还是溢出。
+   */
+  const TOPBAR_MIN_SCALE = 0.75;
+
+  function fitTopbar() {
+    const bar = document.querySelector(".topbar");
+    if (!bar) return;
+    const controls = bar.querySelector(".topbar__controls");
+    if (!controls) return;
+
+    // 每次先复位再测量，否则上一轮的 zoom 会把"自然宽度"也算进去
+    controls.style.zoom = "";
+    controls.style.flexWrap = "nowrap";
+
+    const barStyle = getComputedStyle(bar);
+    const paddingX =
+      (parseFloat(barStyle.paddingLeft) || 0) + (parseFloat(barStyle.paddingRight) || 0);
+    const gap = parseFloat(barStyle.columnGap) || parseFloat(barStyle.gap) || 12;
+    const title = bar.querySelector(".topbar__title") || bar.querySelector("h1");
+    const titleWidth = title ? title.getBoundingClientRect().width : 0;
+
+    const available = bar.clientWidth - paddingX - titleWidth - gap;
+    if (available <= 0) return;
+
+    // 按钮都是 M3E 组件（含 shadow DOM），scrollWidth 已经把它们算进去
+    const needed = controls.scrollWidth;
+    if (!needed || needed <= available) return;
+
+    const scale = available / needed;
+    if (scale < TOPBAR_MIN_SCALE) {
+      // 缩到 75% 也放不下（比如 320px 小屏 + 标题本来就长）：
+      // 不硬缩，改回换行。这里必须显式写 "wrap" —— CSS 里
+      // .topbar__controls 本身是 nowrap，清空内联样式只会恢复 nowrap，
+      // 结果控件区照样撑出顶栏右边界。
+      controls.style.flexWrap = "wrap";
+      return;
+    }
+    controls.style.zoom = String(scale);
+  }
+
+  /** 节流：一帧只量一次，避免 resize 时反复重排 */
+  let topbarFitQueued = false;
+  function queueTopbarFit() {
+    if (topbarFitQueued) return;
+    topbarFitQueued = true;
+    requestAnimationFrame(() => {
+      topbarFitQueued = false;
+      fitTopbar();
+    });
+  }
+
+  function setupTopbarFit() {
+    queueTopbarFit();
+    window.addEventListener("resize", queueTopbarFit);
+    window.addEventListener("orientationchange", queueTopbarFit);
+
+    // 顶栏按钮是各页面脚本异步填进去的（还有登录后才显示的按钮），
+    // 所以内容一变就要重算。只盯 childList、不盯 attributes ——
+    // 否则我们自己写 zoom 就会触发回调，来回打转。
+    const bar = document.querySelector(".topbar");
+    if (bar && "MutationObserver" in window) {
+      new MutationObserver(queueTopbarFit).observe(bar, {
+        childList: true,
+        subtree: true,
+      });
+    }
+    // 字体加载完宽度会变，补一枪
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueTopbarFit);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupTopbarFit, { once: true });
+  } else {
+    setupTopbarFit();
+  }
+
   window.hs = {
     client,
     config,
@@ -368,6 +473,7 @@
     escapeHtml,
     openMailto,
     describeAuthError,
+    pageUrl,
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();

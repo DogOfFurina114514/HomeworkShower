@@ -547,6 +547,47 @@ html.hs-booting body {
    M3E 只注册了 10 个组件、其中没有 switch，所以这里用原生 checkbox +
    appearance:none 做 M3 外观 —— 语义与键盘操作都还是浏览器原生的，
    只是把绘制交给了 CSS，不是自己画控件。 */
+/* 公告详情（只读）。
+   未登录或无编辑权限的人点公告进这里：内容给足阅读宽度，图片可点开放大。 */
+.announcement-view {
+  max-height: min(58vh, 520px);
+  overflow-y: auto;
+  padding: 2px 2px 4px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--md-sys-color-on-surface, #171d1e);
+  overflow-wrap: anywhere;
+}
+
+.announcement-view :where(p, ul, ol, h1, h2, h3, h4) {
+  margin: 0 0 0.7em;
+}
+
+.announcement-view :where(ul, ol) {
+  padding-inline-start: 1.4em;
+}
+
+.announcement-view a {
+  color: var(--md-sys-color-primary, #006877);
+}
+
+.announcement-view img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  cursor: zoom-in;
+}
+
+.announcement-view__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+}
+
 .switch-list {
   display: grid;
   gap: 12px;
