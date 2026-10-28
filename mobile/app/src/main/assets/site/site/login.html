@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      /* 启动遮罩：M3E 升级完成（或最多等 4 秒）后再显示页面，避免组件未就绪时样式露馅 */
+      (function () {
+        var root = document.documentElement;
+        root.className += " hs-booting";
+        function ready() { root.className = root.className.replace(/\s*hs-booting/, ""); }
+        var tries = 0;
+        (function wait() {
+          if (window.customElements && window.customElements.get("m3e-dialog")) { ready(); return; }
+          if (++tries > 40) { ready(); return; }
+          window.setTimeout(wait, 100);
+        })();
+      })();
+    </script>
+    <script>
+      /* 老浏览器检测：M3E 依赖若干较新的 API，缺了才切到不依赖组件库的简版页面。
+         注意 attachInternals 挂在 HTMLElement.prototype（不是 Element.prototype）。
+         地址上带 ?full=1 时强制走完整版，作为逃生口。 */
+      (function () {
+        if (location.search.indexOf("full=1") >= 0) return;
+        var ok = false;
+        try {
+          ok =
+            typeof window.Proxy !== "undefined" &&
+            typeof window.customElements !== "undefined" &&
+            typeof HTMLElement !== "undefined" &&
+            typeof HTMLElement.prototype.attachInternals === "function" &&
+            typeof CSSStyleSheet !== "undefined" &&
+            typeof CSSStyleSheet.prototype.replaceSync === "function" &&
+            "adoptedStyleSheets" in Document.prototype;
+        } catch (error) {
+          ok = false;
+        }
+        if (ok) return;
+        if (location.pathname.indexOf("/simple/") >= 0) return;
+        var name = location.pathname.replace(/.*\//, "") || "index.html";
+        location.replace(location.pathname.replace(/[^\/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>登录 · 作业</title>
+    <link rel="stylesheet" href="assets/app.css?v90" />
+    <link rel="icon" href="assets/icon.svg?v90" type="image/svg+xml" />
+    <script>
+      // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
+      //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
+      //  - Safari < 16.4：连 attachInternals 都没有。
+      // M3E 组件内部直接调用 internals.states.add/delete，缺了就抛 TypeError 把组件打挂。
+      // ElementInternals 实例通常不可扩展（defineProperty 会失败），所以这里用 Proxy 包一层，
+      // 并对完全没有该 API 的浏览器给出最小实现。
+      (function () {
+        if (typeof Element === "undefined") return;
+
+        var stateMap = new WeakMap();
+        function statesOf(target) {
+          var set = stateMap.get(target);
+          if (!set) {
+            set = new Set();
+            stateMap.set(target, set);
+          }
+          return set;
+        }
+
+        function wrap(internals) {
+          if (!internals) return internals;
+          if (internals.states) return internals;
+          try {
+            return new Proxy(internals, {
+              get: function (target, prop) {
+                if (prop === "states") return statesOf(target);
+                var value = Reflect.get(target, prop, target);
+                return typeof value === "function" ? value.bind(target) : value;
+              },
+            });
+          } catch (error) {
+            try {
+              Object.defineProperty(internals, "states", { value: statesOf(internals), configurable: true });
+            } catch (ignored) {
+              /* 兜不住也不影响其它功能 */
+            }
+            return internals;
+          }
+        }
+
+        if (typeof Element.prototype.attachInternals === "function") {
+          var original = Element.prototype.attachInternals;
+          Element.prototype.attachInternals = function () {
+            return wrap(original.apply(this, arguments));
+          };
+        } else {
+          Element.prototype.attachInternals = function () {
+            return wrap({
+              states: null,
+              form: null,
+              labels: [],
+              role: null,
+              ariaLabel: null,
+              ariaLabelledByElements: null,
+              setFormValue: function () {},
+              setValidity: function () { return true; },
+              checkValidity: function () { return true; },
+              reportValidity: function () { return true; },
+              willValidate: false,
+              validity: { valid: true },
+              validationMessage: "",
+            });
+          };
+        }
+      })();
+    </script>
+    <script src="vendor/m3e.js?v90" defer></script>
+    <script src="vendor/supabase.js?v90" defer></script>
+    <script src="assets/config.js?v90" defer></script>
+    <script src="assets/client.js?v90" defer></script>
+    <script src="assets/login.js?v90" defer></script>
+  </head>
+
+  <body>
+    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
+      <main class="auth">
+        <section class="auth__card" id="auth-card">
+          <div class="auth__back">
+            <m3e-button variant="text" id="back-button" aria-label="返回上一页">
+              <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
+              返回
+            </m3e-button>
+          </div>
+          <m3e-heading variant="headline" size="small" level="1">作业</m3e-heading>
+          <p class="hint">登录后即可查看每天的作业。账号使用邮箱注册，注册后需要点开验证邮件完成验证。</p>
+
+          <div class="auth__tabs" role="tablist" aria-label="登录或注册">
+            <m3e-button id="tab-login" role="tab" aria-selected="true" variant="filled">登录</m3e-button>
+            <m3e-button id="tab-register" role="tab" aria-selected="false" variant="tonal">注册</m3e-button>
+          </div>
+
+          <p class="status" id="message" hidden></p>
+
+          <div class="auth__panes" id="auth-panes">
+            <form id="login-form" class="auth__pane is-active" autocomplete="on">
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="login-email">邮箱</label>
+                <input id="login-email" name="email" type="email" autocomplete="email" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="login-password">密码</label>
+                <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+              </m3e-form-field>
+              <div class="auth__actions">
+                <m3e-button id="login-submit" variant="filled">登录</m3e-button>
+              </div>
+            </form>
+
+            <form id="register-form" class="auth__pane" autocomplete="on">
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-email">邮箱</label>
+                <input id="register-email" name="email" type="email" autocomplete="email" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-password">密码（至少 8 位）</label>
+                <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" required />
+              </m3e-form-field>
+              <m3e-form-field variant="outlined">
+                <label slot="label" for="register-confirm">确认密码</label>
+                <input id="register-confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required />
+              </m3e-form-field>
+              <div class="auth__actions">
+                <m3e-button id="register-submit" variant="filled">注册并发送验证邮件</m3e-button>
+              </div>
+            </form>
+          </div>
+
+          <div class="auth__actions" id="resend-box" hidden>
+            <m3e-form-field variant="outlined">
+              <label slot="label" for="resend-email">没收到验证邮件？填注册邮箱</label>
+              <input id="resend-email" type="email" />
+            </m3e-form-field>
+            <m3e-button id="resend-button" variant="text">重新发送验证邮件</m3e-button>
+          </div>
+        </section>
+      </main>
+
+      <m3e-dialog id="verify-dialog" alert dismissible>
+        <m3e-heading slot="header" variant="headline" size="small" level="2">邮箱还没有验证</m3e-heading>
+        <p class="hint">
+          这个账号还没有完成邮箱验证，所以暂时不能登录。我们可以给
+          <strong id="verify-email">这个邮箱</strong>
+          重新发一封验证邮件。
+        </p>
+        <p class="status" id="verify-message" hidden></p>
+        <div slot="actions" end>
+          <m3e-button id="verify-close" variant="text">稍后再说</m3e-button>
+          <m3e-button id="verify-resend" variant="filled">重新发送验证邮件</m3e-button>
+        </div>
+      </m3e-dialog>
+    </m3e-theme>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

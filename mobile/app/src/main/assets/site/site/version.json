@@ -1,0 +1,33 @@
+{
+  "webVersion": "24",
+  "webVersionCode": 24,
+  "updatedAt": "2026-10-28T21:00:00+08:00",
+  "entry": "index.html",
+  "webNote": "网页版本 24：新增公告栏。① 位置在「XXXX · 共 N 条作业」状态条上方，一个框、每条公告一行，内容过长自动换行；支持富文本（加粗/斜体/列表/链接/图片），没有公告时整块自动隐藏。② 排序：置顶在最上 → 同置顶/非置顶按重要等级 → 再相同按最近更新（由后端 list_announcements 统一排序）。③ 每条公告可设：重要等级（低/普通/中等/重要，界面显示中文）、置顶、管理员可修改、内部（仅管理员与发布者可见，带「内部」标签）、永不过期或指定截止日期。④ 权限：发布者与管理员都能发公告；管理员不能把公告设为「重要」（选项不显示，后端 trigger 也拒），也没有「管理员可修改」这个选项；发布者可以改这个开关，包括改管理员发的公告。「管理员可修改」关掉后，该公告只有发布者能编辑。⑤ 编辑入口：右下角按钮菜单新增「新建公告」；「新建作业」图标改为加号，「新建公告」沿用原来的剪贴板图标。点公告条目即可编辑，删除需二次确认。⑥ 简版（/simple/）同步支持公告栏与新建/编辑，控件用原生的以保证老浏览器可用。资源版本号提到 v90。",
+  "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
+  "sources": [
+    "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
+    "https://gh.llkk.cc/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
+    "https://dogoffurina114514.github.io/HomeworkShower/"
+  ],
+  "apkMirrors": [
+    "https://gh.dpik.top/",
+    "https://gh.llkk.cc/",
+    ""
+  ],
+  "apkUrlTemplate": "https://github.com/DogOfFurina114514/HomeworkShower/releases/download/{version}/HomeworkShower_{version}.apk",
+  "apkVersion": "26.0.11",
+  "apkVersionCode": 260011,
+  "apkMandatory": true,
+  "apkNotes": "修一个会让热更新永久失效的 bug：装新 APK 时，如果 APP 内置的网页版本比用户已经热更到的版本低，旧逻辑会把内部存储里较新的网页覆盖回内置版本，而记录里的版本号还留着较新的那个 —— 于是检查更新一算「本地=线上，已是最新」，从此再也不更新，用户一直跑着旧页面（表现就是「打开最新版 App，检查完更新直接进入了」）。现在：磁盘上已经是更新的一版就不再用内置资源覆盖；版本号高于磁盘实际内容时按磁盘为准自愈。",
+  "manifestUrl": "https://dogoffurina114514.github.io/HomeworkShower/manifest.json",
+  "fallback": {
+    "supabaseUrl": "https://kmzcebxhewlihgqzfaqw.supabase.co",
+    "supabaseKey": "sb_publishable_woB0DFosxaxHE1101sjfHA_Bt0SJMxG",
+    "webReleaseTable": "app_web_release",
+    "webManifestTable": "app_web_manifest",
+    "appReleaseTable": "app_releases"
+  },
+  "apkMandatorySince": 260011,
+  "apkMandatorySinceNote": "历史最高强制版本号。App 判定：本地 version_code < apkMandatorySince → 必须强制更新到最新版（不能跳过中间的强制版本）。0 表示还没有任何强制版本。"
+}

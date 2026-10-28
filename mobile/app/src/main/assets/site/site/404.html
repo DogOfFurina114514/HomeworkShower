@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>页面不存在 · 作业</title>
+    <link rel="icon" href="assets/icon.svg?v90" type="image/svg+xml" />
+    <!--
+      404 是兜底页面：不加载 M3E、不加载 supabase、不做浏览器检测，
+      样式全部内联手写，保证任何浏览器（含很老的设备）都能正常打开。
+    -->
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #f5fafc;
+        color: #171d1e;
+        font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      .card {
+        width: 100%;
+        max-width: 440px;
+        padding: 28px 26px;
+        border: 1px solid #bfc8cb;
+        border-radius: 24px;
+        background: #eff4f6;
+        text-align: center;
+      }
+      .code { margin: 0; font-size: 52px; font-weight: 500; line-height: 1; color: #006877; }
+      h1 { margin: 14px 0 10px; font-size: 22px; font-weight: 500; }
+      p { margin: 0 0 10px; font-size: 15px; line-height: 1.7; color: #3f484a; word-break: break-all; }
+      .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+      a.pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 10px 20px;
+        border-radius: 21px;
+        background: #006877;
+        color: #fff;
+        font-size: 15px;
+        text-decoration: none;
+      }
+      a.pill.ghost { background: transparent; color: #006877; }
+    </style>
+  </head>
+
+  <body>
+    <main class="card">
+      <p class="code">404</p>
+      <h1>找不到这个页面</h1>
+      <p>你打开的地址不存在，可能是网址输入有误，或者这个页面已经被删掉了。</p>
+      <p id="where"></p>
+      <div class="actions">
+        <a class="pill" id="home" href="./">返回主页</a>
+      </div>
+    </main>
+
+    <script>
+      /* ES5 写法，老浏览器也能跑；顺便把验证邮件里 auth.html/ 这种多斜杠地址纠正回来 */
+      (function () {
+        var path = location.pathname;
+        var parts = path.split("/").filter(function (item) { return !!item; });
+        var base = "/" + (parts[0] || "") + "/";
+        var fixed = path.replace(/\/+$/, "");
+
+        if (/\/auth\.html$/i.test(fixed)) {
+          location.replace(fixed + location.search + location.hash);
+          return;
+        }
+        if (fixed === base.replace(/\/$/, "") || fixed === "/" || /\/index\.html$/i.test(fixed)) {
+          location.replace(base + location.search + location.hash);
+          return;
+        }
+
+        var origin = location.origin || location.protocol + "//" + location.host;
+        var home = origin + base;
+        document.getElementById("home").setAttribute("href", home);
+        document.getElementById("where").innerHTML = "出错的地址：" + location.href;
+      })();
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

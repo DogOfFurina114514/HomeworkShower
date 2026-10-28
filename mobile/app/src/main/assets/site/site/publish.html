@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      /* 启动遮罩：M3E 升级完成（或最多等 4 秒）后再显示页面，避免组件未就绪时样式露馅 */
+      (function () {
+        var root = document.documentElement;
+        root.className += " hs-booting";
+        function ready() { root.className = root.className.replace(/\s*hs-booting/, ""); }
+        var tries = 0;
+        (function wait() {
+          if (window.customElements && window.customElements.get("m3e-dialog")) { ready(); return; }
+          if (++tries > 40) { ready(); return; }
+          window.setTimeout(wait, 100);
+        })();
+      })();
+    </script>
+    <script>
+      /* 老浏览器检测：M3E 依赖若干较新的 API，缺了才切到不依赖组件库的简版页面。
+         注意 attachInternals 挂在 HTMLElement.prototype（不是 Element.prototype）。
+         地址上带 ?full=1 时强制走完整版，作为逃生口。 */
+      (function () {
+        if (location.search.indexOf("full=1") >= 0) return;
+        var ok = false;
+        try {
+          ok =
+            typeof window.Proxy !== "undefined" &&
+            typeof window.customElements !== "undefined" &&
+            typeof HTMLElement !== "undefined" &&
+            typeof HTMLElement.prototype.attachInternals === "function" &&
+            typeof CSSStyleSheet !== "undefined" &&
+            typeof CSSStyleSheet.prototype.replaceSync === "function" &&
+            "adoptedStyleSheets" in Document.prototype;
+        } catch (error) {
+          ok = false;
+        }
+        if (ok) return;
+        if (location.pathname.indexOf("/simple/") >= 0) return;
+        var name = location.pathname.replace(/.*\//, "") || "index.html";
+        location.replace(location.pathname.replace(/[^\/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>发布作业</title>
+    <link rel="stylesheet" href="assets/app.css?v90" />
+    <link rel="icon" href="assets/icon.svg?v90" type="image/svg+xml" />
+    <style>
+      /* 状态条：错误红条 + 右侧「前往状态页」按钮（仅数据访问失败时由脚本显示） */
+      .hs-status-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .hs-status-row[hidden] { display: none !important; }
+      .hs-status-row > .status { margin: 0; flex: 1 1 auto; min-width: 0; }
+      .hs-status-row > .hs-status-row__link { flex: 0 0 auto; }
+      m3e-button[hidden] { display: none !important; }
+    </style>
+    <script>
+      // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
+      //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
+      //  - Safari < 16.4：连 attachInternals 都没有。
+      // M3E 组件内部直接调用 internals.states.add/delete，缺了就抛 TypeError 把组件打挂。
+      // ElementInternals 实例通常不可扩展（defineProperty 会失败），所以这里用 Proxy 包一层，
+      // 并对完全没有该 API 的浏览器给出最小实现。
+      (function () {
+        if (typeof Element === "undefined") return;
+
+        var stateMap = new WeakMap();
+        function statesOf(target) {
+          var set = stateMap.get(target);
+          if (!set) {
+            set = new Set();
+            stateMap.set(target, set);
+          }
+          return set;
+        }
+
+        function wrap(internals) {
+          if (!internals) return internals;
+          if (internals.states) return internals;
+          try {
+            return new Proxy(internals, {
+              get: function (target, prop) {
+                if (prop === "states") return statesOf(target);
+                var value = Reflect.get(target, prop, target);
+                return typeof value === "function" ? value.bind(target) : value;
+              },
+            });
+          } catch (error) {
+            try {
+              Object.defineProperty(internals, "states", { value: statesOf(internals), configurable: true });
+            } catch (ignored) {
+              /* 兜不住也不影响其它功能 */
+            }
+            return internals;
+          }
+        }
+
+        if (typeof Element.prototype.attachInternals === "function") {
+          var original = Element.prototype.attachInternals;
+          Element.prototype.attachInternals = function () {
+            return wrap(original.apply(this, arguments));
+          };
+        } else {
+          Element.prototype.attachInternals = function () {
+            return wrap({
+              states: null,
+              form: null,
+              labels: [],
+              role: null,
+              ariaLabel: null,
+              ariaLabelledByElements: null,
+              setFormValue: function () {},
+              setValidity: function () { return true; },
+              checkValidity: function () { return true; },
+              reportValidity: function () { return true; },
+              willValidate: false,
+              validity: { valid: true },
+              validationMessage: "",
+            });
+          };
+        }
+      })();
+    </script>
+    <script src="vendor/m3e.js?v90" defer></script>
+    <script src="vendor/supabase.js?v90" defer></script>
+    <script src="assets/config.js?v90" defer></script>
+    <script src="assets/client.js?v90" defer></script>
+    <script src="assets/publish.js?v90" defer></script>
+  </head>
+
+  <body>
+    <m3e-theme color="#22D1EC" scheme="auto" motion="expressive" strong-focus>
+      <header class="topbar">
+        <m3e-heading class="topbar__title" variant="title" size="large" level="1">发布作业</m3e-heading>
+        <div class="topbar__controls">
+          <m3e-button variant="text" id="back-button">
+            <m3e-icon variant="outlined" slot="icon" name="arrow_back"></m3e-icon>
+            返回看板
+          </m3e-button>
+        </div>
+      </header>
+
+      <main class="publish">
+        <!-- 状态条：错误红条 + 右侧「前往状态页」按钮（只在数据访问失败时显示） -->
+        <div class="hs-status-row" id="gate-row" hidden>
+          <p class="status" id="gate" hidden>只有「发布者」可以发布作业，当前账号没有这个权限。</p>
+          <m3e-button
+            variant="tonal"
+            class="hs-status-row__link"
+            hidden
+            onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+          >
+            <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+              />
+            </svg>
+            前往状态页
+          </m3e-button>
+        </div>
+
+        <form id="publish-form" hidden>
+          <p class="hint">
+            在桌面端 StickyHomeworks2 里用「保存作业 → JSON」导出文件，然后在下面导入并选择它归属的日期。
+            同一天重复发布会覆盖当天记录；发布者与管理员都只能修改当天的内容。
+          </p>
+
+          <div class="hs-status-row" id="message-row" hidden>
+            <p class="status" id="message" hidden></p>
+            <m3e-button
+              variant="tonal"
+              class="hs-status-row__link"
+              hidden
+              onclick="window.open('https://statuspage.flashcat.cloud/homeworkshower', '_blank', 'noopener')"
+            >
+              <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4Z"
+                />
+              </svg>
+              前往状态页
+            </m3e-button>
+          </div>
+
+          <div class="publish__row">
+            <label class="form-row">
+              <span>归属日期（只能是今天）</span>
+              <input id="publish-date" type="text" readonly />
+            </label>
+            <label class="form-row">
+              <span>选择导出的 JSON 文件</span>
+              <input id="publish-file" type="file" accept="application/json,.json" />
+            </label>
+          </div>
+
+          <m3e-form-field variant="outlined">
+            <label slot="label" for="publish-json">或直接粘贴 JSON</label>
+            <textarea id="publish-json" rows="12" spellcheck="false"></textarea>
+          </m3e-form-field>
+
+          <p class="status" id="preview" hidden></p>
+
+          <div class="publish__actions">
+            <m3e-button id="publish-submit" variant="filled">发布到这一天</m3e-button>
+          </div>
+        </form>
+      </main>
+    </m3e-theme>
+
+    <script>
+      /* 状态条联动：只有当 .status 有 error 且可见时，才显示同一行里的「前往状态页」按钮。 */
+      (function () {
+        function setup() {
+          var rows = document.querySelectorAll(".hs-status-row");
+          Array.prototype.forEach.call(rows, function (row) {
+            var status = row.querySelector(".status");
+            var link = row.querySelector(".hs-status-row__link");
+            if (!status || !link) return;
+            function sync() {
+              row.hidden = status.hidden;
+              link.hidden = status.hidden || !status.classList.contains("error");
+            }
+            new MutationObserver(sync).observe(status, {
+              attributes: true,
+              attributeFilter: ["class", "hidden"],
+            });
+            sync();
+          });
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", setup);
+        } else {
+          setup();
+        }
+      })();
+    </script>
+  </body>
+</html>

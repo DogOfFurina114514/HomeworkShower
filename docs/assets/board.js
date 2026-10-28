@@ -753,6 +753,487 @@
     wrap.classList.remove("masonry-columns--js");
     splitIntoColumns(wrap);
   }
+
+  /**
+   * 往对话框里的提示位写一行消息（传空字符串即收起）。
+   *
+   * 位置必须在模块层：作业与公告两组函数都要用它，而公告那套在 init() 外面。
+   * 注意 node --check 查不出"函数定义在别的函数作用域里"这种问题，
+   * 只有真在浏览器里点开对话框才会暴露。
+   */
+  function setDialogMessage(id, text, isError = true) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle("status--error", isError);
+    el.hidden = !text;
+  }
+
+  /**
+   * 给一个对话框绑定富文本工具栏 + 插图。
+   *
+   * 作业编辑和公告编辑用的是同一套工具栏，原来这段逻辑写死在 editDialog 分支里、
+   * 并且硬编码了 #edit-content —— 公告要复用得先抽出来。
+   * 注意图片上传仍走 homework-images 桶：公告与作业共用，不必再开一个桶。
+   */
+  function bindRichEditor(dialogEl, editorId, messageFieldId) {
+    if (!dialogEl) return;
+    const toolbar = dialogEl.querySelector(".rich-toolbar");
+    const fileInput = dialogEl.querySelector(".rich-image-input");
+
+    toolbar?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-cmd]");
+      if (!button) return;
+      event.preventDefault();
+      const editor = document.getElementById(editorId);
+      if (!editor) return;
+      const command = button.dataset.cmd;
+
+      if (command === "insertImage") {
+        if (!fileInput) return;
+        fileInput.value = "";
+        fileInput.click();
+        return;
+      }
+
+      editor.focus();
+      if (command === "createLink") {
+        const url = window.prompt("输入链接地址", "https://");
+        if (url) document.execCommand("createLink", false, url);
+      } else {
+        document.execCommand(command, false, null);
+      }
+    });
+
+    // 插图：先压缩，再上传到图片桶（不占数据库配额），最后插入公共地址
+    fileInput?.addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const editor = document.getElementById(editorId);
+      try {
+        setDialogMessage(messageFieldId, "正在处理图片…", false);
+        const shrunk = await shrinkImage(file);
+        const path = `${hs.todayString()}/${crypto.randomUUID()}.${shrunk.extension}`;
+        const { error } = await client.storage
+          .from("homework-images")
+          .upload(path, shrunk.blob, { contentType: shrunk.contentType, upsert: false });
+        if (error) throw new Error(error.message);
+
+        const { data } = client.storage.from("homework-images").getPublicUrl(path);
+        editor.focus();
+        document.execCommand("insertImage", false, data.publicUrl);
+        setDialogMessage(messageFieldId, `已插入图片（${Math.round(shrunk.blob.size / 1024)} KB）`, false);
+      } catch (error) {
+        setDialogMessage(messageFieldId, `插入图片失败：${error.message}`);
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------- 公告栏 */
+
+  /**
+   * 重要等级的中文名。
+   * 界面上**一律显示中文**，英文只作为存储值与 CSS 类名 ——
+   * 直接给使用者看 LOW / IMPORTANT 没有意义。
+   */
+  const IMPORTANCE_LABELS = {
+    LOW: "低",
+    NORMAL: "普通",
+    MODERATE: "中等",
+    IMPORTANT: "重要",
+  };
+
+  /** 公告列表：后端 list_announcements() 已按 置顶 > 等级 > 最近更新 排好，前端不再重排 */
+  let announcements = [];
+
+  /** 等确认对话框回来的那个公告 id（点「删除」→ 弹确认 → 确认后才真删） */
+  let pendingAnnouncementDelete = null;
+
+  /**
+   * 灯箱的调用钩子。
+   *
+   * openLightbox 和它依赖的那组变量都定义在 init() 里面（灯箱是后加的一整套，
+   * 搬出来风险大），而公告的点击处理在模块层 —— 所以由 init() 在定义完之后
+   * 把函数赋进来，公告这边只认这个钩子。
+   */
+  let openLightboxHook = null;
+
+  async function fetchAnnouncements() {
+    const { data, error } = await hs.withTimeout(
+      client.rpc("list_announcements"),
+      15000,
+      "读取公告",
+    );
+    if (error) {
+      // 公告读失败不该挡住作业显示：记一条警告，公告栏留空
+      if (window.console) console.warn("[HomeworkShower] 读取公告失败：", error.message);
+      return [];
+    }
+    return data || [];
+  }
+
+  function renderAnnouncements() {
+    const bar = document.getElementById("announcement-bar");
+    const list = document.getElementById("announcement-list");
+    if (!bar || !list) return;
+
+    if (!announcements.length) {
+      // 无公告时整块收起：不占位、不留空框
+      bar.hidden = true;
+      list.innerHTML = "";
+      return;
+    }
+    bar.hidden = false;
+
+    list.innerHTML = announcements
+      .map((item) => {
+        const content = item.content_html
+          ? hs.sanitizeHtml(item.content_html)
+          : hs.escapeHtml(item.content || "").replace(/\n/g, "<br>");
+
+        const tags = [];
+        if (item.pinned) tags.push('<span class="announcement-tag announcement-tag--pinned">置顶</span>');
+        tags.push(
+          `<span class="announcement-tag announcement-tag--${item.importance}">${IMPORTANCE_LABELS[item.importance] || item.importance}</span>`
+        );
+        if (item.internal) tags.push('<span class="announcement-tag announcement-tag--internal">内部</span>');
+        if (!item.admin_only_edit) tags.push('<span class="announcement-tag">仅发布者可改</span>');
+
+        const expiry = item.never_expires
+          ? "长期有效"
+          : item.expires_on
+            ? `截止 ${String(item.expires_on).replace(/-/g, "/")}`
+            : "";
+        const author = item.author_role ? `${hs.roleLabel(item.author_role)}发布` : "";
+
+        // can_edit 由后端逐条算好返回（管理员只能改「管理员可修改」为真的那些）
+        const clickable = item.can_edit ? " homework-item--clickable" : "";
+        return `
+          <m3e-list-action class="homework-item announcement-item announcement-item--${item.importance}${item.pinned ? " announcement-item--pinned" : ""}${clickable}" data-announcement-id="${item.id}">
+            <span class="announcement-item__body">
+              <span class="homework-text">${content}</span>
+              <span class="announcement-item__meta">
+                ${tags.join("")}
+                ${expiry ? `<span>${expiry}</span>` : ""}
+                ${author ? `<span>· ${author}</span>` : ""}
+              </span>
+            </span>
+          </m3e-list-action>`;
+      })
+      .join("");
+  }
+
+  /** 能不能新建公告：发布者或管理员（未被封禁） */
+  function canPostAnnouncements() {
+    return Boolean(profile && hs.canEditToday(profile));
+  }
+
+  /** 严格意义的发布者：只有ta能设 IMPORTANT、能改「管理员可修改」开关 */
+  function isStrictPublisher() {
+    return Boolean(profile && profile.role === "publisher");
+  }
+
+  async function loadAnnouncements() {
+    announcements = await fetchAnnouncements();
+    renderAnnouncements();
+  }
+
+  /* --------------------------------------------------------- 公告编辑框 */
+
+  const announcementDialog = document.getElementById("announcement-dialog");
+
+  /** 读当前选中的等级 */
+  function pickedImportance() {
+    const on = document.querySelector('#announcement-importance [aria-checked="true"]');
+    return on ? on.dataset.value : "NORMAL";
+  }
+
+  /** 读某个开关的当前状态 */
+  function flagOn(name) {
+    const chip = document.querySelector(`#announcement-flags [data-flag="${name}"]`);
+    return chip ? chip.getAttribute("aria-checked") === "true" : false;
+  }
+
+  function setFlag(name, on) {
+    const chip = document.querySelector(`#announcement-flags [data-flag="${name}"]`);
+    if (!chip) return;
+    chip.setAttribute("aria-checked", on ? "true" : "false");
+  }
+
+  function setImportance(value) {
+    document.querySelectorAll("#announcement-importance [data-value]").forEach((chip) => {
+      chip.setAttribute("aria-checked", chip.dataset.value === value ? "true" : "false");
+    });
+  }
+
+  /** 截止日期字段的显隐：勾了「永不过期」就不该再逼人填日期 */
+  function syncExpiryField() {
+    const field = document.getElementById("announcement-expiry-field");
+    const never = flagOn("never_expires");
+    if (field) field.hidden = never;
+  }
+
+  /**
+   * 按角色调整可选项：
+   *   - 「重要」等级只有发布者能选：管理员看到的是禁用 + 一行说明
+   *     （后端 trigger 同样会拒，双保险）
+   *   - 「管理员可修改」对管理员不显示：ta 们新建的公告一律是该属性为真
+   *   - 编辑一条本来就是 IMPORTANT 的公告时，管理员可以原样保存，
+   *     所以这条不能一概禁用 —— 只有"从非 IMPORTANT 升级"才要挡。
+   */
+  function syncAnnouncementOptions(editing) {
+    const critical = document.getElementById("importance-critical");
+    const hint = document.getElementById("importance-hint");
+    const adminFlag = document.getElementById("flag-admin-edit");
+
+    const allowCritical = isStrictPublisher() || (editing && editing.importance === "IMPORTANT");
+    if (critical) {
+      critical.disabled = !allowCritical;
+      critical.title = allowCritical ? "" : "只有发布者可以把公告设为重要";
+    }
+    if (hint) hint.hidden = allowCritical;
+
+    // 发布者可以改这个开关（包括改管理员发的公告）；管理员没有这个选项
+    if (adminFlag) {
+      adminFlag.hidden = !isStrictPublisher();
+      if (!isStrictPublisher()) setFlag("admin_only_edit", true);
+    }
+    syncExpiryField();
+  }
+
+  function openAnnouncementCreate() {
+    if (!canPostAnnouncements()) {
+      hs.toast("只有发布者和管理员可以发布公告");
+      return;
+    }
+    if (!announcementDialog) return;
+    const title = document.getElementById("announcement-dialog-title");
+    if (title) title.textContent = "新建公告";
+    document.getElementById("announcement-content").innerHTML = "";
+    document.getElementById("announcement-expiry-input").value = "";
+    const picker = document.getElementById("announcement-expiry-picker");
+    if (picker) picker.date = null;
+    setImportance("NORMAL");
+    setFlag("pinned", false);
+    setFlag("admin_only_edit", true);
+    setFlag("internal", false);
+    setFlag("never_expires", false);
+    delete announcementDialog.dataset.id;
+    syncAnnouncementOptions(null);
+    setDialogMessage("announcement-message", "");
+    document.getElementById("announcement-delete")?.setAttribute("hidden", "");
+    announcementDialog.show();
+    window.setTimeout(() => document.getElementById("announcement-content")?.focus(), 80);
+  }
+
+  function openAnnouncementEdit(id) {
+    const item = announcements.find((row) => String(row.id) === String(id));
+    if (!item) return;
+    if (!item.can_edit) {
+      hs.toast(item.admin_only_edit ? "你没有修改这条公告的权限" : "这条公告只有发布者可改");
+      return;
+    }
+    if (!announcementDialog) return;
+    const title = document.getElementById("announcement-dialog-title");
+    if (title) title.textContent = "修改公告";
+    document.getElementById("announcement-content").innerHTML = item.content_html
+      ? hs.sanitizeHtml(item.content_html)
+      : hs.escapeHtml(item.content || "").replace(/\n/g, "<br>");
+    setImportance(item.importance);
+    setFlag("pinned", Boolean(item.pinned));
+    setFlag("admin_only_edit", Boolean(item.admin_only_edit));
+    setFlag("internal", Boolean(item.internal));
+    setFlag("never_expires", Boolean(item.never_expires));
+
+    const input = document.getElementById("announcement-expiry-input");
+    const picker = document.getElementById("announcement-expiry-picker");
+    if (item.expires_on) {
+      const [y, m, d] = String(item.expires_on).split("-").map(Number);
+      if (picker) picker.date = new Date(y, m - 1, d);
+      if (input) input.value = `${y} 年 ${m} 月 ${d} 日`;
+    } else {
+      if (picker) picker.date = null;
+      if (input) input.value = "";
+    }
+
+    syncAnnouncementOptions(item);
+    announcementDialog.dataset.id = item.id;
+    setDialogMessage("announcement-message", "");
+    // 删除只对"能改这条公告的人"开放（后端同样按 can_edit_announcement 校验）
+    document.getElementById("announcement-delete")?.removeAttribute("hidden");
+    announcementDialog.show();
+  }
+
+  async function saveAnnouncement() {
+    if (!announcementDialog || !canPostAnnouncements()) return;
+    const id = announcementDialog.dataset.id;
+    const editor = document.getElementById("announcement-content");
+    const contentHtml = editor.innerHTML.trim();
+    const content = (editor.innerText || "").replace(/ /g, " ").trim();
+    const saveButton = document.getElementById("announcement-save");
+
+    if (!content && !contentHtml) {
+      setDialogMessage("announcement-message", "公告内容不能为空。");
+      return;
+    }
+
+    const never = flagOn("never_expires");
+    const picker = document.getElementById("announcement-expiry-picker");
+    const picked = picker && picker.date;
+    const expiresOn = never || !picked
+      ? null
+      : `${picked.getFullYear()}-${String(picked.getMonth() + 1).padStart(2, "0")}-${String(picked.getDate()).padStart(2, "0")}`;
+    if (!never && !expiresOn) {
+      setDialogMessage("announcement-message", "请填写截止日期，或勾选「永不过期」。");
+      return;
+    }
+
+    const payload = {
+      p_content: content,
+      p_content_html: contentHtml || null,
+      p_importance: pickedImportance(),
+      p_pinned: flagOn("pinned"),
+      p_admin_only_edit: isStrictPublisher() ? flagOn("admin_only_edit") : true,
+      p_internal: flagOn("internal"),
+      p_never_expires: never,
+      p_expires_on: expiresOn,
+    };
+
+    saveButton.setAttribute("disabled", "");
+    const { error } = id
+      ? await client.rpc("update_announcement", { p_id: Number(id), ...payload })
+      : await client.rpc("create_announcement", payload);
+    saveButton.removeAttribute("disabled");
+
+    if (error) {
+      const denied = String(error.message).includes("row-level security") || error.code === "42501";
+      setDialogMessage(
+        "announcement-message",
+        denied
+          ? `保存失败：${error.message || "你没有这项权限"}`
+          : `保存失败：${error.message}`,
+      );
+      return;
+    }
+    announcementDialog.hide();
+    hs.toast(id ? "公告已更新" : "公告已发布");
+    await loadAnnouncements();
+  }
+
+  /**
+   * 真的删除一条公告。
+   *
+   * 只负责删 —— 确认对话框的流程在 bindAnnouncementUi() 里管
+   * （那里点「删除」先收起编辑框、记下 pendingAnnouncementDelete、再弹确认）。
+   * 之前这个函数自己也弹一次确认框，两套流程会互相抢。
+   */
+  async function deleteAnnouncement(id) {
+    const { error } = await client.rpc("delete_announcement", { p_id: Number(id) });
+    if (error) {
+      hs.toast(`删除失败：${error.message}`);
+      return;
+    }
+    hs.toast("公告已删除");
+    await loadAnnouncements();
+  }
+
+  /**
+   * 绑定公告对话框的交互。
+   *
+   * 在 init() 里、profile 确定之后调用一次：选项的可点状态依赖角色，
+   * 但绑定本身与角色无关，所以只绑一次，角色变化时由 syncAnnouncementOptions 重算。
+   */
+  function bindAnnouncementUi() {
+    if (!announcementDialog) return;
+
+    // 等级：单选
+    document.getElementById("announcement-importance")?.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-value]");
+      if (!chip || chip.disabled) return;
+      setImportance(chip.dataset.value);
+    });
+
+    // 开关：多选
+    document.getElementById("announcement-flags")?.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-flag]");
+      if (!chip || chip.disabled) return;
+      const next = chip.getAttribute("aria-checked") !== "true";
+      chip.setAttribute("aria-checked", next ? "true" : "false");
+      if (chip.dataset.flag === "never_expires") syncExpiryField();
+    });
+
+    // 截止日期
+    {
+      const input = document.getElementById("announcement-expiry-input");
+      const picker = document.getElementById("announcement-expiry-picker");
+      if (input && picker) {
+        picker.addEventListener("change", () => {
+          const picked = picker.date;
+          input.value = picked
+            ? `${picked.getFullYear()} 年 ${picked.getMonth() + 1} 月 ${picked.getDate()} 日`
+            : "";
+        });
+        // 点输入框任意处都唤起日历（与作业编辑框一致）。
+        // 注意这里不能同步转发到 suffix 图标：M3E 在 document 上挂了
+        // "点浮层外面就关掉"的处理器，同步转发会把刚打开的日历立刻关掉。
+        input.addEventListener("click", () => void picker.show(input, input));
+      }
+    }
+
+    bindRichEditor(announcementDialog, "announcement-content", "announcement-message");
+
+    document.getElementById("announcement-save")?.addEventListener("click", () => void saveAnnouncement());
+    document.getElementById("announcement-cancel")?.addEventListener("click", () => announcementDialog.hide());
+
+    // 删除：先弹确认，确认后才真的删
+    const confirmDialog = document.getElementById("announcement-confirm-dialog");
+    document.getElementById("announcement-delete")?.addEventListener("click", () => {
+      const id = announcementDialog.dataset.id;
+      if (!id) return;
+      if (!confirmDialog) {
+        void deleteAnnouncement(id);
+        return;
+      }
+      announcementDialog.hide();
+      pendingAnnouncementDelete = id;
+      confirmDialog.show();
+    });
+    document.getElementById("announcement-confirm-cancel")?.addEventListener("click", () => {
+      pendingAnnouncementDelete = null;
+      confirmDialog?.hide();
+    });
+    document.getElementById("announcement-confirm-ok")?.addEventListener("click", () => {
+      const id = pendingAnnouncementDelete;
+      pendingAnnouncementDelete = null;
+      confirmDialog?.hide();
+      if (id) void deleteAnnouncement(id);
+    });
+
+    // 点公告条目 → 打开编辑（只有后端判定 can_edit 的条目带 clickable 样式）
+    document.getElementById("announcement-list")?.addEventListener("click", (event) => {
+      // 公告正文里的图片仍然可以点开放大
+      const image = event.target.closest("img");
+      if (image) {
+        event.stopPropagation();
+        if (openLightboxHook) openLightboxHook(image);
+        return;
+      }
+      const row = event.target.closest("[data-announcement-id]");
+      if (!row) return;
+      const item = announcements.find((row2) => String(row2.id) === String(row.dataset.announcementId));
+      if (!item) return;
+      if (!canPostAnnouncements()) {
+        hs.toast("登录后可以查看公告；发布者与管理员可以维护公告");
+        return;
+      }
+      if (!item.can_edit) {
+        hs.toast("这条公告只有发布者可改");
+        return;
+      }
+      openAnnouncementEdit(item.id);
+    });
+  }
+
   async function init() {
     // 依赖没准备好的话，直接把原因显示出来，别让页面停在「正在加载」
     if (!window.hs || !window.hs.client) {
@@ -762,6 +1243,14 @@
     }
 
     showStatus("正在读取登录状态…");
+
+    // ---------- 公告栏 ----------
+    // 必须放在会话检查**之前**：时光机页未登录时会直接 return，
+    // 而公告是公开内容（内部公告由后端按角色过滤），不该跟着一起消失。
+    // 点击处理只依赖 announcements 与 profile，绑定本身与是否登录无关。
+    openLightboxHook = openLightbox; // 函数声明，已提升到本函数顶部
+    bindAnnouncementUi();
+    void loadAnnouncements();
 
     // 主界面未登录也能看；时光机必须登录
     let session = null;
@@ -850,14 +1339,6 @@
 
     function findRow(id) {
       return currentRows.find((row) => String(row.id) === String(id)) || null;
-    }
-
-    function setDialogMessage(id, text, isError = true) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.textContent = text;
-      el.classList.toggle("status--error", isError);
-      el.hidden = !text;
     }
 
     async function refresh() {
@@ -1040,6 +1521,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
       await refresh();
     }
 
+
     if (editDialog) {
       document.getElementById("edit-save")?.addEventListener("click", () => void saveEdit());
       document.getElementById("edit-cancel")?.addEventListener("click", () => editDialog.hide());
@@ -1059,53 +1541,8 @@ const duePickerEl = document.getElementById("edit-due-picker");
         }
       }
 
-      // 富文本工具栏
-      editDialog.querySelector(".rich-toolbar")?.addEventListener("click", (event) => {
-        const button = event.target.closest("[data-cmd]");
-        if (!button) return;
-        event.preventDefault();
-        const editor = document.getElementById("edit-content");
-        const command = button.dataset.cmd;
-
-        if (command === "insertImage") {
-          const fileInput = editDialog.querySelector(".rich-image-input");
-          if (!fileInput) return;
-          fileInput.value = "";
-          fileInput.click();
-          return;
-        }
-
-        editor.focus();
-        if (command === "createLink") {
-          const url = window.prompt("输入链接地址", "https://");
-          if (url) document.execCommand("createLink", false, url);
-        } else {
-          document.execCommand(command, false, null);
-        }
-      });
-
-      // 插图：先压缩，再上传到图片桶（不占数据库配额），最后插入公共地址
-      editDialog.querySelector(".rich-image-input")?.addEventListener("change", async (event) => {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
-        try {
-          setDialogMessage("edit-message", "正在处理图片…", false);
-          const shrunk = await shrinkImage(file);
-          const path = `${hs.todayString()}/${crypto.randomUUID()}.${shrunk.extension}`;
-          const { error } = await client.storage
-            .from("homework-images")
-            .upload(path, shrunk.blob, { contentType: shrunk.contentType, upsert: false });
-          if (error) throw new Error(error.message);
-
-          const { data } = client.storage.from("homework-images").getPublicUrl(path);
-          const editor = document.getElementById("edit-content");
-          editor.focus();
-          document.execCommand("insertImage", false, data.publicUrl);
-          setDialogMessage("edit-message", `已插入图片（${Math.round(shrunk.blob.size / 1024)} KB）`, false);
-        } catch (error) {
-          setDialogMessage("edit-message", `插入图片失败：${error.message}`);
-        }
-      });
+      // 富文本工具栏与插图：与公告编辑共用同一套绑定
+      bindRichEditor(editDialog, "edit-content", "edit-message");
     }
     if (deleteDialog) {
       document.getElementById("delete-confirm")?.addEventListener("click", () => void confirmDelete());
@@ -1974,8 +2411,14 @@ const duePickerEl = document.getElementById("edit-due-picker");
           </m3e-fab>
           <m3e-fab-menu id="fab-menu" variant="primary">
             ${canPublish ? `<m3e-fab-menu-item id="fab-new">
-              <m3e-icon variant="outlined" slot="icon" name="assignment"></m3e-icon>
+              <svg slot="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
+              </svg>
               新建作业
+            </m3e-fab-menu-item>` : ""}
+            ${canPublish ? `<m3e-fab-menu-item id="fab-announcement">
+              <m3e-icon variant="outlined" slot="icon" name="assignment"></m3e-icon>
+              新建公告
             </m3e-fab-menu-item>` : ""}
             ${canPublish ? `<m3e-fab-menu-item id="fab-publish">
               <m3e-icon variant="outlined" slot="icon" name="upload_file"></m3e-icon>
@@ -1988,6 +2431,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
             
           </m3e-fab-menu>`;
         document.getElementById("fab-new")?.addEventListener("click", () => openCreate());
+        document.getElementById("fab-announcement")?.addEventListener("click", () => openAnnouncementCreate());
         document.getElementById("fab-publish")?.addEventListener("click", () => location.assign("publish.html"));
         document.getElementById("fab-save")?.addEventListener("click", () => {
           const subjects = [];
@@ -2063,26 +2507,5 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
   void init();
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
