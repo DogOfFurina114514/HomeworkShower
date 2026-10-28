@@ -117,9 +117,14 @@ html.hs-booting body {
   inset-inline-end: 0;
   top: calc(100% + 8px);
   z-index: 25;
-  min-width: 320px;
+  /* 绝对定位 + inset-inline-end:0 的元素，宽度是 shrink-to-fit，可用宽度取自包含块
+     （那个 116px 宽的「个人中心」按钮），所以必须靠 min-width 撑回设计宽度。
+     但写死 320px 在窄屏上会把左半边顶出屏幕（邮箱整行看不见），
+     所以用 min() 按视口钳制：放得下就 320px，放不下才收缩。
+     ⚠ 别改成 min-width: 0 —— 面板会塌到内容宽（实测只剩 122px，邮箱被迫折行）。 */
+  min-width: min(320px, calc(100vw - 28px));
   /* 兜底：面板锚在按钮右边缘，屏幕不够宽时它会往左溢出到屏幕外 */
-  max-width: calc(100vw - 32px);
+  max-width: calc(100vw - 28px);
   display: grid;
   gap: 8px;
   padding: 22px 22px 18px;
@@ -1069,12 +1074,15 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
     gap: 8px;
   }
 
-  /* 默认：只占内容宽，能和标题挤在同一行 */
+  /* 默认：只占内容宽，尽量和标题挤在同一行。
+     margin-inline-start: auto 是为了"万一放不下而换行"时仍然靠右 ——
+     不加的话第二行会按 flex-start 左对齐，右侧空出一条（实测空 53px）。 */
   .topbar__controls {
     display: flex;
     flex: 0 1 auto;
     align-items: center;
     gap: 8px;
+    margin-inline-start: auto;
   }
 
   /* 带日期框的顶栏（时光机）：控件区独占一行 */
@@ -1113,14 +1121,10 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
     width: auto;
   }
 
-  /* 个人中心面板：手机上它必须整块留在屏幕里。
-     面板是 absolute + inset-inline-end:0，锚在「个人中心」按钮的右边缘；
-     按钮本身靠右（最多到屏幕右内边距），320px 的 min-width 会把面板左边缘
-     顶到屏幕外（实测邮箱那行直接看不见了）。所以手机上放开 min-width、
-     限制最大宽度，让它自己收缩。 */
+  /* 个人中心面板：宽度已由基础规则的 min(320px, 100vw - 28px) 按视口钳制，
+     这里**不能再写 min-width: 0** —— 那样面板会塌到内容宽（实测 122px，
+     邮箱整行被迫折行）。手机上只收紧内边距。 */
   .account__panel {
-    min-width: 0;
-    max-width: calc(100vw - 32px);
     padding: 18px 16px 14px;
   }
 

@@ -363,6 +363,51 @@
    * 当且仅当是「数据访问失败」类错误时，在右侧挂一个「前往状态页」按钮。
    * 前端校验类错误（密码 / 邮箱 / 输入格式 / JSON 解析等）不挂。
    */
+  /**
+   * 唤起邮件应用，并把"到底有没有走成"告诉用户。
+   *
+   * 原来两处都是直接 location.href = mailto:...，失败时完全静默：
+   * 收件人地址没配、格式不对、或设备上根本没有能处理 mailto 的应用时，
+   * 点了「打开电子邮件」什么都不会发生，用户只会以为按钮坏了。
+   *
+   * 检测办法：成功唤起邮件应用时页面会切到后台（visibilitychange → hidden）；
+   * 若一段时间内还在前台，就认为没打开。不用 iframe 探针 —— 那样可能唤起两次。
+   * 简版不加载 client.js，所以这里自带一份（与 hs.openMailto 同逻辑）。
+   */
+  function openMailto(to, subject, body) {
+    var address = String(to || "").trim();
+    if (!address) {
+      message("还没有配置收件人邮箱，请联系站点管理员", true);
+      return false;
+    }
+    // 明显不是邮箱地址（缺 @、缺域名点号）直接说清楚，
+    // 免得用户以为"邮件发出去了"而其实根本没打开编辑器。
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
+      message("收件人邮箱地址无效（" + address + "），可能是邮箱不存在或地址拼写有误", true);
+      return false;
+    }
+    var url = "mailto:" + address +
+      "?subject=" + encodeURIComponent(subject || "") +
+      "&body=" + encodeURIComponent(body || "");
+
+    var left = false;
+    var onHide = function () {
+      if (document.visibilityState === "hidden") { left = true; cleanup(); }
+    };
+    var cleanup = function () {
+      document.removeEventListener("visibilitychange", onHide);
+      window.clearTimeout(timer);
+    };
+    document.addEventListener("visibilitychange", onHide);
+    var timer = window.setTimeout(function () {
+      cleanup();
+      if (!left) message("没能打开邮件应用：设备上可能没有安装邮件客户端", true);
+    }, 2000);
+
+    location.href = url;
+    return true;
+  }
+
   function message(text, isError) {
     var el = $("status");
     if (!el) return;
@@ -662,8 +707,12 @@
                       primary: true,
                       onClick: function (next) {
                         next();
-                        location.href = "mailto:" + (config.adminEmail || "") +
-                          "?subject=" + encodeURIComponent("申请作业管理员");
+                        openMailto(
+                          config.adminEmail,
+                          "申请作业管理员",
+                          "你好，我想申请成为作业管理员（可以发布与修改作业）。\n\n" +
+                            "我的账号邮箱：" + (((session() || {}).email) || "（未填写）") + "\n\n申请理由："
+                        );
                       }
                     }
                   ]
@@ -1081,9 +1130,11 @@
           primary: true,
           onClick: function (close) {
             close();
-            location.href = "mailto:" + (config.adminEmail || "") +
-              "?subject=" + encodeURIComponent("邮箱不可用申诉") +
-              "&body=" + encodeURIComponent("我的账号旧邮箱已经无法使用，申请协助。\n\n账号（旧邮箱）：" + oldEmail + "\n\n可用的新邮箱：");
+            openMailto(
+              config.adminEmail,
+              "邮箱不可用申诉",
+              "我的账号旧邮箱已经无法使用，申请协助。\n\n账号（旧邮箱）：" + oldEmail + "\n\n可用的新邮箱："
+            );
           }
         }
       ]

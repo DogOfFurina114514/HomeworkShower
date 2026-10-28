@@ -258,6 +258,99 @@
     }
   }
 
+  /**
+   * 把 Supabase 的邮件/账号相关错误翻成人话。
+   *
+   * 原来各处直接把 error.message 贴出来，那是英文原文（"Email not sent"、
+   * "Rate limit exceeded"…），用户根本看不懂；更要紧的是**看不出下一步该干什么**。
+   * 这里按已知原因分类，明确给出"多半是邮箱不存在/拼错了"这类可行动的判断。
+   */
+  function describeAuthError(error, action = "发送") {
+    if (!error) return "";
+    const code = String(error.error_code || "").toLowerCase();
+    const text = `${error.code || ""} ${error.message || ""}`.toLowerCase();
+
+    if (text.includes("rate limit") || text.includes("too many") || code === "over_document_limit") {
+      return `${action}太频繁了，请等一分钟再试。`;
+    }
+    // 域名解析不了 / 邮件服务器拒收：几乎都是邮箱地址本身有问题
+    if (
+      text.includes("mx") || text.includes("resolve") || text.includes("domain") ||
+      text.includes("smtp") || text.includes("recipient") || text.includes("not deliver") ||
+      text.includes("mailbox") || text.includes("user unknown") || text.includes("does not exist")
+    ) {
+      return `${action}失败：邮箱解析失败，可能是邮箱不存在或地址拼写有误。请核对后再试。`;
+    }
+    if (text.includes("email not sent") || text.includes("send email")) {
+      return `${action}失败：邮件没能发出去，可能是邮箱不存在或地址不可用。请核对邮箱后重试。`;
+    }
+    if (text.includes("invalid email") || text.includes("must be a valid") ||
+      text.includes("invalid format") || text.includes("validate email")) {
+      return "邮箱地址格式不正确，请检查是否填写完整（例如 name@example.com）。";
+    }
+    if (text.includes("already") && text.includes("regist")) {
+      return "这个邮箱已经注册过了，请直接登录，或用「忘记密码」。";
+    }
+    if (text.includes("invalid login credentials")) {
+      return "邮箱或密码不正确；如果刚注册，请先完成邮箱验证。";
+    }
+    if (text.includes("not confirmed") || text.includes("not verified")) {
+      return "这个邮箱还没有完成验证，请先去邮箱点确认链接。";
+    }
+    if (text.includes("network") || text.includes("failed to fetch") || text.includes("timeout")) {
+      return `${action}失败：连不上服务器，请检查网络后重试。`;
+    }
+    // 兜底也保留原文，方便截图反馈时定位
+    return `${action}失败：${error.message || "未知错误"}`;
+  }
+
+  /**
+   * 唤起邮件应用，并把"到底有没有走成"告诉用户。
+   *
+   * 原来各处都是直接 location.href = mailto:...，失败时**完全静默**：
+   * 收件人地址没配、格式不对、或设备上根本没有能处理 mailto 的应用时，
+   * 点了「打开电子邮件」什么都不会发生，用户只会以为按钮坏了。
+   *
+   * 检测办法：成功唤起邮件应用时页面会切到后台（visibilitychange → hidden）；
+   * 若一段时间内页面还在前台，就认为没打开，给一条明确提示。
+   * 不用 iframe 探针 —— 那样可能把邮件应用唤起两次。
+   */
+  function openMailto(to, subject, body) {
+    const address = String(to || "").trim();
+    if (!address) {
+      toast("还没有配置收件人邮箱，请联系站点管理员");
+      return false;
+    }
+    // 粗校验：明显不是邮箱地址（缺 @、缺域名点号）直接说清楚，
+    // 免得用户以为"邮件发出去了"而其实根本没打开编辑器。
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
+      toast(`收件人邮箱地址无效（${address}），可能是邮箱不存在或配置有误`);
+      return false;
+    }
+    const url = `mailto:${address}?subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body || "")}`;
+
+    let left = false;
+    const onHide = () => {
+      // 只有真的切到后台才算"邮件应用起来了"
+      if (document.visibilityState === "hidden") {
+        left = true;
+        cleanup();
+      }
+    };
+    const cleanup = () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.clearTimeout(timer);
+    };
+    document.addEventListener("visibilitychange", onHide);
+    const timer = window.setTimeout(() => {
+      cleanup();
+      if (!left) toast("没能打开邮件应用：设备上可能没有安装邮件客户端");
+    }, 2000);
+
+    location.href = url;
+    return true;
+  }
+
   window.hs = {
     client,
     config,
@@ -273,6 +366,8 @@
     withTimeout,
     sanitizeHtml,
     escapeHtml,
+    openMailto,
+    describeAuthError,
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
 })();

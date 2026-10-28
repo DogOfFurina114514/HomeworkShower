@@ -176,10 +176,7 @@
 
     verifyResend.removeAttribute("disabled");
     if (error) {
-      const text = String(error.message || "").toLowerCase();
-      showVerifyMessage(
-        text.includes("rate limit") || text.includes("too many") ? "发送太频繁了，请等一分钟再试。" : `发送失败：${error.message}`,
-      );
+      showVerifyMessage(hs.describeAuthError(error, "发送验证邮件"));
       return;
     }
     showVerifyMessage("验证邮件已重新发送，请查收（也看看垃圾箱）。", false);
@@ -256,7 +253,7 @@
     }
     showMessage("正在重发…", false);
     const { error } = await client.auth.resend({ type: "signup", email, options: { emailRedirectTo: VERIFY_REDIRECT } });
-    showMessage(error ? `重发失败：${error.message}` : "验证邮件已重新发送，请稍等一两分钟查收（也看看垃圾箱）。", Boolean(error));
+    showMessage(error ? hs.describeAuthError(error, "重发验证邮件") : "验证邮件已重新发送，请稍等一两分钟查收（也看看垃圾箱）。", Boolean(error));
   });
 
   // ---------------- 返回 ----------------

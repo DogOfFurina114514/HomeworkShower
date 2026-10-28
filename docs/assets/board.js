@@ -1944,7 +1944,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
       applyDialog?.show();
     }
 
-    /** 打开发信应用：收件人与主题已填好 */
+    /** 打开发信应用：收件人与主题已填好（失败会有提示，见 hs.openMailto） */
     function openApplyMail() {
       const to = hs.config.adminEmail || "";
       const subject = "申请作业管理员";
@@ -1956,7 +1956,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
         "",
         "申请理由：",
       ].join("\n");
-      location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      hs.openMailto(to, subject, body);
     }
 
     // 把右下角按钮移出 <m3e-theme>：主题元素会建立包含块，导致 fixed 定位跟着页面滚动"飞"
