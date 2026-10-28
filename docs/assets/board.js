@@ -948,16 +948,16 @@
     return on ? on.dataset.value : "NORMAL";
   }
 
-  /** 读某个开关的当前状态 */
+  /** 读某个开关的当前状态（原生 checkbox，选项已由 chip 改成开关） */
   function flagOn(name) {
-    const chip = document.querySelector(`#announcement-flags [data-flag="${name}"]`);
-    return chip ? chip.getAttribute("aria-checked") === "true" : false;
+    const box = document.querySelector(`#announcement-flags [data-flag="${name}"]`);
+    return box ? box.checked === true : false;
   }
 
   function setFlag(name, on) {
-    const chip = document.querySelector(`#announcement-flags [data-flag="${name}"]`);
-    if (!chip) return;
-    chip.setAttribute("aria-checked", on ? "true" : "false");
+    const box = document.querySelector(`#announcement-flags [data-flag="${name}"]`);
+    if (!box) return;
+    box.checked = Boolean(on);
   }
 
   function setImportance(value) {
@@ -966,11 +966,25 @@
     });
   }
 
-  /** 截止日期字段的显隐：勾了「永不过期」就不该再逼人填日期 */
-  function syncExpiryField() {
-    const field = document.getElementById("announcement-expiry-field");
+  /**
+   * 截止日期字段的显隐：勾了「永不过期」就收起，不逼人填日期。
+   *
+   * 用 class 而不是 hidden：hidden 等于 display:none，没法播过渡；
+   * 收起的动作交给 .ann-expiry-slot 的 max-height/opacity 过渡。
+   * animate=false 用于刚打开对话框时按当前状态直接定位，别先展开再收起。
+   */
+  function syncExpiryField(animate = true) {
+    const slot = document.getElementById("ann-expiry-slot");
+    if (!slot) return;
     const never = flagOn("never_expires");
-    if (field) field.hidden = never;
+    if (!animate) {
+      slot.classList.add("no-anim");
+      slot.classList.toggle("is-collapsed", never);
+      void slot.offsetHeight; // 强制回流，让上面的初始状态生效
+      slot.classList.remove("no-anim");
+      return;
+    }
+    slot.classList.toggle("is-collapsed", never);
   }
 
   /**
@@ -984,7 +998,7 @@
   function syncAnnouncementOptions(editing) {
     const critical = document.getElementById("importance-critical");
     const hint = document.getElementById("importance-hint");
-    const adminFlag = document.getElementById("flag-admin-edit");
+    const adminRow = document.getElementById("flag-admin-edit-row");
 
     const allowCritical = isStrictPublisher() || (editing && editing.importance === "IMPORTANT");
     if (critical) {
@@ -993,12 +1007,12 @@
     }
     if (hint) hint.hidden = allowCritical;
 
-    // 发布者可以改这个开关（包括改管理员发的公告）；管理员没有这个选项
-    if (adminFlag) {
-      adminFlag.hidden = !isStrictPublisher();
+    // 发布者可以改这个开关（包括改管理员发的公告）；管理员整行不显示
+    if (adminRow) {
+      adminRow.hidden = !isStrictPublisher();
       if (!isStrictPublisher()) setFlag("admin_only_edit", true);
     }
-    syncExpiryField();
+    syncExpiryField(false);
   }
 
   function openAnnouncementCreate() {
@@ -1153,13 +1167,13 @@
       setImportance(chip.dataset.value);
     });
 
-    // 开关：多选
-    document.getElementById("announcement-flags")?.addEventListener("click", (event) => {
-      const chip = event.target.closest("[data-flag]");
-      if (!chip || chip.disabled) return;
-      const next = chip.getAttribute("aria-checked") !== "true";
-      chip.setAttribute("aria-checked", next ? "true" : "false");
-      if (chip.dataset.flag === "never_expires") syncExpiryField();
+    // 开关：原生 checkbox，浏览器自己维护选中态，这里只负责联动
+    const flagsHost = document.getElementById("announcement-flags");
+    flagsHost?.addEventListener("change", (event) => {
+      const box = event.target.closest("[data-flag]");
+      if (!box) return;
+      // 勾上「永不过期」→ 截止日期平滑收起；取消勾选 → 平滑展开
+      if (box.dataset.flag === "never_expires") syncExpiryField();
     });
 
     // 截止日期

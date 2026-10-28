@@ -773,7 +773,19 @@
       ".anncontent{min-height:90px;padding:10px 12px;border:1px solid #6f7a7d;border-radius:10px;background:#fff;font-size:14px;line-height:1.6;overflow-wrap:anywhere}",
       ".anndlg .field{display:block;margin:0 0 10px}",
       ".anndlg .field > span{display:block;font-size:13px;color:#3f484a;margin-bottom:4px}",
-      ".anndlg select,.anndlg input[type=date]{min-height:38px;padding:6px 10px;border:1px solid #6f7a7d;border-radius:10px;background:#fff;font:inherit;font-size:14px}"
+      ".anndlg select,.anndlg input[type=date]{min-height:38px;padding:6px 10px;border:1px solid #6f7a7d;border-radius:10px;background:#fff;font:inherit;font-size:14px}",
+      // 开关：原生 checkbox + appearance:none，语义与键盘操作保持原生
+      ".annswitches{display:grid;gap:10px;margin:0 0 12px}",
+      ".switchitem{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:#171d1e;user-select:none}",
+      ".switchitem input.sw{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:52px;min-width:52px;height:32px;min-height:32px;margin:0;padding:0;border:2px solid #6f7a7d;border-radius:999px;background:#e0e5e7;cursor:pointer;transition:background-color 200ms cubic-bezier(.2,0,0,1),border-color 200ms cubic-bezier(.2,0,0,1)}",
+      ".switchitem input.sw::before{content:\"\";position:absolute;top:50%;left:6px;width:16px;height:16px;border-radius:50%;background:#6f7a7d;transform:translateY(-50%);transition:left 240ms cubic-bezier(.2,0,0,1),width 240ms cubic-bezier(.2,0,0,1),height 240ms cubic-bezier(.2,0,0,1),background-color 200ms cubic-bezier(.2,0,0,1)}",
+      ".switchitem input.sw:checked{border-color:#006877;background:#006877}",
+      ".switchitem input.sw:checked::before{left:22px;width:24px;height:24px;background:#fff}",
+      ".switchitem input.sw:focus-visible{outline:2px solid #006877;outline-offset:3px}",
+      // 截止日期折叠：hidden/display:none 没法过渡，改用 max-height + opacity
+      ".anndateslot{overflow:hidden;max-height:120px;opacity:1;transform:translateY(0);transition:max-height 280ms cubic-bezier(.2,0,0,1),opacity 200ms cubic-bezier(.2,0,0,1),transform 280ms cubic-bezier(.2,0,0,1),margin-block-end 280ms cubic-bezier(.2,0,0,1);margin-block-end:10px}",
+      ".anndateslot.collapsed{max-height:0;opacity:0;transform:translateY(-8px);margin-block-end:0;pointer-events:none}",
+      ".anndateslot.noanim{transition:none}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -869,16 +881,16 @@
     var body = '<div class="anndlg">' +
       '<label class="field"><span>重要等级</span><select id="ann-importance">' + levels + "</select></label>" +
       (allowCritical ? "" : '<p class="status" style="margin:0 0 10px">只有发布者可以把公告设为「重要」。</p>') +
-      '<div class="annrow">' +
-      '<label><input type="checkbox" id="ann-pinned"' + (editing && editing.pinned ? " checked" : "") + " /> 置顶</label>" +
+      '<div class="annswitches">' +
+      '<label class="switchitem"><input type="checkbox" class="sw" id="ann-pinned"' + (editing && editing.pinned ? " checked" : "") + ' /><span>置顶</span></label>' +
       (isStrictPublisher()
-        ? '<label><input type="checkbox" id="ann-admin-edit"' + (!editing || editing.admin_only_edit ? " checked" : "") + " /> 管理员可修改</label>"
+        ? '<label class="switchitem"><input type="checkbox" class="sw" id="ann-admin-edit"' + (!editing || editing.admin_only_edit ? " checked" : "") + ' /><span>管理员可修改</span></label>'
         : "") +
-      '<label><input type="checkbox" id="ann-internal"' + (editing && editing.internal ? " checked" : "") + " /> 内部（仅管理员与发布者可见）</label>" +
-      '<label><input type="checkbox" id="ann-never"' + (editing && editing.never_expires ? " checked" : "") + " /> 永不过期</label>" +
+      '<label class="switchitem"><input type="checkbox" class="sw" id="ann-internal"' + (editing && editing.internal ? " checked" : "") + ' /><span>内部（仅管理员与发布者可见）</span></label>' +
+      '<label class="switchitem"><input type="checkbox" class="sw" id="ann-never"' + (editing && editing.never_expires ? " checked" : "") + ' /><span>永不过期</span></label>' +
       "</div>" +
-      '<label class="field"><span>截止日期</span><input type="date" id="ann-expiry" value="' +
-      (editing && editing.expires_on ? String(editing.expires_on).slice(0, 10) : "") + '" /></label>' +
+      '<div class="anndateslot" id="ann-dateslot"><label class="field"><span>截止日期</span><input type="date" id="ann-expiry" value="' +
+      (editing && editing.expires_on ? String(editing.expires_on).slice(0, 10) : "") + '" /></label></div>' +
       '<label class="field"><span>内容（支持粘贴带格式的文本）</span>' +
       '<div class="anncontent" id="ann-content" contenteditable="true"></div></label>' +
       "</div>";
@@ -954,13 +966,18 @@
         ? (editing.content_html || escapeHtml(editing.content || "").replace(/\n/g, "<br>"))
         : "";
     }
-    // 勾了「永不过期」就把日期框禁掉，避免让人以为还要填
+    // 勾了「永不过期」就把截止日期平滑收起（不是简单地 disabled/隐藏）
     var neverBox = document.getElementById("ann-never");
-    var expiryInput = document.getElementById("ann-expiry");
-    if (neverBox && expiryInput) {
-      var syncExpiry = function () { expiryInput.disabled = neverBox.checked; };
-      neverBox.onchange = syncExpiry;
-      syncExpiry();
+    var dateSlot = document.getElementById("ann-dateslot");
+    if (neverBox && dateSlot) {
+      // 首次按当前状态直接定位，别让人看到"先展开再收起"
+      dateSlot.className = "anndateslot noanim" + (neverBox.checked ? " collapsed" : "");
+      void dateSlot.offsetHeight;
+      dateSlot.className = "anndateslot" + (neverBox.checked ? " collapsed" : "");
+      neverBox.onchange = function () {
+        if (neverBox.checked) dateSlot.className = "anndateslot collapsed";
+        else dateSlot.className = "anndateslot";
+      };
     }
   }
 

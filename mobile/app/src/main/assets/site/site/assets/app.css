@@ -543,6 +543,128 @@ html.hs-booting body {
 /* 编辑公告对话框里的可点击选项。
    M3E 只注册了 10 个组件，没有 switch / checkbox / select，
    所以等级与开关用自绘 chip 实现（带按压反馈、键盘可聚焦）。 */
+/* 公告选项：开关。
+   M3E 只注册了 10 个组件、其中没有 switch，所以这里用原生 checkbox +
+   appearance:none 做 M3 外观 —— 语义与键盘操作都还是浏览器原生的，
+   只是把绘制交给了 CSS，不是自己画控件。 */
+.switch-list {
+  display: grid;
+  gap: 12px;
+}
+
+.switch-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: var(--md-sys-color-on-surface, #171d1e);
+}
+
+.switch-item[hidden] {
+  display: none;
+}
+
+.switch-item__text {
+  min-width: 0;
+}
+
+/* 轨道。
+   选择器写成 .switch-item input.switch 是为了压过通用规则 .form-row input
+   （它是 0,1,1；只用 .switch 是 0,1,0，会被套上 width:100% / min-height:44px /
+   圆角 10px —— 开关就会被撑成一条 348×44 的长条）。 */
+.switch-item input.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid var(--md-sys-color-outline, #6f7a7d);
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-container-highest, #e0e5e7);
+  cursor: pointer;
+  transition:
+    background-color 200ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 拇指：M3 未选中 16dp，选中放大到 24dp */
+.switch-item input.switch::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--md-sys-color-outline, #6f7a7d);
+  transform: translateY(-50%);
+  transition:
+    left 240ms cubic-bezier(0.2, 0, 0, 1),
+    width 240ms cubic-bezier(0.2, 0, 0, 1),
+    height 240ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.switch-item input.switch:checked {
+  border-color: var(--md-sys-color-primary, #006877);
+  background: var(--md-sys-color-primary, #006877);
+}
+
+.switch-item input.switch:checked::before {
+  left: 22px;
+  width: 24px;
+  height: 24px;
+  background: var(--md-sys-color-on-primary, #ffffff);
+}
+
+.switch-item input.switch:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary, #006877);
+  outline-offset: 3px;
+}
+
+.switch-item input.switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 截止日期的折叠槽位。
+   hidden / display:none 是没法过渡的，所以换成 max-height + opacity + 位移：
+   勾上「永不过期」时向上收起，取消勾选时展开。
+   内层 overflow:hidden 负责裁切，日期字段自己的浮动标签在展开态不受影响。 */
+.ann-expiry-slot {
+  overflow: hidden;
+  max-height: 96px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-block-end: 10px;
+  transition:
+    max-height 280ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 200ms cubic-bezier(0.2, 0, 0, 1),
+    transform 280ms cubic-bezier(0.2, 0, 0, 1),
+    margin-block-end 280ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.ann-expiry-slot.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px);
+  margin-block-end: 0;
+  pointer-events: none;
+}
+
+/* 对话框刚打开时按当前状态定位，不要播一次动画 */
+.ann-expiry-slot.no-anim {
+  transition: none;
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
