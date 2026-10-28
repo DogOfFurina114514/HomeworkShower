@@ -1,9 +1,9 @@
 {
-  "webVersion": "31",
-  "webVersionCode": 31,
-  "updatedAt": "2026-10-28T23:40:00+08:00",
+  "webVersion": "32",
+  "webVersionCode": 32,
+  "updatedAt": "2026-10-28T23:55:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 31：修两处「回站点根」的拼接错误。① 简版底部的「重试完整版」原来用 pathname 第一段当目录、最后一段当文件名，在 /simple/xxx 上拼出来还是简版自己（访问 /simple/ 目录时更会变成 /simple/simple，点了原地打转），现在改成把 simple/ 这一段换成站点根：/simple/ → /、/simple/timemachine → /timemachine。② deleted.html 的「回到首页」是同一套拼法，根域名下会指向 /deleted/ 这种不存在的地方，改成取当前页面所在目录。资源版本号提到 v97。",
+  "webNote": "网页版本 32：修简版登录页两处布局问题。① 登录/注册切换器原来排在输入框之后、看起来像跑到了底部，现在移到标题下方、表单之前。② 提交按钮原来套在 .dialogactions 里（右对齐），现在改用新的 .actions-block 容器铺满整行、文字居中，手机上更好点。实测切换器两键均分（201/201），提交按钮占卡片内容宽 99.5%。资源版本号提到 v98。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

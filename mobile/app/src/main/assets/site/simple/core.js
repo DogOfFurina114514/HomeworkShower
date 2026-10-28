@@ -258,6 +258,10 @@
     ".dialog h3{margin:0 0 12px;font-size:21px;font-weight:500}",
     ".dialog p{margin:0 0 12px;font-size:15px;color:#3f484a;word-break:break-word}",
     ".dialogactions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}",
+      // 主操作按钮铺满整行（登录/注册、发布等）：与 .dialogactions 的右对齐不同，
+      // 这里让按钮吃掉全部宽度，手机上更好点
+      ".actions-block{display:flex;margin-top:12px}",
+      ".actions-block .pill{flex:1;justify-content:center}",
     ".field{display:block;margin:0 0 14px}",
     ".field>span{display:block;margin-bottom:6px;font-size:13px;color:#3f484a}",
     ".field input,.field textarea{width:100%;min-height:44px;padding:10px 14px;border:1px solid #6f797b;border-radius:10px;background:#eff4f6;color:#171d1e;font:inherit;font-size:16px}",
@@ -1176,14 +1180,16 @@
     var mode = "login";
     var card = document.createElement("div");
     card.className = "card";
+    // 切换器放最上面（原来排在输入框之后，看起来像跑到底部去了）；
+    // 提交按钮单独用 .actions-block 包一层铺满整行（原来套 .dialogactions 是右对齐的）。
     card.innerHTML = "<h2>登录 / 注册</h2>" +
+      '<div class="tabs"><button class="pill primary" id="tab-login">登录</button>' +
+      '<button class="pill" id="tab-register">注册</button></div>' +
       '<p class="status" id="status">登录后可以用时光机，也才能发布或修改作业（仅限未过期的作业）。</p>' +
       '<label class="field"><span>邮箱</span><input id="email" type="email" /></label>' +
       '<label class="field"><span>密码（至少 8 位）</span><input id="password" type="password" /></label>' +
       '<label class="field" id="confirm-row" style="display:none"><span>确认密码</span><input id="confirm" type="password" /></label>' +
-      '<div class="tabs"><button class="pill primary" id="tab-login">登录</button>' +
-      '<button class="pill" id="tab-register">注册</button></div>' +
-      '<div class="dialogactions"><button class="pill primary" id="submit">登录</button></div>';
+      '<div class="actions-block"><button class="pill primary" id="submit">登录</button></div>';
     document.body.appendChild(card);
 
     if (session()) return void refreshProfile().then(function () { location.href = "./"; });

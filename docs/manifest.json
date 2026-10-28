@@ -1,6 +1,6 @@
 {
-  "version": "31",
-  "versionCode": 31,
+  "version": "32",
+  "versionCode": 32,
   "entry": "index.html",
   "files": [
     {
@@ -10,7 +10,7 @@
     },
     {
       "path": "404.html",
-      "hash": "0325603973676ea336aff68cdd30798da4896f6aab85f052f64a3ce2eaacceb2",
+      "hash": "fcf19b54e06ff241225ee575fb9c830475e281027c7dfc3b5a148a7886b5dbd7",
       "bytes": 3680
     },
     {
@@ -65,12 +65,12 @@
     },
     {
       "path": "auth.html",
-      "hash": "1c8a3150b4d8bb46dc6d0ebd0e7b9ef96e8913140ee4d02e97dcea29b3c885e1",
+      "hash": "57662583531bb15c43e28055e4c1456d68c80d33f4bd3e91bdf6c8399d46e225",
       "bytes": 6222
     },
     {
       "path": "ban.html",
-      "hash": "9d48e2d501340f2f51507d3624ea4b744e103f5ddd76382c59d7ef44e62115c9",
+      "hash": "a65872bd82728893ca4e9f475c1261e6226a653f8010d1ac46d656df460d41d1",
       "bytes": 6825
     },
     {
@@ -80,72 +80,72 @@
     },
     {
       "path": "deleted.html",
-      "hash": "831bf7b597e08df71e2e6e0af208a003c0f0ab310274184f2d777e9f5bd70929",
+      "hash": "d31fea505b7cd3d7e01d4e6a203da5f3f041674541c9c56dd12bf1bfa38adab7",
       "bytes": 7603
     },
     {
       "path": "index.html",
-      "hash": "627134d50f16af21a32db04f6a494e3e00016db78c8477918f1fa426b81e6cca",
+      "hash": "05a567fbec9e49b9a37290228561d4ba62bd4ed99282e1e94621127dc907776b",
       "bytes": 23908
     },
     {
       "path": "login.html",
-      "hash": "4d3b7933b208e444b4efcca38f921f63d60a263dcc74c666ad1e4bb252d29ce1",
+      "hash": "a1509e10bd7d59ae9920e0f39199305219948af1abcbbca0dc0d90bde278bffc",
       "bytes": 9308
     },
     {
       "path": "publish.html",
-      "hash": "96d93587b9b6568b9b7e78ed9555ae7e0c375fff2a882501be1397be15f074d5",
+      "hash": "74f9221ca31e5f031f9c07e3bb99e335b3ae2dd64187edb47af33b2dc638f092",
       "bytes": 10271
     },
     {
       "path": "security.html",
-      "hash": "0b26167e7dc80e064994cbbc6e331978b3f0832ec7f59c2958a198040f811454",
+      "hash": "60b8c28e07d2df60fd33819c1d4199f4dbe87b6596dc93e83ceff493584bf494",
       "bytes": 14251
     },
     {
       "path": "simple/auth.html",
-      "hash": "fd12ae88091e957c208d82119f266c7077f6a8ae138f2c8bceec531ab71d3d12",
+      "hash": "ec49b9d72fd42b8e7f6b0a0f85501ed6b6cf169f41774c5e52af016f753528ee",
       "bytes": 547
     },
     {
       "path": "simple/core.js",
-      "hash": "cd0495bfa200d5626be923acfc8a285c450401b6c9bab1708b777d734b5306c4",
-      "bytes": 77878
+      "hash": "3d3f55af2203def26f0d053784494bd57d4aceb8aba794c3e76ff578b4033e80",
+      "bytes": 78381
     },
     {
       "path": "simple/index.html",
-      "hash": "b15de9ab666a5c7240f60b3db37f092d0e86ed7fa6095861538d24c2868ff488",
+      "hash": "53c475bdc236746d316ca814790157133ba57a503097d2f5dc61c3fbada090df",
       "bytes": 629
     },
     {
       "path": "simple/login.html",
-      "hash": "ae6753ece8db8acca1d6979119f8b57cf4ee84952058ada2daa7ccfb265e3c92",
+      "hash": "ba0eb884826df2d5f066778ca64dbb8ad1c77ec2938fe9c8fe1d957037608b60",
       "bytes": 542
     },
     {
       "path": "simple/publish.html",
-      "hash": "dcfe78884d43892491300f23116416e7aa5fa077f6d8aebe7c1c7d712c1ffc06",
+      "hash": "14a26b8c565398ff7afeaed937b1a7c65edd64ed2aeb8e5e2d3f38d2e827d269",
       "bytes": 540
     },
     {
       "path": "simple/security.html",
-      "hash": "60a60cf86462c5be647f1cbe443b90d6dd3b3242aca0d75705bc8390d02ae71b",
+      "hash": "ba61519979891c5071d55423368b34c7d9bb3ccecd9ec95177b822273ff76e89",
       "bytes": 543
     },
     {
       "path": "simple/timemachine.html",
-      "hash": "8bb28714085b0bacfc13773149ee767da04bdad74bd3e7de4f7bee60842c48c5",
+      "hash": "520afa38323a2584837375d2f8c2f030de1b20f2f2685aa9c3c34d6b0eb86bf7",
       "bytes": 648
     },
     {
       "path": "timemachine.html",
-      "hash": "f472ca6f1f72b9ba253f051820a3e253db020f70d8100d8a8fc90491ac2027b6",
+      "hash": "c82433a2f650dbdd6c59219cdb4f432eacdd9d679ab722f67aed342c992a4e26",
       "bytes": 24443
     },
     {
       "path": "unsupport.html",
-      "hash": "d20c2ef7f0cf1a8b0fe02af3ff278889ea3858a583427030cc049ed81f783371",
+      "hash": "5fec3cfdab1fad72adbf7af00e76c509cc6e0fb3c4caf1f8785fe1618e65f915",
       "bytes": 4347
     },
     {
@@ -160,8 +160,8 @@
     },
     {
       "path": "version.json",
-      "hash": "634fe0eb7414f06e7dac0c1f50494a4c640159ed616c004c38e182aaa9e086d0",
-      "bytes": 2327
+      "hash": "19b71675e2e165521f6b1cd21aa4e0fef1d4960da9304b8ed90c60a38b95458b",
+      "bytes": 2191
     }
   ]
 }
