@@ -1,9 +1,9 @@
 {
-  "webVersion": "30",
-  "webVersionCode": 30,
-  "updatedAt": "2026-10-28T23:20:00+08:00",
+  "webVersion": "31",
+  "webVersionCode": 31,
+  "updatedAt": "2026-10-28T23:40:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 30：把兜底页也统一成无后缀，并修掉它们俩的路径 bug。① 6 个完整版页面降级到 unsupport 时改成 unsupport?page=security 这种写法（原来带 .html），unsupport.html 的白名单同步去后缀 —— 两边必须一致，否则会一律回退成看板。② unsupport.html 和 404.html 都用 pathname 第一段拼站点根，换根域名后 unsupport 会拼成 /unsupport.html/（导致「前往简版」链接整个错的），404 会拼成 /用户乱输的第一段/；前者改成取当前目录，后者按域名类型判断（项目 Pages 取第一段、自定义域名取根）。③ 白名单补上 security —— 简版有 simple/security.html 但原来没登记，从安全中心降级会送错页。④ 跳 404 的三处改为无后缀。至此站内所有跳转都不带 .html（邮件重定向地址除外，那是发到邮箱里的完整 URL）。资源版本号提到 v96。",
+  "webNote": "网页版本 31：修两处「回站点根」的拼接错误。① 简版底部的「重试完整版」原来用 pathname 第一段当目录、最后一段当文件名，在 /simple/xxx 上拼出来还是简版自己（访问 /simple/ 目录时更会变成 /simple/simple，点了原地打转），现在改成把 simple/ 这一段换成站点根：/simple/ → /、/simple/timemachine → /timemachine。② deleted.html 的「回到首页」是同一套拼法，根域名下会指向 /deleted/ 这种不存在的地方，改成取当前页面所在目录。资源版本号提到 v97。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

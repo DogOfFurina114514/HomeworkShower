@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>账号已注销 · 作业</title>
-    <link rel="icon" href="assets/icon.svg?v96" type="image/svg+xml" />
-    <script src="assets/config.js?v96"></script>
+    <link rel="icon" href="assets/icon.svg?v97" type="image/svg+xml" />
+    <script src="assets/config.js?v97"></script>
     <!--
       注销相关页面：不加载 M3E、不加载 supabase，样式内联手写，
       任何浏览器都能打开；用 ?state=requested 区分"申请已提交"与"已注销"。
@@ -135,8 +135,11 @@
         }
 
         var origin = location.origin || location.protocol + "//" + location.host;
-        var parts = location.pathname.split("/").filter(function (item) { return !!item; });
-        var home = origin + "/" + (parts[0] || "") + "/";
+        /* 首页 = 当前页面所在目录。
+           原来用 pathname 第一段（/HomeworkShower/deleted.html → /HomeworkShower/），
+           但自定义域名下站点在根，第一段会变成 "deleted" / "deleted.html"，
+           「回到首页」就指到 /deleted/ 这种不存在的地方去了。 */
+        var home = origin + location.pathname.replace(/[^\/]*$/, "");
         document.getElementById("go-home").setAttribute("href", home);
         var mailBox = document.createElement("p");
         mailBox.className = "muted";

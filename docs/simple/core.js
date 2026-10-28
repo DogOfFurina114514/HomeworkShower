@@ -287,14 +287,27 @@
   /* ---------------------------------------------------------- 通用组件 */
 
   function lowBar() {
-    var parts = location.pathname.split("/").filter(function (item) { return !!item; });
-    var base = "/" + (parts[0] || "") + "/";
-    var name = parts[parts.length - 1] || "index.html";
+    /**
+     * 「重试完整版」的地址。
+     *
+     * 完整版页面在站点根，简版在 /simple/ 下，所以要把 "simple/" 这一段换掉：
+     *   /simple/timemachine        → /timemachine
+     *   /HomeworkShower/simple/... → /HomeworkShower/...
+     *   /simple/index              → /（首页收敛成根）
+     *
+     * 原来写的是 base + name（parts[0] 当目录、最后一段当页名），
+     * 结果在 /simple/xxx 上拼出来还是 /simple/xxx —— 点「重试完整版」原地打转，
+     * 换根域名后还会拼成 /simple/simple 这种更离谱的地址。
+     */
+    var name = location.pathname.split("/").pop().replace(/\.html$/, "") || "index";
+    var fullBase = location.pathname.replace(/simple\/[^\/]*$/, "");
+    var href = name === "index" ? fullBase : fullBase + name;
+
     var bar = document.createElement("div");
     bar.className = "lowbar";
     bar.innerHTML = icon("warn", 16) +
       " <b>你的浏览器版本过低</b>，当前是简版页面（功能与控件位置与完整版一致）。" +
-      ' <a href="' + base + name + '">重试完整版</a>';
+      ' <a href="' + href + '">重试完整版</a>';
     document.body.insertBefore(bar, document.body.firstChild);
   }
 
