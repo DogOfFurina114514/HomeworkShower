@@ -1,9 +1,9 @@
 {
-  "webVersion": "28",
-  "webVersionCode": 28,
-  "updatedAt": "2026-10-28T22:25:00+08:00",
+  "webVersion": "29",
+  "webVersionCode": 29,
+  "updatedAt": "2026-10-28T23:00:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 28：修正顶栏排布策略 —— 原来一放不下就缩字保持单行，现在改成：单行放不下直接换行（按钮保持自然大小），两行还放不下（排到第三行）才等比缩小、最多缩到 75%。实测 414/390/360 宽都是两行且按钮原尺寸（116×40），320 宽原本三行，缩到 0.90 压回两行（105×36）。资源版本号提到 v94。",
+  "webNote": "网页版本 29：补齐上一版漏掉的两处 index.html —— ① 安全中心的「返回看板」写在 security.html 的内联脚本里（上一版只改了 assets/*.js，漏了 HTML 内联脚本），现在改为 ./；② 未登录时 client.js 的 requireSession 把登录页写死成了 login.html，连 next 参数也带后缀，现在地址栏是 /login?next=security。另外顺手修了 ban.html 拼首页的方式（原来取 pathname 第一段，在根域名下 /ban 会拼成 /ban/），以及 client.js 注销跳转在无后缀地址上反复重定向的问题。资源版本号提到 v95。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

@@ -113,7 +113,8 @@
 
     // 已注销：不再允许使用，送到注销说明页
     if (profile.deletedAt) {
-      if (location.pathname.indexOf("deleted.html") < 0) location.replace("deleted.html");
+      // 兼容 /deleted 与 /deleted.html，避免在无后缀地址上反复重定向
+      if (!/\/deleted(?:\.html)?$/.test(location.pathname)) location.replace("deleted.html");
       return null;
     }
 
@@ -131,12 +132,15 @@
     return profile;
   }
 
-  /** 未登录直接跳登录页，并记住来路。 */
+  /** 未登录直接跳登录页，并记住来路（来路只取页面名，不带扩展名）。 */
   async function requireSession() {
     const session = await getSession();
     if (!session) {
-      const next = encodeURIComponent(location.pathname.split("/").pop() + location.search);
-      location.replace(`login.html?next=${next}`);
+      // 页面名去掉 .html：地址栏和 next 参数都不该带后缀
+      const pageName = location.pathname.split("/").pop().replace(/\.html$/, "");
+      const next = encodeURIComponent(pageName + location.search);
+      // 登录页同样走 pageUrl，否则地址栏会显示 /login.html
+      location.replace(`${pageUrl("login")}?next=${next}`);
       return null;
     }
     return session;
