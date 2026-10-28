@@ -152,7 +152,7 @@
     const profile = await hs.getProfile();
     if (!hs.isPublisher(profile)) {
       // 不是发布者：当作页面不存在，直接跳 404
-      location.replace("404.html");
+      location.replace(hs.pageUrl("404"));
       return;
     }
 

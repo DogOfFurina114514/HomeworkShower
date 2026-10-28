@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>页面不存在 · 作业</title>
-    <link rel="icon" href="assets/icon.svg?v95" type="image/svg+xml" />
+    <link rel="icon" href="assets/icon.svg?v96" type="image/svg+xml" />
     <!--
       404 是兜底页面：不加载 M3E、不加载 supabase、不做浏览器检测，
       样式全部内联手写，保证任何浏览器（含很老的设备）都能正常打开。
@@ -67,8 +67,11 @@
       /* ES5 写法，老浏览器也能跑；顺便把验证邮件里 auth.html/ 这种多斜杠地址纠正回来 */
       (function () {
         var path = location.pathname;
+        /* 站点根目录。404 页的 pathname 是用户乱输的路径，不能"取当前目录"：
+           项目 Pages（*.github.io/repo）时第一段是仓库名，自定义域名时站点就在根。 */
         var parts = path.split("/").filter(function (item) { return !!item; });
-        var base = "/" + (parts[0] || "") + "/";
+        var isProjectPages = /\.github\.io$/i.test(location.hostname);
+        var base = isProjectPages ? "/" + (parts[0] || "") + "/" : "/";
         var fixed = path.replace(/\/+$/, "");
 
         if (/\/auth\.html$/i.test(fixed)) {

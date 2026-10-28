@@ -1228,9 +1228,9 @@
     document.body.appendChild(card);
     $("date").value = todayString();
 
-    if (!session()) return void (location.href = "404.html");
+    if (!session()) return void (location.href = pageUrl("404"));
     refreshProfile().then(function () {
-      if (!isPublisher()) return void (location.href = "404.html");
+      if (!isPublisher()) return void (location.href = pageUrl("404"));
       message("在桌面端 StickyHomeworks2 里用「保存作业 → JSON」导出，然后在下面导入。同一天重复发布会覆盖当天记录。");
       $("form").style.display = "block";
     });

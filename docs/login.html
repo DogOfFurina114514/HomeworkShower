@@ -37,14 +37,14 @@
         }
         if (ok) return;
         if (location.pathname.indexOf("/simple/") >= 0) return;
-        var name = location.pathname.replace(/.*\//, "") || "index.html";
-        location.replace(location.pathname.replace(/[^\/]*$/, "") + "unsupport.html?page=" + encodeURIComponent(name));
+        var name = (location.pathname.replace(/.*\//, "") || "index.html").replace(/\.html$/, "");
+        location.replace(location.pathname.replace(/[^\/]*$/, "") + "unsupport?page=" + encodeURIComponent(name));
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>登录 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v95" />
-    <link rel="icon" href="assets/icon.svg?v95" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v96" />
+    <link rel="icon" href="assets/icon.svg?v96" type="image/svg+xml" />
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -112,11 +112,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v95" defer></script>
-    <script src="vendor/supabase.js?v95" defer></script>
-    <script src="assets/config.js?v95" defer></script>
-    <script src="assets/client.js?v95" defer></script>
-    <script src="assets/login.js?v95" defer></script>
+    <script src="vendor/m3e.js?v96" defer></script>
+    <script src="vendor/supabase.js?v96" defer></script>
+    <script src="assets/config.js?v96" defer></script>
+    <script src="assets/client.js?v96" defer></script>
+    <script src="assets/login.js?v96" defer></script>
   </head>
 
   <body>

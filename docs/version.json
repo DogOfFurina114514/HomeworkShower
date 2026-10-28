@@ -1,9 +1,9 @@
 {
-  "webVersion": "29",
-  "webVersionCode": 29,
-  "updatedAt": "2026-10-28T23:00:00+08:00",
+  "webVersion": "30",
+  "webVersionCode": 30,
+  "updatedAt": "2026-10-28T23:20:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 29：补齐上一版漏掉的两处 index.html —— ① 安全中心的「返回看板」写在 security.html 的内联脚本里（上一版只改了 assets/*.js，漏了 HTML 内联脚本），现在改为 ./；② 未登录时 client.js 的 requireSession 把登录页写死成了 login.html，连 next 参数也带后缀，现在地址栏是 /login?next=security。另外顺手修了 ban.html 拼首页的方式（原来取 pathname 第一段，在根域名下 /ban 会拼成 /ban/），以及 client.js 注销跳转在无后缀地址上反复重定向的问题。资源版本号提到 v95。",
+  "webNote": "网页版本 30：把兜底页也统一成无后缀，并修掉它们俩的路径 bug。① 6 个完整版页面降级到 unsupport 时改成 unsupport?page=security 这种写法（原来带 .html），unsupport.html 的白名单同步去后缀 —— 两边必须一致，否则会一律回退成看板。② unsupport.html 和 404.html 都用 pathname 第一段拼站点根，换根域名后 unsupport 会拼成 /unsupport.html/（导致「前往简版」链接整个错的），404 会拼成 /用户乱输的第一段/；前者改成取当前目录，后者按域名类型判断（项目 Pages 取第一段、自定义域名取根）。③ 白名单补上 security —— 简版有 simple/security.html 但原来没登记，从安全中心降级会送错页。④ 跳 404 的三处改为无后缀。至此站内所有跳转都不带 .html（邮件重定向地址除外，那是发到邮箱里的完整 URL）。资源版本号提到 v96。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

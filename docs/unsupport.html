@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>设备不支持 · 作业</title>
-    <link rel="icon" href="assets/icon.svg?v95" type="image/svg+xml" />
+    <link rel="icon" href="assets/icon.svg?v96" type="image/svg+xml" />
     <!--
       设备不支持页：不加载 M3E、不加载 supabase、不做任何依赖检测，
       样式全部内联手写，保证任何浏览器都能打开。
@@ -80,10 +80,15 @@
     <script>
       /* ES5 写法，老浏览器可用；白名单校验参数，缺失或非法一律回主页 */
       (function () {
-        var ALLOWED = ["index.html", "timemachine.html", "login.html", "publish.html", "auth.html"];
+        // 白名单与跳转方传的 page 参数都去掉了 .html，两边必须一致，
+        // 否则校验失败会一律回退成看板（"去简版"就送错页了）。
+        // security 是原版漏掉的：简版有 simple/security.html，但这里没登记，
+        // 结果从安全中心降级会被送到看板而不是对应那一页。
+        var ALLOWED = ["index", "timemachine", "login", "publish", "security", "auth"];
         var origin = location.origin || location.protocol + "//" + location.host;
-        var parts = location.pathname.split("/").filter(function (item) { return !!item; });
-        var base = "/" + (parts[0] || "") + "/";
+        // 页面自身所在目录：/unsupport → /，/HomeworkShower/unsupport.html → /HomeworkShower/
+        //（原来取 pathname 第一段，根域名下会拼成 /unsupport.html/）
+        var base = location.pathname.replace(/[^\/]*$/, "");
         var home = origin + base;
 var page = "";
         var match = String(location.search).match(/[?&]page=([^&]+)/);
@@ -94,7 +99,7 @@ var page = "";
         for (var i = 0; i < ALLOWED.length; i++) {
           if (ALLOWED[i] === page) valid = true;
         }
-        if (!valid) page = "index.html";
+        if (!valid) page = "index";
 
         var simpleUrl = home + "simple/" + page;
         document.getElementById("go-simple").setAttribute("href", simpleUrl);
