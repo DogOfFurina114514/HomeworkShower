@@ -448,6 +448,7 @@
 
   /** 节流：一帧只量一次，避免 resize 时反复重排 */
   let topbarFitQueued = false;
+
   function queueTopbarFit() {
     if (topbarFitQueued) return;
     topbarFitQueued = true;
@@ -455,6 +456,97 @@
       topbarFitQueued = false;
       fitTopbar();
     });
+  }
+
+  /**
+   * 许可证底栏：要么整个露出，要么整个收起。
+   *
+   * 底栏是 m3e-theme 的兄弟节点（框架之外）。内容能一屏显示时 CSS 的
+   * sticky-footer 布局已让它贴在屏幕底部；内容超过一屏时它在首屏之外，
+   * 需要向下滚才出现 —— 而滚动的最后一段正好是"半截露出"的区间。
+   *
+   * 纯 CSS 的 scroll-snap 在这里不够用：只能声明一个吸附点（底栏底部），
+   * 停在中间时浏览器不保证会吸过去。所以滚动停下来之后自己判定并平滑归位：
+   *   露出一半以上 → 补到文档底部，完整显示
+   *   露出一半以下 → 退回它刚好完全离开视口的位置
+   * 只在"确实处于部分可见"时动手，页面中间的正常滚动不受打扰。
+   */
+  function setupLicenseFooterSnap() {
+    const footer = document.getElementById("license-footer");
+    if (!footer) return;
+
+    let queued = false;
+    let settling = false;
+    let settleTimer = 0;
+
+    const fabLift = (shown) => {
+      const host = document.getElementById("fab-host");
+      if (!host) return;
+      // 底栏完整露出时把右下角按钮抬到它上方，避免叠在一起
+      host.style.setProperty("--fab-footer-lift", shown ? `${Math.round(footer.offsetHeight)}px` : "0px");
+    };
+
+    const sync = () => {
+      queued = false;
+      const vh = window.innerHeight;
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
+      const rect = footer.getBoundingClientRect();
+      const height = rect.height;
+
+      // 底栏还没进视口（或页面根本不用滚）→ 谈不上半截，按钮也无需让位
+      if (maxScroll <= 0 || rect.top >= vh - 1) {
+        fabLift(false);
+        return;
+      }
+      fabLift(rect.bottom <= vh + 1);
+    };
+
+    /** 滚动结束后归位 */
+    const settle = () => {
+      if (settling) return;
+      const vh = window.innerHeight;
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
+      const rect = footer.getBoundingClientRect();
+      const height = rect.height;
+      if (maxScroll <= 0 || !height) return;
+
+      const fullyHidden = Math.max(0, maxScroll - height); // 底栏刚好完全离开视口
+      const top = rect.top;
+      const bottom = rect.bottom;
+      const partiallyVisible = top < vh - 1 && bottom > 1 && top > -height + 1;
+      if (!partiallyVisible) return;
+
+      const shownPx = Math.min(vh, bottom) - Math.max(0, top);
+      const target = shownPx >= height / 2 ? maxScroll : fullyHidden;
+      if (Math.abs(target - window.scrollY) < 2) return;
+
+      settling = true;
+      window.scrollTo({ top: target, behavior: "smooth" });
+      // 平滑滚动结束后再放开；scrollend 不可用时靠超时兜底
+      window.setTimeout(() => {
+        settling = false;
+        sync();
+      }, 600);
+    };
+
+    const onScroll = () => {
+      if (settling) return;
+      if (!queued) {
+        queued = true;
+        requestAnimationFrame(sync);
+      }
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(settle, 140);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    window.addEventListener("orientationchange", onScroll);
+    // 内容异步渲染完高度会变（作业卡片、公告栏），重算一次
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(onScroll).observe(document.documentElement);
+    }
+    sync();
   }
 
   function setupTopbarFit() {
@@ -477,9 +569,13 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupTopbarFit, { once: true });
+    document.addEventListener("DOMContentLoaded", () => {
+      setupTopbarFit();
+      setupLicenseFooterSnap();
+    }, { once: true });
   } else {
     setupTopbarFit();
+    setupLicenseFooterSnap();
   }
 
   window.hs = {
@@ -502,6 +598,31 @@
     pageUrl,
     roleLabel: (role) => ROLE_LABELS[role] || role,
   };
+
+  /**
+   * 点弹窗外面不关闭。
+   *
+   * m3e-dialog 带 dismissible 属性时，点背景会直接把它关掉 ——
+   * 编辑作业时在内容区选中文本，鼠标很容易划出弹窗边框，一松手落在背景上，
+   * 刚编辑的东西连弹窗一起没了。
+   *
+   * 做法：在捕获阶段把"落在 dialog 自身（也就是背景/mask 区域）"的按下与点击拦掉。
+   * 内容区的点击 target 是里面的元素，不会命中这一条，所以不影响正常操作。
+   * 刻意不去删 dismissible —— 那是 M3E 管 Esc 关闭的开关之一，
+   * 删了键盘用户就没法关弹窗了。这里只挡背景，Esc 照旧。
+   */
+  function blockBackdropClose(event) {
+    const target = event.target;
+    if (!target || target.nodeType !== 1) return; // 只处理元素节点
+    if (target.tagName !== "M3E-DIALOG") return; // 点在背景上时 target 就是 dialog 自己
+    // 计数器：用于确认这条拦截确实被触发过（排查时有用，平时不显示）
+    window.__hsBackdropBlocked = (window.__hsBackdropBlocked || 0) + 1;
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  document.addEventListener("pointerdown", blockBackdropClose, true);
+  document.addEventListener("mousedown", blockBackdropClose, true);
+  document.addEventListener("click", blockBackdropClose, true);
 })();
 
 

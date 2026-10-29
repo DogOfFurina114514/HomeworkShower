@@ -43,8 +43,8 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>登录 · 作业</title>
-    <link rel="stylesheet" href="assets/app.css?v98" />
-    <link rel="icon" href="assets/icon.svg?v98" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v100" />
+    <link rel="icon" href="assets/icon.svg?v100" type="image/svg+xml" />
     <script>
       // 老浏览器的 ElementInternals 缺少 states（CSS 自定义状态）：
       //  - iOS Safari < 17.4、Chrome < 90：根本没有 states；
@@ -112,11 +112,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v98" defer></script>
-    <script src="vendor/supabase.js?v98" defer></script>
-    <script src="assets/config.js?v98" defer></script>
-    <script src="assets/client.js?v98" defer></script>
-    <script src="assets/login.js?v98" defer></script>
+    <script src="vendor/m3e.js?v100" defer></script>
+    <script src="vendor/supabase.js?v100" defer></script>
+    <script src="assets/config.js?v100" defer></script>
+    <script src="assets/client.js?v100" defer></script>
+    <script src="assets/login.js?v100" defer></script>
   </head>
 
   <body>
@@ -176,7 +176,7 @@
           <div class="auth__actions" id="resend-box" hidden>
             <m3e-form-field variant="outlined">
               <label slot="label" for="resend-email">没收到验证邮件？填注册邮箱</label>
-              <input id="resend-email" type="email" />
+              <input id="resend-email" type="email" autocomplete="email" />
             </m3e-form-field>
             <m3e-button id="resend-button" variant="text">重新发送验证邮件</m3e-button>
           </div>
@@ -196,7 +196,33 @@
           <m3e-button id="verify-resend" variant="filled">重新发送验证邮件</m3e-button>
         </div>
       </m3e-dialog>
-    </m3e-theme>
+        <!-- 许可证底栏：只有在滚到底时整块出现，不会半截停在视口里 -->
+
+
+
+</m3e-theme>
+
+  <footer class="license-footer" id="license-footer">
+    <a class="license-footer__badge" href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">
+      <img src="assets/agplv3.svg" alt="GNU Affero General Public License v3.0" width="155" height="51" />
+    </a>
+    <p class="license-footer__line">
+      Under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">GNU Affero General Public License v3.0</a>
+    </p>
+    <p class="license-footer__line">
+      采用 <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">AGPL v3.0 协议</a>开源
+    </p>
+    <p class="license-footer__line">
+      <a href="https://github.com/DogOfFurina114514/HomeworkShower" target="_blank" rel="noopener noreferrer">开放源代码仓库<svg class="license-footer__external" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg></a>
+    </p>
+    <p class="license-footer__line">by DogOfFurina114514</p>
+    <p class="license-footer__social">
+      <a href="https://github.com/DogOfFurina114514" target="_blank" rel="noopener noreferrer" aria-label="GitHub"><img src="assets/github.svg" alt="GitHub" /></a>
+      <a href="https://space.bilibili.com/1275382346" target="_blank" rel="noopener noreferrer" aria-label="哔哩哔哩"><img src="assets/bilibili.svg" alt="哔哩哔哩" /></a>
+      <a href="https://qm.qq.com/q/pD0PC6tQju" target="_blank" rel="noopener noreferrer" aria-label="QQ"><img src="assets/qq.svg" alt="QQ" /></a>
+      <a href="https://t.me/DogOfFurina" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><img src="assets/telegram.svg" alt="Telegram" /></a>
+    </p>
+  </footer>
   </body>
 </html>
 

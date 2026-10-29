@@ -85,8 +85,11 @@ html.hs-booting body {
 /* ------------------------------------------------- 2. 顶栏与个人中心 */
 
 .topbar {
-  position: sticky;
-  top: 0;
+  /* 原来是 position:sticky + top:0：滚动时标题栏钉在屏幕顶部不动，
+     底栏滚上来时看着就是"内容被压扁"。
+     要求是整个框架（含标题）作为一整个刚性上移，所以让它回到正常文档流。
+     代价是标题栏不再常驻顶部 —— 这两个需求本身互斥。 */
+  position: relative;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
@@ -872,10 +875,14 @@ html.hs-booting body {
 #fab-host {
   position: fixed;
   right: 2rem;
-  bottom: 2rem;
+  /* 底栏露出时把按钮顶上去：--fab-footer-lift 由 client.js 按底栏露出的高度写入，
+     这样底栏确实是"所有组件下面"，不跟编辑按钮叠在一起 */
+  --fab-base-bottom: 2rem;
+  bottom: calc(var(--fab-base-bottom) + var(--fab-footer-lift, 0px));
   left: auto;
   top: auto;
   z-index: 30;
+  transition: bottom 320ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 #fab-menu {
@@ -1259,7 +1266,8 @@ html body button {
 
   #fab-host {
     right: 1.25rem;
-    bottom: max(1.25rem, env(safe-area-inset-bottom));
+    /* 手机上的基准位置，同样由 --fab-footer-lift 叠加底栏高度 */
+    --fab-base-bottom: max(1.25rem, env(safe-area-inset-bottom));
   }
 
   /* 手机：单列 */
@@ -1339,7 +1347,9 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 #fab-host {
   position: fixed;
   right: 2rem;
-  bottom: 2rem;
+  /* 底栏露出时按钮上移，避免叠在底栏上面 —— 与前面那条规则保持一致 */
+  --fab-base-bottom: 2rem;
+  bottom: calc(var(--fab-base-bottom) + var(--fab-footer-lift, 0px));
   left: auto;
   top: auto;
   z-index: 30;
@@ -1347,6 +1357,7 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
      M3E 按钮自身的投影（内部 elevation 层）就会被裁掉，边缘看着像被切平 */
   contain: layout;
   transform: none;
+  transition: bottom 320ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 #fab-host m3e-fab {
@@ -1471,5 +1482,171 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
   .account__panel m3e-button {
     width: 100%;
   }
+}
+
+/* ------------------------------------------------- 许可证底栏 */
+
+/* 底栏在 m3e-theme **外面**（框架的兄弟节点），用经典的 sticky-footer 布局：
+   · 内容能一屏显示时 → 框架撑满剩余空间，底栏直接贴在屏幕底部，不用滚就能看到
+   · 内容超过一屏时   → 框架按自然高度排布，底栏跟在下面，向下滚才出现
+   滚动时整个框架（含标题栏）作为一整个刚性上移，不是把内容压扁
+   （顶栏已从 sticky 改成 relative，否则它钉在顶部会造成"压缩"的错觉）。
+   不用 position:fixed + transform 做"顶起"：m3e-theme 一旦被 transform，
+   它内部那些 position:fixed 的东西（灯箱、弹窗、右下角按钮）
+   会改成以它为基准定位，滚动时就会跟着乱飞。
+   只作用于有底栏的页面（:has 限定），404 / ban 等没有底栏的页面不受影响。 */
+body:has(> .license-footer) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+body > m3e-theme {
+  /* 不收缩（保证内容不被压），可增长（内容短时把底栏顶到屏幕底部） */
+  flex: 1 0 auto;
+}
+
+.license-footer {
+  flex: none;
+}
+
+/* 注意：这里刻意**不用** scroll-snap。
+   底栏只有一个吸附点（它的底部），停在中间时浏览器并不保证会吸过去；
+   而且 snap 会在滚动中途抢先吸附，跟 client.js 里"滚动停止后归位"的逻辑打架。
+   "要么整个露出、要么整个收起"由 setupLicenseFooterSnap() 确定性地实现。 */
+
+.license-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 20px calc(28px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  background: var(--md-sys-color-surface-container-high, #e6ebed);
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* 品牌图标（github / bilibili / qq / telegram 的 svg 由作者提供，这里只管尺寸与排列） */
+.license-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.license-footer__links a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  text-decoration: none;
+}
+
+.license-footer__links a:hover {
+  text-decoration: underline;
+}
+
+.license-footer__links img {
+  display: block;
+  height: 22px;
+  width: auto;
+}
+
+/* 「新标签页」小图标：跟文字基线对齐时默认会显得偏高，往下挪一点 */
+.license-footer__external {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-inline-start: 3px;
+  vertical-align: -2.5px;
+  opacity: 0.65;
+}
+
+.license-footer__social {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.license-footer__social a {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  border-radius: 8px;
+}
+
+.license-footer__social img {
+  /* 着色统一走变量：直接写 filter 的话，hover 那条规则特异性更高，
+     会把深色模式的 invert(1) 整条替换掉 —— 结果鼠标一放上去
+     GitHub 的猫又变回黑色、在深色底栏上看不见。
+     用变量叠加就不会互相覆盖。 */
+  --brand-filter: none;
+  display: block;
+  height: 26px;
+  width: auto;
+  filter: var(--brand-filter);
+}
+
+.license-footer__social a:hover img {
+  --brand-filter: brightness(1.08);
+}
+
+.license-footer__social a:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary, #006877);
+  outline-offset: 3px;
+}
+
+/* GitHub 的猫是硬编码的深色（svg 里 fill="#181717"），暗色主题下看不清 → 反成浅色。
+   只作用于 github 这一张，B站/QQ/Telegram 的品牌色一律保持原样。 */
+@media (prefers-color-scheme: dark) {
+  .license-footer__social img[src*="github"] {
+    --brand-filter: invert(1);
+  }
+
+  /* hover 时保持反色，只是再亮一点 */
+  .license-footer__social a:hover img[src*="github"] {
+    --brand-filter: invert(1) brightness(1.25);
+  }
+}
+
+.license-footer__badge {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.license-footer__badge img {
+  display: block;
+  width: auto;
+  height: 84px;
+  max-width: 70vw;
+}
+
+/* AGPL 徽章：暗色主题下只稍稍提亮，不反色。
+   反色会把官方徽章的白底紫字变成黑底黄绿字，认不出来了 —— 徽章本身带浅色底，
+   在深色页面上已经有足够对比度，不需要靠 invert 救。 */
+@media (prefers-color-scheme: dark) {
+  .license-footer__badge img {
+    filter: brightness(1.18);
+  }
+}
+
+.license-footer__line {
+  margin: 0;
+}
+
+.license-footer a {
+  color: var(--md-sys-color-primary, #006877);
+  text-decoration: none;
+}
+
+.license-footer a:hover,
+.license-footer a:focus-visible {
+  text-decoration: underline;
 }
 

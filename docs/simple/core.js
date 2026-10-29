@@ -389,7 +389,11 @@
         else close();
       };
     });
-    backdrop.onclick = function (event) { if (event.target === backdrop) close(); };
+    // 点背景不关闭：编辑时选中文本、鼠标划出边框松手会落在 backdrop 上，
+    // 原来那样会把刚编辑的内容连弹窗一起丢掉。关闭请用取消/确定按钮或 Esc。
+    backdrop.onclick = function (event) {
+      if (event.target === backdrop) event.stopPropagation();
+    };
     return close;
   }
 
