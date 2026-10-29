@@ -459,16 +459,27 @@
   }
 
   /**
-   * 把依赖视口定位的浮层挪到 document.body。
+   * 把依赖视口定位、或会凭空撑高布局的浮层挪到 document.body。
    *
-   * 框架展开底栏时会被 translateY 顶起，而 transform 会让它成为内部
-   * position:fixed 元素的包含块 —— 灯箱（fixed inset:0）留在框架里的话，
-   * 底栏一展开它就会跟着往上飘、四周漏出背景。挪到 body 就与框架无关了。
+   * 两个原因：
+   *   1. 展开底栏时框架被 translateY 顶起，而 transform 会让它成为内部
+   *      position:fixed 元素的包含块 —— 灯箱（fixed inset:0）留在框架里，
+   *      底栏一展开它就跟着往上飘、四周漏出背景。
+   *   2. m3e-dialog 的 host 是 display:contents，它的 light DOM 内容
+   *      （.edit-form 等）会直接参与父级布局 —— 即使对话框是关闭的。
+   *      首页有八个对话框，实测凭空把框架撑高 561px：
+   *      内容明明已经展示全了，页面却还能往下滚一大段空白。
+   *
+   * 挪到 body 就与框架无关：既不撑高滚动区，也不会被 transform 牵连。
+   * 主题变量挂在 :root 上（已验证），移出 m3e-theme 后取色不受影响。
    */
   function moveFixedOverlaysToBody() {
     for (const id of ["image-lightbox"]) {
       const el = document.getElementById(id);
       if (el && el.parentElement !== document.body) document.body.appendChild(el);
+    }
+    for (const dialog of document.querySelectorAll("m3e-dialog")) {
+      if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
     }
   }
 
@@ -483,10 +494,47 @@
    *   · 右下角按钮与滚动条轨道跟着底栏边缘同步移动（同一个 --footer-shift 值、
    *     同时长同曲线），所以是被"顶着走"而不是各飞各的
    */
+  /**
+   * 主内容底部余量按需保留。
+   *
+   * main 有 padding-bottom:96px，本意是让右下角那个悬浮编辑按钮不压住最后一行作业。
+   * 但内容本来就少、最后一行离按钮还远时，这 96px 会变成"没有内容却还能往下滚"
+   * 的空滚，还会让自绘滚动条凭空出现 —— 用户看到的就是"我都展示全了为什么要滚动"。
+   * 宽屏多列一行放完时尤其明显。
+   *
+   * 阈值刻意用"框架可视底 − 余量"这种静态算法，而不是去读按钮的实时位置：
+   * 底栏展开时按钮会跟着上移，若以它为基准，padding 会在展开瞬间变化、引发布局抖动。
+   */
+  function tuneBoardBottomGutter() {
+    const frame = document.querySelector("body > m3e-theme");
+    const board = frame && frame.querySelector(":scope > main");
+    if (!board) return;
+
+    const base = 24; // 与 .homework-board 原本的上下内边距一致
+    const room = 96; // 按钮 80px + 一点呼吸
+
+    // 真实内容底部：只看 main 的子元素，不含它自己的 padding
+    let contentBottom = 0;
+    for (const el of board.children) {
+      const r = el.getBoundingClientRect();
+      if (r.height > 0) contentBottom = Math.max(contentBottom, r.bottom);
+    }
+    if (!contentBottom) return;
+
+    const frameBottom = frame.getBoundingClientRect().bottom;
+    // 内容底边已经伸到"按钮会占的那一排"（框架底往上 96px 以内）→ 需要余量
+    const needsRoom = contentBottom > frameBottom - room;
+    const next = needsRoom ? `${room}px` : `${base}px`;
+    if (board.style.paddingBottom !== next) board.style.paddingBottom = next;
+  }
+
   function setupLicenseFooterDrawer() {
     const footer = document.querySelector("body > .license-footer");
     const frame = document.querySelector("body > m3e-theme");
     if (!footer || !frame) return;
+
+    // 观察这个元素的高度变化来重算余量与滚动条（main 里没有内容时它也会变）
+    const boardHost = frame.querySelector(":scope > main") || frame;
 
     // 由 JS 加类来启用抽屉布局（而不是 CSS :has）——
     // :has 在旧浏览器不支持时，框架不会变成滚动容器，
@@ -640,14 +688,28 @@
       if (open) {
         document.documentElement.style.setProperty("--footer-shift", `${footerHeight()}px`);
       }
+      tuneBoardBottomGutter();
       updateScrollbar();
     });
+
+    // 作业卡片、公告栏是异步渲染的：内容高度一变，先重算底部余量，
+    // 再更新滚动条（顺序反了会用旧高度算出新滚动条，闪一下）
+    const relayout = () => {
+      tuneBoardBottomGutter();
+      updateScrollbar();
+    };
     if ("ResizeObserver" in window) {
-      // 作业卡片、公告栏是异步渲染的，高度一变滚动条就得重算
-      new ResizeObserver(updateScrollbar).observe(frame);
+      new ResizeObserver(relayout).observe(boardHost || frame);
+    }
+    if ("MutationObserver" in window) {
+      // 卡片被移除时框架高度未必变（padding 补上了），但内容底部会变
+      new MutationObserver(relayout).observe(boardHost || frame, {
+        childList: true,
+        subtree: true,
+      });
     }
 
-    updateScrollbar();
+    relayout();
   }
 
   function setupTopbarFit() {

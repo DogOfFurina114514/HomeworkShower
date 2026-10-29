@@ -1,9 +1,9 @@
 {
-  "webVersion": "35",
-  "webVersionCode": 35,
-  "updatedAt": "2026-10-29T21:10:00+08:00",
+  "webVersion": "36",
+  "webVersionCode": 36,
+  "updatedAt": "2026-10-29T21:30:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 35：底栏改为「把整个框架顶上去」的抽屉式。① 页面本身不再滚动，滚动移到框架（m3e-theme）内部，配一条自绘滚动条（只在需要滚动时出现）。② 底栏收在视口下方；框架滚到底后再往下滑，底栏滑入、整个框架刚性上移（含标题栏一起上去，不是内容被压缩）。③ 底栏展开时向上滚动会先收起底栏（在底栏区域内滚动同样能关），收起之后才轮到框架滚动。④ 右下角编辑按钮与滚动条轨道都由同一个 --footer-shift 变量派生，同时长同曲线，所以是被底栏顶着走、不会各飞各的。⑤ 底栏收起改用 fixed + translateY(100%)（此前 height:0 压不掉 padding，收起后仍漏出 57px）。⑥ 抽屉布局由 JS 加 body.footer-drawer 类启用，不用 CSS :has —— 旧浏览器不支持 :has 时框架不会变成滚动容器，底栏会永远看不见。⑦ 灯箱移到 document.body：框架被 transform 后会成为内部 fixed 元素的包含块，不挪出来时底栏一展开灯箱就会跟着飘。⑧ 顶栏恢复 sticky（滚动容器已变成框架，sticky 在其内工作正常）。资源版本号提到 v101。",
+  "webNote": "网页版本 36：修掉「内容已展示全却还能滚动」的空滚。根因：m3e-dialog 的宿主是 display:contents，它的光 DOM 内容（作业编辑框等）即使对话框处于关闭状态也会参与父级布局 —— 首页八个对话框凭空把框架撑高 561px，于是明明没内容了还能往下滚一大段空白。现已把这些浮层（含灯箱）移到 body 下。另外主内容为悬浮编辑按钮预留的 96px 底部余量改为按需保留：只有内容真的会伸到按钮那一排时才留，否则收成 24px，不再产生多余滚动。实测首页框架可滚距离 726px → 165px；宽屏（1600×900）内容少时降到 0，此时向下滚动仍会直接展开底栏。灯箱与对话框功能均已回归验证。资源版本号提到 v102。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
