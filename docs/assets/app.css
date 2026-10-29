@@ -1532,15 +1532,18 @@ body.footer-drawer > m3e-theme::-webkit-scrollbar {
   position: fixed;
   top: 8px;
   right: 4px;
-  /* 底栏展开时轨道跟着变短，不会伸到底栏背后 */
-  bottom: calc(8px + var(--footer-shift, 0px));
+  bottom: 8px;
   width: 8px;
   z-index: 45;
   pointer-events: none;
   opacity: 0;
+  /* 底栏展开时整条滚动条随框架一起向上平移，尺寸不变。
+     之前是让轨道 bottom 跟着缩短，结果 thumb 按轨道长度重算就被"压短"了 ——
+     用户要的是"向上推"，而且框架本身就是刚性位移，滚动条该跟着一起走。 */
+  transform: translateY(calc(-1 * var(--footer-shift, 0px)));
   transition:
     opacity 200ms ease-out,
-    bottom 320ms cubic-bezier(0.2, 0, 0, 1);
+    transform 320ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .frame-scrollbar.is-visible {
@@ -1555,11 +1558,8 @@ body.footer-drawer > m3e-theme::-webkit-scrollbar {
   border-radius: 999px;
   background: var(--md-sys-color-outline, #6f7a7d);
   opacity: 0.55;
-  /* 轨道底边在过渡（跟着底栏一起被顶上去），thumb 的 top/height 也必须同步过渡，
-     否则动画中间帧里 thumb 会跑出轨道外面 */
-  transition:
-    top 320ms cubic-bezier(0.2, 0, 0, 1),
-    height 320ms cubic-bezier(0.2, 0, 0, 1);
+  /* 刻意不加 transition：thumb 的位置必须跟着滚动即时走，
+     之前这里写了 320ms 过渡，滚动时 thumb 明显拖在后面（"延迟好大"） */
 }
 
 .license-footer {

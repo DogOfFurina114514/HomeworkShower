@@ -1,9 +1,9 @@
 {
-  "webVersion": "36",
-  "webVersionCode": 36,
-  "updatedAt": "2026-10-29T21:30:00+08:00",
+  "webVersion": "37",
+  "webVersionCode": 37,
+  "updatedAt": "2026-10-29T21:50:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 36：修掉「内容已展示全却还能滚动」的空滚。根因：m3e-dialog 的宿主是 display:contents，它的光 DOM 内容（作业编辑框等）即使对话框处于关闭状态也会参与父级布局 —— 首页八个对话框凭空把框架撑高 561px，于是明明没内容了还能往下滚一大段空白。现已把这些浮层（含灯箱）移到 body 下。另外主内容为悬浮编辑按钮预留的 96px 底部余量改为按需保留：只有内容真的会伸到按钮那一排时才留，否则收成 24px，不再产生多余滚动。实测首页框架可滚距离 726px → 165px；宽屏（1600×900）内容少时降到 0，此时向下滚动仍会直接展开底栏。灯箱与对话框功能均已回归验证。资源版本号提到 v102。",
+  "webNote": "网页版本 37：修底栏展开时滚动条被压短、以及 thumb 跟随滞后。① 滚动条改为随框架整体向上平移（transform 复用同一个 --footer-shift 变量），不再靠缩短轨道 bottom 实现 —— 那样 thumb 会按变短的轨道重算高度，看起来就是被压扁，而你要的是「向上推」。实测 thumb 高度 718px 保持不变，轨道整体平移 341px，与框架位移严格同步。② 去掉 thumb 的 320ms 过渡：它必须跟着滚动即时走，之前那条过渡让 thumb 明显拖在后面（就是感知到的「延迟好大」）。资源版本号提到 v103。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
