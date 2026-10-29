@@ -85,11 +85,12 @@ html.hs-booting body {
 /* ------------------------------------------------- 2. 顶栏与个人中心 */
 
 .topbar {
-  /* 原来是 position:sticky + top:0：滚动时标题栏钉在屏幕顶部不动，
-     底栏滚上来时看着就是"内容被压扁"。
-     要求是整个框架（含标题）作为一整个刚性上移，所以让它回到正常文档流。
-     代价是标题栏不再常驻顶部 —— 这两个需求本身互斥。 */
-  position: relative;
+  /* 回到 sticky：底栏改成抽屉式之后，滚动发生在 m3e-theme 内部，
+     sticky 在这个滚动容器里工作正常（贴在框架顶部）。
+     之前改成 relative 是为了配合"整页滚动 + 底栏把框架顶上去"的旧模型，
+     那个模型下 sticky 会让标题钉住、看起来像内容被压扁。 */
+  position: sticky;
+  top: 0;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
@@ -875,10 +876,11 @@ html.hs-booting body {
 #fab-host {
   position: fixed;
   right: 2rem;
-  /* 底栏露出时把按钮顶上去：--fab-footer-lift 由 client.js 按底栏露出的高度写入，
-     这样底栏确实是"所有组件下面"，不跟编辑按钮叠在一起 */
+  /* 抬升量直接取框架的位移变量 —— 单一数据源，按钮与框架严格同步，
+     不会出现"框架已经上移、按钮还在自己飞"的错位 */
   --fab-base-bottom: 2rem;
-  bottom: calc(var(--fab-base-bottom) + var(--fab-footer-lift, 0px));
+  --fab-footer-lift: var(--footer-shift, 0px);
+  bottom: calc(var(--fab-base-bottom) + var(--fab-footer-lift));
   left: auto;
   top: auto;
   z-index: 30;
@@ -1486,40 +1488,96 @@ m3e-dialog .edit-form > m3e-form-field:first-child {
 
 /* ------------------------------------------------- 许可证底栏 */
 
-/* 底栏在 m3e-theme **外面**（框架的兄弟节点），用经典的 sticky-footer 布局：
-   · 内容能一屏显示时 → 框架撑满剩余空间，底栏直接贴在屏幕底部，不用滚就能看到
-   · 内容超过一屏时   → 框架按自然高度排布，底栏跟在下面，向下滚才出现
-   滚动时整个框架（含标题栏）作为一整个刚性上移，不是把内容压扁
-   （顶栏已从 sticky 改成 relative，否则它钉在顶部会造成"压缩"的错觉）。
-   不用 position:fixed + transform 做"顶起"：m3e-theme 一旦被 transform，
-   它内部那些 position:fixed 的东西（灯箱、弹窗、右下角按钮）
-   会改成以它为基准定位，滚动时就会跟着乱飞。
-   只作用于有底栏的页面（:has 限定），404 / ban 等没有底栏的页面不受影响。 */
-body:has(> .license-footer) {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+/* 底栏把整个框架顶上去：页面本身不滚，框架内部滚；
+   底栏收在视口下方，展开时框架整体 translateY 上移（含标题栏），
+   是刚性位移而不是内容被压缩。
+   · 框架滚到底 + 继续往下滑 → 底栏滑入、框架上移
+   · 底栏展开时往上滑        → 先收起底栏，之后才轮到框架滚动
+   接力逻辑在 client.js 的 setupLicenseFooterDrawer。
+
+   为什么底栏用 fixed + translateY(100%) 而不是 height:0↔auto：
+   border-box 下 height:0 压不掉 padding，收起后仍会露出一截 padding 之和
+   （实测 57px）；translateY(100%) 是相对自身真实高度位移，一定干净退出视口。
+
+   ⚠ 框架被 transform 后会成为内部 fixed 元素的包含块，
+   所以灯箱必须在 board.js 里移到 document.body（见 moveFixedOverlaysToBody）。 */
+/* 抽屉模式由 JS 检测到底栏与框架后加类（setupLicenseFooterDrawer）。
+   不用 :has(> .license-footer) —— 它在旧浏览器（Safari <15.4、Chrome <105）
+   不被支持，那样框架不会变成滚动容器，而底栏是 fixed + translateY(100%)
+   收在视口下方，许可证就永远看不见了。JS 加类没有这个兼容问题。 */
+body.footer-drawer {
+  height: 100vh;
+  overflow: hidden;
 }
 
-body > m3e-theme {
-  /* 不收缩（保证内容不被压），可增长（内容短时把底栏顶到屏幕底部） */
-  flex: 1 0 auto;
+body.footer-drawer > m3e-theme {
+  height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* --footer-shift 由 JS 按底栏实际高度写入，展开时框架整体上移这么多 */
+  transform: translateY(calc(-1 * var(--footer-shift, 0px)));
+  transition: transform 320ms cubic-bezier(0.2, 0, 0, 1);
+  /* 隐藏浏览器原生滚动条，换成下面自绘的那条 */
+  scrollbar-width: none;
+}
+
+body.footer-drawer > m3e-theme::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* 自绘滚动条：只在内容超出时出现（JS 控制 is-visible） */
+.frame-scrollbar {
+  position: fixed;
+  top: 8px;
+  right: 4px;
+  /* 底栏展开时轨道跟着变短，不会伸到底栏背后 */
+  bottom: calc(8px + var(--footer-shift, 0px));
+  width: 8px;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 200ms ease-out,
+    bottom 320ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.frame-scrollbar.is-visible {
+  opacity: 1;
+}
+
+.frame-scrollbar__thumb {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  min-height: 32px;
+  border-radius: 999px;
+  background: var(--md-sys-color-outline, #6f7a7d);
+  opacity: 0.55;
+  /* 轨道底边在过渡（跟着底栏一起被顶上去），thumb 的 top/height 也必须同步过渡，
+     否则动画中间帧里 thumb 会跑出轨道外面 */
+  transition:
+    top 320ms cubic-bezier(0.2, 0, 0, 1),
+    height 320ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .license-footer {
-  flex: none;
-}
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  box-sizing: border-box;
+  max-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
 
-/* 注意：这里刻意**不用** scroll-snap。
-   底栏只有一个吸附点（它的底部），停在中间时浏览器并不保证会吸过去；
-   而且 snap 会在滚动中途抢先吸附，跟 client.js 里"滚动停止后归位"的逻辑打架。
-   "要么整个露出、要么整个收起"由 setupLicenseFooterSnap() 确定性地实现。 */
-
-.license-footer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
   padding: 28px 20px calc(28px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
@@ -1528,6 +1586,19 @@ body > m3e-theme {
   color: var(--md-sys-color-on-surface-variant, #3f484a);
   font-size: 13px;
   line-height: 1.7;
+
+  transform: translateY(100%);
+  transition: transform 320ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.license-footer.is-open {
+  transform: translateY(0);
+}
+
+.license-footer::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /* 品牌图标（github / bilibili / qq / telegram 的 svg 由作者提供，这里只管尺寸与排列） */

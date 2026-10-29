@@ -459,94 +459,195 @@
   }
 
   /**
-   * 许可证底栏：要么整个露出，要么整个收起。
+   * 把依赖视口定位的浮层挪到 document.body。
    *
-   * 底栏是 m3e-theme 的兄弟节点（框架之外）。内容能一屏显示时 CSS 的
-   * sticky-footer 布局已让它贴在屏幕底部；内容超过一屏时它在首屏之外，
-   * 需要向下滚才出现 —— 而滚动的最后一段正好是"半截露出"的区间。
-   *
-   * 纯 CSS 的 scroll-snap 在这里不够用：只能声明一个吸附点（底栏底部），
-   * 停在中间时浏览器不保证会吸过去。所以滚动停下来之后自己判定并平滑归位：
-   *   露出一半以上 → 补到文档底部，完整显示
-   *   露出一半以下 → 退回它刚好完全离开视口的位置
-   * 只在"确实处于部分可见"时动手，页面中间的正常滚动不受打扰。
+   * 框架展开底栏时会被 translateY 顶起，而 transform 会让它成为内部
+   * position:fixed 元素的包含块 —— 灯箱（fixed inset:0）留在框架里的话，
+   * 底栏一展开它就会跟着往上飘、四周漏出背景。挪到 body 就与框架无关了。
    */
-  function setupLicenseFooterSnap() {
-    const footer = document.getElementById("license-footer");
-    if (!footer) return;
+  function moveFixedOverlaysToBody() {
+    for (const id of ["image-lightbox"]) {
+      const el = document.getElementById(id);
+      if (el && el.parentElement !== document.body) document.body.appendChild(el);
+    }
+  }
 
-    let queued = false;
-    let settling = false;
-    let settleTimer = 0;
+  /**
+   * 底栏抽屉：把整个框架顶上去。
+   *
+   * 交互（按需求实现）：
+   *   · 页面本身不滚，滚动发生在框架（m3e-theme）内部，配一条自绘滚动条
+   *   · 框架滚到底 + 继续往下滑 → 底栏从视口下方滑入，框架整体 translateY 上移
+   *     （是刚性位移、含标题栏一起上去，不是内容被压缩）
+   *   · 底栏展开时往上滑 → 先收起底栏；收起之后才轮到框架滚动
+   *   · 右下角按钮与滚动条轨道跟着底栏边缘同步移动（同一个 --footer-shift 值、
+   *     同时长同曲线），所以是被"顶着走"而不是各飞各的
+   */
+  function setupLicenseFooterDrawer() {
+    const footer = document.querySelector("body > .license-footer");
+    const frame = document.querySelector("body > m3e-theme");
+    if (!footer || !frame) return;
 
-    const fabLift = (shown) => {
-      const host = document.getElementById("fab-host");
-      if (!host) return;
-      // 底栏完整露出时把右下角按钮抬到它上方，避免叠在一起
-      host.style.setProperty("--fab-footer-lift", shown ? `${Math.round(footer.offsetHeight)}px` : "0px");
+    // 由 JS 加类来启用抽屉布局（而不是 CSS :has）——
+    // :has 在旧浏览器不支持时，框架不会变成滚动容器，
+    // 而底栏是 fixed + translateY(100%) 收在视口下方，许可证就永远看不见了。
+    document.body.classList.add("footer-drawer");
+
+    let open = false;
+    let animating = false;
+    let animTimer = 0;
+
+    // 底栏是 fixed 且用 translateY 收起，所以任何时候都能量到真实高度
+    const footerHeight = () => Math.round(footer.offsetHeight);
+
+    const setOpen = (next) => {
+      if (next === open) return;
+      open = next;
+      const h = open ? footerHeight() : 0;
+      // 只写这一个变量：框架位移、按钮抬升、滚动条轨道缩短都由它派生。
+      // 挂在 documentElement 而不是 body —— 右下角按钮会被 board.js 挪到
+      // document.body 下，父级不固定，挂在根上才能保证一定继承得到。
+      document.documentElement.style.setProperty("--footer-shift", `${h}px`);
+      footer.classList.toggle("is-open", open);
+      animating = true;
+      window.clearTimeout(animTimer);
+      animTimer = window.setTimeout(() => {
+        animating = false;
+        updateScrollbar();
+      }, 340);
+      updateScrollbar();
     };
 
-    const sync = () => {
-      queued = false;
-      const vh = window.innerHeight;
-      const maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
-      const rect = footer.getBoundingClientRect();
-      const height = rect.height;
+    /* ------------------------------------------------- 自绘滚动条 */
 
-      // 底栏还没进视口（或页面根本不用滚）→ 谈不上半截，按钮也无需让位
-      if (maxScroll <= 0 || rect.top >= vh - 1) {
-        fabLift(false);
+    const bar = document.createElement("div");
+    bar.className = "frame-scrollbar";
+    const thumb = document.createElement("div");
+    thumb.className = "frame-scrollbar__thumb";
+    bar.appendChild(thumb);
+    document.body.appendChild(bar);
+
+    function updateScrollbar() {
+      const scrollable = frame.scrollHeight - frame.clientHeight;
+      if (scrollable <= 1) {
+        bar.classList.remove("is-visible");
         return;
       }
-      fabLift(rect.bottom <= vh + 1);
-    };
-
-    /** 滚动结束后归位 */
-    const settle = () => {
-      if (settling) return;
-      const vh = window.innerHeight;
-      const maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
-      const rect = footer.getBoundingClientRect();
-      const height = rect.height;
-      if (maxScroll <= 0 || !height) return;
-
-      const fullyHidden = Math.max(0, maxScroll - height); // 底栏刚好完全离开视口
-      const top = rect.top;
-      const bottom = rect.bottom;
-      const partiallyVisible = top < vh - 1 && bottom > 1 && top > -height + 1;
-      if (!partiallyVisible) return;
-
-      const shownPx = Math.min(vh, bottom) - Math.max(0, top);
-      const target = shownPx >= height / 2 ? maxScroll : fullyHidden;
-      if (Math.abs(target - window.scrollY) < 2) return;
-
-      settling = true;
-      window.scrollTo({ top: target, behavior: "smooth" });
-      // 平滑滚动结束后再放开；scrollend 不可用时靠超时兜底
-      window.setTimeout(() => {
-        settling = false;
-        sync();
-      }, 600);
-    };
-
-    const onScroll = () => {
-      if (settling) return;
-      if (!queued) {
-        queued = true;
-        requestAnimationFrame(sync);
-      }
-      window.clearTimeout(settleTimer);
-      settleTimer = window.setTimeout(settle, 140);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    window.addEventListener("orientationchange", onScroll);
-    // 内容异步渲染完高度会变（作业卡片、公告栏），重算一次
-    if ("ResizeObserver" in window) {
-      new ResizeObserver(onScroll).observe(document.documentElement);
+      const shift = open ? footerHeight() : 0;
+      const track = window.innerHeight - 16 - shift;
+      const ratio = frame.clientHeight / frame.scrollHeight;
+      const thumbH = Math.max(32, Math.round(track * ratio));
+      const progress = frame.scrollTop / scrollable;
+      thumb.style.height = `${thumbH}px`;
+      thumb.style.top = `${8 + Math.round(progress * (track - thumbH))}px`;
+      bar.classList.add("is-visible");
     }
-    sync();
+
+    /* ------------------------------------------------- 滚动手势接力 */
+
+    const atFrameBottom = () =>
+      frame.scrollTop + frame.clientHeight >= frame.scrollHeight - 1;
+
+    /**
+     * 一次滚动的归属判定（滚轮与触屏共用，delta 正数 = 想看下面的内容）。
+     * 返回 true 表示这次滚动被抽屉吃掉、不该再传给浏览器原生滚动。
+     *
+     * 优先级按需求来：底栏开着的时候，向上滚**先用来收起底栏**，
+     * 收起之后才轮到框架滚动 —— 所以这里不再附加"框架必须已滚到顶"之类的条件。
+     */
+    const handleWheel = (delta, src) => {
+      if (animating) return true;
+      const down = delta > 0;
+
+      if (open) {
+        // 底栏内容超过 70vh 时它自己能滚；先让内部滚到边界，再谈收起
+        const footerScrollable = footer.scrollHeight - footer.clientHeight > 1;
+        if (footerScrollable && src === footer) {
+          if (down) {
+            // 底栏内部已滚到底：再向下滚没意义，吃掉
+            return footer.scrollTop + footer.clientHeight >= footer.scrollHeight - 1;
+          }
+          if (footer.scrollTop <= 0) {
+            // 底栏内部已在顶部：向上滚 = 收起底栏
+            setOpen(false);
+            return true;
+          }
+          return false; // 交给底栏自己滚
+        }
+        if (down) return true; // 展开状态下框架本就贴底，向下滚没意义
+        setOpen(false);
+        return true;
+      }
+
+      // 收起状态：只有框架已滚到底、且继续向下滚，才拉出底栏
+      if (down && atFrameBottom()) {
+        setOpen(true);
+        return true;
+      }
+      return false;
+    };
+
+    const bindWheel = (el) => {
+      el.addEventListener(
+        "wheel",
+        (event) => {
+          if (handleWheel(event.deltaY, el)) event.preventDefault();
+        },
+        { passive: false }
+      );
+    };
+    bindWheel(frame);
+    bindWheel(footer); // 底栏展开后鼠标常停在它上面，收不起来的问题就出在漏了这条
+
+    // 触屏（手机上 wheel 不触发，必须单独接）
+    let touchY = 0;
+    let touchHandled = false;
+    const bindTouch = (el) => {
+      el.addEventListener(
+        "touchstart",
+        (event) => {
+          touchY = event.touches[0].clientY;
+          touchHandled = false;
+        },
+        { passive: true }
+      );
+      el.addEventListener(
+        "touchmove",
+        (event) => {
+          if (animating) {
+            event.preventDefault();
+            return;
+          }
+          const dy = touchY - event.touches[0].clientY; // >0 = 手指上滑 = 想看下面
+          if (Math.abs(dy) < 6 || touchHandled) return;
+          if (handleWheel(dy, el)) {
+            touchHandled = true;
+            event.preventDefault();
+          }
+        },
+        { passive: false }
+      );
+    };
+    bindTouch(frame);
+    bindTouch(footer);
+
+    /* ------------------------------------------------- 尺寸变化 */
+
+    frame.addEventListener("scroll", updateScrollbar, { passive: true });
+    footer.addEventListener("scroll", updateScrollbar, { passive: true });
+    window.addEventListener("resize", () => {
+      // 底栏 max-height 是 70vh，视口变化时它的高度也会变，位移量得重算
+      if (open) {
+        document.documentElement.style.setProperty("--footer-shift", `${footerHeight()}px`);
+      }
+      updateScrollbar();
+    });
+    if ("ResizeObserver" in window) {
+      // 作业卡片、公告栏是异步渲染的，高度一变滚动条就得重算
+      new ResizeObserver(updateScrollbar).observe(frame);
+    }
+
+    updateScrollbar();
   }
 
   function setupTopbarFit() {
@@ -571,11 +672,13 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       setupTopbarFit();
-      setupLicenseFooterSnap();
+      moveFixedOverlaysToBody();
+      setupLicenseFooterDrawer();
     }, { once: true });
   } else {
     setupTopbarFit();
-    setupLicenseFooterSnap();
+    moveFixedOverlaysToBody();
+    setupLicenseFooterDrawer();
   }
 
   window.hs = {

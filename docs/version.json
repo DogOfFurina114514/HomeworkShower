@@ -1,9 +1,9 @@
 {
-  "webVersion": "34",
-  "webVersionCode": 34,
-  "updatedAt": "2026-10-29T20:20:00+08:00",
+  "webVersion": "35",
+  "webVersionCode": 35,
+  "updatedAt": "2026-10-29T21:10:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 34：底栏与若干图标细节修正。① 底栏移到 m3e-theme 外面（框架的兄弟节点），用 sticky-footer 布局：内容能一屏显示时它直接贴在屏幕底部、不用滚就能看到；内容超过一屏时它在首屏之外，向下滚才出现。顶栏从 sticky 改为随文档流，滚动时整个框架（含标题）作为一整个刚性上移，不再造成内容被压扁的错觉。② 「要么整个露出、要么整个收起」改由 JS 在滚动停止后确定性归位（露出过半补到底部，不足一半退回完全收起）。不用 CSS scroll-snap：它只有一个吸附点，停在中间时浏览器不保证会吸过去，还会和归位逻辑互相干扰。③ 深色模式下 AGPL 徽章不再反色（反色会把白底紫字变成黑底黄绿字、认不出来），改为只稍稍提亮；社交图标里只有 GitHub 的猫反色，B站/QQ/Telegram 品牌色保持原样。④ 修 GitHub 图标鼠标悬停时变回黑色：hover 那条规则特异性高于深色规则，会把 invert(1) 整条替换掉。改成用 CSS 变量叠加 filter，深色下悬停是 invert(1) brightness(1.25)，反色不再丢失。⑤ QQ 图标左边被截：它的 viewBox 左边界 205 比内容最左 198.3 靠右 6.7 单位，只扩 viewBox 为 198 140 87 100，path 数据与配色一字未动。⑥ 新增仓库链接、by DogOfFurina114514 与 GitHub/B站/QQ/Telegram 四个社交图标；「新标签页」小图标改为内联 SVG（img 里的 currentColor 拿不到页面文字色，暗色下会看不见）并下移 2.5px 与文字对齐。资源版本号提到 v100。",
+  "webNote": "网页版本 35：底栏改为「把整个框架顶上去」的抽屉式。① 页面本身不再滚动，滚动移到框架（m3e-theme）内部，配一条自绘滚动条（只在需要滚动时出现）。② 底栏收在视口下方；框架滚到底后再往下滑，底栏滑入、整个框架刚性上移（含标题栏一起上去，不是内容被压缩）。③ 底栏展开时向上滚动会先收起底栏（在底栏区域内滚动同样能关），收起之后才轮到框架滚动。④ 右下角编辑按钮与滚动条轨道都由同一个 --footer-shift 变量派生，同时长同曲线，所以是被底栏顶着走、不会各飞各的。⑤ 底栏收起改用 fixed + translateY(100%)（此前 height:0 压不掉 padding，收起后仍漏出 57px）。⑥ 抽屉布局由 JS 加 body.footer-drawer 类启用，不用 CSS :has —— 旧浏览器不支持 :has 时框架不会变成滚动容器，底栏会永远看不见。⑦ 灯箱移到 document.body：框架被 transform 后会成为内部 fixed 元素的包含块，不挪出来时底栏一展开灯箱就会跟着飘。⑧ 顶栏恢复 sticky（滚动容器已变成框架，sticky 在其内工作正常）。资源版本号提到 v101。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
