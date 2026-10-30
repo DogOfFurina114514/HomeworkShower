@@ -581,8 +581,12 @@
         bar.classList.remove("is-visible");
         return;
       }
-      const shift = open ? footerHeight() : 0;
-      const track = window.innerHeight - 16 - shift;
+      // 轨道长度固定，不扣底栏高度 —— 向上平移交给 CSS 的
+      // transform: translateY(-var(--footer-shift)) 做整条刚体位移。
+      // 之前这里还减着 shift（缩短轨道的旧模型留下的），
+      // 于是展开底栏时可用轨道被凭空砍短一截，thumb 按变短的比例算出更小的 top，
+      // 看起来就是"跳到了最上面"，收起时 shift 归零又掉回来。
+      const track = window.innerHeight - 16;
       const ratio = frame.clientHeight / frame.scrollHeight;
       const thumbH = Math.max(32, Math.round(track * ratio));
       const progress = frame.scrollTop / scrollable;
@@ -771,15 +775,27 @@
    * 编辑作业时在内容区选中文本，鼠标很容易划出弹窗边框，一松手落在背景上，
    * 刚编辑的东西连弹窗一起没了。
    *
-   * 做法：在捕获阶段把"落在 dialog 自身（也就是背景/mask 区域）"的按下与点击拦掉。
-   * 内容区的点击 target 是里面的元素，不会命中这一条，所以不影响正常操作。
+   * ⚠ 判定必须用 composedPath()[0]（真实目标），不能用 event.target：
+   *   M3E 把右上角那个 X 关闭按钮画在自己的 shadow DOM 里
+   *   （dialog.base > div.header > m3e-icon-button.close），
+   *   事件穿出 shadow 边界时 event.target 会被重定向成宿主 m3e-dialog，
+   *   于是点 X 也被当成"点背景"拦掉 —— 关闭按钮就再也关不掉弹窗了。
+   *   而真正点遮罩时，原生 <dialog> 的 ::backdrop 事件目标就是 dialog 元素本身，
+   *   所以"真实目标是 DIALOG 元素"才是"点了外面"的准确特征。
+   *
    * 刻意不去删 dismissible —— 那是 M3E 管 Esc 关闭的开关之一，
-   * 删了键盘用户就没法关弹窗了。这里只挡背景，Esc 照旧。
+   * 删了键盘用户就没法关窗。这里只挡背景，Esc 照旧。
    */
   function blockBackdropClose(event) {
     const target = event.target;
     if (!target || target.nodeType !== 1) return; // 只处理元素节点
-    if (target.tagName !== "M3E-DIALOG") return; // 点在背景上时 target 就是 dialog 自己
+    if (target.tagName !== "M3E-DIALOG") return; // 事件被重定向到宿主，才可能是背景
+
+    const path = typeof event.composedPath === "function" ? event.composedPath() : null;
+    const real = path && path.length ? path[0] : null;
+    if (!real || real.nodeType !== 1) return;
+    if (real.tagName !== "DIALOG") return; // 点在弹窗内部元素上（X 按钮、内容、按钮）→ 放行
+
     // 计数器：用于确认这条拦截确实被触发过（排查时有用，平时不显示）
     window.__hsBackdropBlocked = (window.__hsBackdropBlocked || 0) + 1;
     event.stopPropagation();

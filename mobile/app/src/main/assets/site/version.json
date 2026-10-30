@@ -1,9 +1,9 @@
 {
-  "webVersion": "37",
-  "webVersionCode": 37,
-  "updatedAt": "2026-10-29T21:50:00+08:00",
+  "webVersion": "38",
+  "webVersionCode": 38,
+  "updatedAt": "2026-10-30T12:50:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 37：修底栏展开时滚动条被压短、以及 thumb 跟随滞后。① 滚动条改为随框架整体向上平移（transform 复用同一个 --footer-shift 变量），不再靠缩短轨道 bottom 实现 —— 那样 thumb 会按变短的轨道重算高度，看起来就是被压扁，而你要的是「向上推」。实测 thumb 高度 718px 保持不变，轨道整体平移 341px，与框架位移严格同步。② 去掉 thumb 的 320ms 过渡：它必须跟着滚动即时走，之前那条过渡让 thumb 明显拖在后面（就是感知到的「延迟好大」）。资源版本号提到 v103。",
+  "webNote": "网页版本 38：修两个交互问题。① 展开底栏时滚动条会跳到最上面、收起后又掉下来。原因是上一轮把滚动条改成整条 translateY 平移后，JS 里还在按「缩短轨道」的旧模型减去底栏高度算可用轨道长度，于是展开瞬间可用轨道被凭空砍短一截，thumb 按变短的比例算出更小的 top，看起来就是跳到顶部。现在轨道长度固定，平移完全交给 CSS，实测展开/收起时 thumb 相对轨道位置 70px 保持不变。② 弹窗右上角的 X 关闭按钮点不动。原因是 M3E 把 X 画在自己的 shadow DOM 里，事件穿出 shadow 边界时 event.target会被重定向成宿主 m3e-dialog，于是被上一轮「点背景不关闭」的拦截器误判成点背景拦掉了。改成用 composedPath()[0] 取真实目标：只有真实目标是原生 dialog 元素（即点遮罩）才拦。实测六个弹窗的 X 都能关、点背景仍然不关、light DOM 的取消按钮也照常。资源版本号提到 v104。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",
