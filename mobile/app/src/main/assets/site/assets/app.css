@@ -1511,12 +1511,20 @@ body.footer-drawer {
 }
 
 body.footer-drawer > m3e-theme {
+  position: relative;
   height: 100vh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* --footer-shift 由 JS 按底栏实际高度写入，展开时框架整体上移这么多 */
-  transform: translateY(calc(-1 * var(--footer-shift, 0px)));
-  transition: transform 320ms cubic-bezier(0.2, 0, 0, 1);
+  /* --footer-shift 由 JS 按底栏实际高度写入，展开时框架整体上移这么多。
+     ⚠ 必须用 relative + top，不能用 transform: translateY ——
+     transform 会让框架成为内部 position:fixed 元素的包含块，
+     M3E 关闭态的 dialog.base（本来是 fixed、不占滚动区）于是变成"类 absolute"，
+     被算进框架的滚动高度：实测凭空多出 1124px 空滚，
+     而且为了让它不占位只能把 dialog 搬到 body，搬动又会打断 M3E form-field
+     与控件的关联，导致「期限」的标签和输入值叠在一起。
+     relative + top 不创建包含块，两个问题一起消失。 */
+  top: calc(-1 * var(--footer-shift, 0px));
+  transition: top 320ms cubic-bezier(0.2, 0, 0, 1);
   /* 隐藏浏览器原生滚动条，换成下面自绘的那条 */
   scrollbar-width: none;
 }

@@ -478,9 +478,6 @@
       const el = document.getElementById(id);
       if (el && el.parentElement !== document.body) document.body.appendChild(el);
     }
-    for (const dialog of document.querySelectorAll("m3e-dialog")) {
-      if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
-    }
   }
 
   /**
@@ -713,6 +710,11 @@
       });
     }
 
+    footer.classList.add("is-closed");
+    // 显式写初值：不写的话 --footer-shift 在首次展开前是"未设置"，
+    // 滚动条的 transform 会从 calc(-1 * 0px) 之外的解析路径起跳，
+    // 实测表现为打开页面时滚动条先偏一下再归位
+    document.documentElement.style.setProperty("--footer-shift", "0px");
     relayout();
   }
 
