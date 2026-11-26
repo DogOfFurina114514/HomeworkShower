@@ -405,6 +405,132 @@ html.hs-booting body {
   padding-block-start: 0.35rem;
 }
 
+/* --------------------------------------------- 作业附件（卡片上显示 + 播放） */
+
+/* 卡片里的附件条：文件名可点下载，音频则带一个原生播放器 */
+.homework-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-block-start: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.homework-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--md-sys-color-primary, #006877);
+}
+
+/* 音频：文件名一行、播放器一行。
+   挤在一行的话文件名会被压成「课堂录音…」，播放器却占了大半宽度。 */
+.homework-attachment--audio {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.homework-attachment > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.homework-attachment > a:hover {
+  text-decoration: underline;
+}
+
+.homework-attachment__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.homework-attachment__size {
+  flex: none;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  opacity: 0.75;
+}
+
+/* 原生播放器：宽度吃满卡片，高度压到一行 */
+.homework-attachment audio {
+  width: 100%;
+  height: 32px;
+  max-width: 100%;
+}
+
+/* --------------------------------------------- 作业附件（编辑弹窗里） */
+
+.attachment-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.attachment-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment-editor__list:empty {
+  display: none;
+}
+
+.attachment-editor__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--md-sys-color-outline-variant, #bfc8cb);
+  border-radius: 10px;
+  background: var(--md-sys-color-surface-container-low, #eff4f6);
+  font-size: 13px;
+}
+
+.attachment-editor__item-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-editor__item-size {
+  flex: none;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+  opacity: 0.75;
+}
+
+.attachment-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.attachment-editor__hint {
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant, #3f484a);
+}
+
+.attachment-editor__hint[hidden] {
+  display: none;
+}
+
 /* 展开/收起：常驻文档流（display:none 无法参与过渡） */
 .homework-actions {
   display: flex;

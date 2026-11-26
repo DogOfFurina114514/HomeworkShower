@@ -43,8 +43,8 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>作业</title>
-    <link rel="stylesheet" href="assets/app.css?v105" />
-    <link rel="icon" href="assets/icon.svg?v105" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/app.css?v106" />
+    <link rel="icon" href="assets/icon.svg?v106" type="image/svg+xml" />
     <style>
       /* 状态条：错误红条 + 右侧「前往状态页」按钮（仅数据访问失败时由脚本显示） */
       .hs-status-row { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; }
@@ -119,11 +119,11 @@
         }
       })();
     </script>
-    <script src="vendor/m3e.js?v105" defer></script>
-    <script src="vendor/supabase.js?v105" defer></script>
-    <script src="assets/config.js?v105" defer></script>
-    <script src="assets/client.js?v105" defer></script>
-    <script src="assets/board.js?v105" defer></script>
+    <script src="vendor/m3e.js?v106" defer></script>
+    <script src="vendor/supabase.js?v106" defer></script>
+    <script src="assets/config.js?v106" defer></script>
+    <script src="assets/client.js?v106" defer></script>
+    <script src="assets/board.js?v106" defer></script>
   </head>
 
   <body>
@@ -248,6 +248,17 @@
               </div>
               <input type="file" accept="image/*" class="rich-image-input" hidden />
               <div class="rich-surface" id="edit-content" contenteditable="true" role="textbox" aria-multiline="true"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <span>附件（最多 2 个）</span>
+            <div class="attachment-editor">
+              <ul class="attachment-editor__list" id="edit-attachments"></ul>
+              <div class="attachment-editor__actions">
+                <m3e-button variant="tonal" id="edit-attachment-add">添加附件</m3e-button>
+                <span class="attachment-editor__hint" id="edit-attachment-hint">音频可直接播放；单个文件最大 50 MB</span>
+              </div>
+              <input type="file" id="edit-attachment-input" class="attachment-editor__input" hidden />
             </div>
           </div>
         </div>

@@ -1,9 +1,9 @@
 {
-  "webVersion": "39",
-  "webVersionCode": 39,
-  "updatedAt": "2026-11-04T18:55:00+08:00",
+  "webVersion": "40",
+  "webVersionCode": 40,
+  "updatedAt": "2026-11-26T13:05:00+08:00",
   "entry": "index.html",
-  "webNote": "网页版本 39：修「新建/编辑作业弹窗里科目、期限的标签和输入值叠在一起」。根因是上一轮为了消除空滚把 m3e-dialog 搬到了 body 下 —— 运行时搬动会打断M3E form-field 与其中控件的关联，shadow 里的标签停在原位不再浮动（登录页同类字段 top=0px，弹窗里的变成 top=auto）。而空滚的真正原因是框架用 transform 位移：transform 会让框架成为内部position:fixed 元素的包含块，M3E 关闭态的 dialog.base 本来是 fixed、不占滚动区，被牵连后凭空算进滚动高度（实测 1124px）。所以这次把框架位移从 transform 改成 position:relative + top ——不创建包含块，两个问题一起消失：dialog 不必搬动、标签正常浮动、关闭态弹窗也不再撑高滚动区。实测 1600×900 宽屏框架可滚 0px，底栏展开时灯箱仍铺满视口。另外给 --footer-shift 补了显式初值，避免首次展开前解析路径起跳。资源版本号提到 v105。",
+  "webNote": "网页版本 40：作业支持附件（每条最多 2 个，音频可直接在页面里播放）。① 编辑/新建作业的弹窗里新增「附件」一栏：可以添加、移除，满 2 个自动禁用添加按钮，超出的会被挡下并提示。新建和修改都支持 —— 两者共用同一个弹窗。② 卡片上按顺序列出附件：文件名 + 大小，点名字可下载；音频额外给一个原生播放器，点播放器不会误触发「选中作业」。③ 文件存在 Supabase Storage 的 homework-attachments 桶（不占数据库额度），数据库只存元数据；「最多 2 个」在数据库层用触发器兜住，绕开前端也限制得住。④ 单个附件上限 50 MB —— 这个值是实测出来的：桶配置虽然能写更大，但存储网关在 51 MB 就返回 Payload too large，50 MB 是真正可用的边界。资源版本号提到 v106。",
   "note": "webVersionCode 只增不减；它必须大于 App 内置的网页版本号才会触发热更新。apkVersionCode 决定是否提示装新包。",
   "sources": [
     "https://gh.dpik.top/https://raw.githubusercontent.com/DogOfFurina114514/HomeworkShower/main/docs/",

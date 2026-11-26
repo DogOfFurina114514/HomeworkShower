@@ -102,6 +102,31 @@
   /** 渲染序号：异步分栏回来时用它判断"这次渲染是不是已经过期了" */
   let renderToken = 0;
 
+  /** 附件缓存：homeworkId -> 附件数组。渲染是同步的，靠这个先预取再同步读。 */
+  const attachmentCache = new Map();
+
+  /** 渲染前把这一批作业的附件一次性取回（失败也只是没有附件，不影响作业显示） */
+  async function prefetchAttachments(rows) {
+    const ids = (rows || []).map((r) => Number(r.id)).filter((n) => Number.isFinite(n));
+    if (!ids.length) return;
+    // 已经在缓存里的不再重复取
+    const missing = ids.filter((id) => !attachmentCache.has(String(id)));
+    if (!missing.length) return;
+    const map = await fetchAttachmentsFor(missing);
+    for (const id of missing) {
+      attachmentCache.set(String(id), map.get(String(id)) || []);
+    }
+  }
+
+  /** 让缓存失效（保存后要重新取） */
+  function invalidateAttachments(ids) {
+    if (!ids || !ids.length) {
+      attachmentCache.clear();
+      return;
+    }
+    for (const id of ids) attachmentCache.delete(String(id));
+  }
+
   function renderBoard(rows) {
     if (!rows.length) {
       renderEmpty(mode === "latest" ? "今天没有需要做的作业" : "这一天没有作业");
@@ -140,6 +165,7 @@
               <m3e-icon-button data-action="delete" data-id="${homework.id}" aria-label="删除作业" title="删除作业"><m3e-icon variant="outlined" name="delete"></m3e-icon></m3e-icon-button>
             </span>`
           : "";
+        const attachments = attachmentsHtml(attachmentCache.get(String(homework.id)));
         return `
           <m3e-list-action style="--i: ${homeworks.indexOf(homework)}" class="homework-item${expired ? " homework-item--expired" : ""}${selected ? " homework-item--selected" : ""}${editable ? " homework-item--clickable" : ""}" data-id="${homework.id}">
             <span class="homework-content">
@@ -147,6 +173,7 @@
               <span class="homework-text">${content}</span>
             </span>
             ${tags}
+            ${attachments}
             ${actions}
           </m3e-list-action>`;
       }).join("");
@@ -538,6 +565,7 @@
         : `${formatDateLabel(batch)} · ${pending.length} 条未过期（另有 ${rows.length - pending.length} 条已过期，可去时光机查看）`) +
         (canManage ? " · 点击作业可修改或删除" : ""),
     );
+    await prefetchAttachments(pending);
     renderBoard(pending);
   }
 
@@ -573,6 +601,7 @@
             : " · 这一天的作业都已过期"
           : ""),
     );
+    await prefetchAttachments(rows);
     renderBoard(rows);
   }
 
@@ -826,6 +855,245 @@
         setDialogMessage(messageFieldId, `插入图片失败：${error.message}`);
       }
     });
+  }
+
+
+  /* ------------------------------------------------------ 作业附件（最多 2 个） */
+
+  const ATTACHMENT_BUCKET = "homework-attachments";
+  const ATTACHMENT_MAX = 2;
+  const ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
+
+  /** 编辑弹窗里"待保存"的附件草稿；每项 { id?, storage_path, file_name, mime_type, byte_size, url } */
+  let draftAttachments = [];
+  /** 打开编辑框时数据库里的原样快照，用于保存时算差集 */
+  let originalAttachmentIds = [];
+
+  function formatBytes(bytes) {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+    return (n / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  /** 是否音频（决定卡片上给不给播放器） */
+  function isAudioMime(mime) {
+    return /^audio\//i.test(String(mime || ""));
+  }
+
+  /** 附件在 Storage 里的公开地址 */
+  function attachmentUrl(storagePath) {
+    const { data } = client.storage.from(ATTACHMENT_BUCKET).getPublicUrl(storagePath);
+    return data && data.publicUrl ? data.publicUrl : "";
+  }
+
+  /** 猜扩展名（Storage 里带后缀更像正常文件，也便于浏览器判断类型） */
+  function extensionOf(fileName) {
+    const m = /\.([a-z0-9]{1,8})$/i.exec(String(fileName || ""));
+    return m ? m[1].toLowerCase() : "";
+  }
+
+  /** 把一批作业的附件一次性取回来，按 homework_id 分组 */
+  async function fetchAttachmentsFor(ids) {
+    if (!ids || !ids.length) return new Map();
+    const { data, error } = await hs.withTimeout(
+      client.rpc("list_attachments", { p_ids: ids }),
+      15000,
+      "读取附件",
+    );
+    if (error) {
+      // 附件读失败不该让整页显示不出来
+      if (window.console) console.warn("[HomeworkShower] 读取附件失败：", error.message);
+      return new Map();
+    }
+    const map = new Map();
+    for (const row of data || []) {
+      const key = String(row.homework_id);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(row);
+    }
+    return map;
+  }
+
+  /** 卡片上渲染附件：文件名 + 大小；音频额外给播放器 */
+  function attachmentsHtml(list) {
+    if (!list || !list.length) return "";
+    const items = list
+      .map((att) => {
+        const url = attachmentUrl(att.storage_path);
+        const name = hs.escapeHtml(att.file_name || "附件");
+        const size = att.byte_size ? '<span class="homework-attachment__size">' + formatBytes(att.byte_size) + "</span>" : "";
+        const link =
+          '<a href="' + url + '" target="_blank" rel="noopener noreferrer" download>' +
+          '<m3e-icon variant="outlined" name="link"></m3e-icon>' +
+          '<span class="homework-attachment__name">' + name + "</span>" + size +
+          "</a>";
+        // 音频直接内嵌播放；点了不会冒泡到卡片的选中逻辑（见 bindAttachmentsInBoard）。
+        // 音频那一条用 flex-column：文件名一行、播放器一行 —— 挤在一行会把文件名压成「课堂录音…」
+        const audio = isAudioMime(att.mime_type);
+        const player = audio ? '<audio controls preload="none" src="' + url + '"></audio>' : "";
+        return (
+          '<div class="homework-attachment' + (audio ? " homework-attachment--audio" : "") + '" data-attachment>' +
+          link + player + "</div>"
+        );
+      })
+      .join("");
+    return '<div slot="supporting-text" class="homework-attachments">' + items + "</div>";
+  }
+
+  /** 编辑弹窗：把草稿渲染成列表 */
+  function renderAttachmentEditor() {
+    const host = document.getElementById("edit-attachments");
+    const addButton = document.getElementById("edit-attachment-add");
+    if (!host) return;
+
+    host.innerHTML = draftAttachments
+      .map((att, index) => {
+        const size = att.byte_size ? '<span class="attachment-editor__item-size">' + formatBytes(att.byte_size) + "</span>" : "";
+        return (
+          '<li class="attachment-editor__item">' +
+          '<m3e-icon variant="outlined" name="' + (isAudioMime(att.mime_type) ? "image" : "link") + '"></m3e-icon>' +
+          '<span class="attachment-editor__item-name" title="' + hs.escapeHtml(att.file_name) + '">' + hs.escapeHtml(att.file_name) + "</span>" +
+          size +
+          '<m3e-icon-button data-attachment-remove="' + index + '" aria-label="移除附件" title="移除"><m3e-icon variant="outlined" name="delete"></m3e-icon></m3e-icon-button>' +
+          "</li>"
+        );
+      })
+      .join("");
+
+    // 满 2 个就禁用"添加"
+    if (addButton) addButton.toggleAttribute("disabled", draftAttachments.length >= ATTACHMENT_MAX);
+  }
+
+  /** 编辑弹窗：把文件传上去并加入草稿 */
+  async function addAttachmentFile(file) {
+    if (!file) return;
+    if (draftAttachments.length >= ATTACHMENT_MAX) {
+      setDialogMessage("edit-message", "每条作业最多 " + ATTACHMENT_MAX + " 个附件。");
+      return;
+    }
+    if (file.size > ATTACHMENT_MAX_BYTES) {
+      setDialogMessage(
+        "edit-message",
+        "这个文件太大（" + formatBytes(file.size) + "），上限 " + formatBytes(ATTACHMENT_MAX_BYTES) + "。",
+      );
+      return;
+    }
+
+    const hint = document.getElementById("edit-attachment-hint");
+    const defaultHint = hint ? hint.textContent : "";
+    setDialogMessage("edit-message", "正在上传附件…", false);
+    try {
+      const ext = extensionOf(file.name);
+      const path = "attachments/" + hs.todayString() + "/" + crypto.randomUUID() + (ext ? "." + ext : "");
+      const { error } = await client.storage
+        .from(ATTACHMENT_BUCKET)
+        .upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
+      if (error) throw new Error(error.message);
+
+      draftAttachments.push({
+        storage_path: path,
+        file_name: file.name || "附件",
+        mime_type: file.type || "application/octet-stream",
+        byte_size: file.size,
+      });
+      renderAttachmentEditor();
+      setDialogMessage("edit-message", "已添加附件：" + file.name, false);
+      if (hint) hint.textContent = defaultHint;
+    } catch (error) {
+      setDialogMessage("edit-message", "附件上传失败：" + error.message);
+    }
+  }
+
+  /** 保存时把草稿同步进数据库：新增的 insert，移除的 delete */
+  async function syncAttachments(homeworkId) {
+    if (!homeworkId) return;
+    const keptIds = draftAttachments.filter((a) => a.id).map((a) => Number(a.id));
+    const removed = originalAttachmentIds.filter((id) => !keptIds.includes(Number(id)));
+
+    for (const id of removed) {
+      const { error } = await client.from("homework_attachments").delete().eq("id", id);
+      if (error && window.console) console.warn("[HomeworkShower] 删除附件记录失败：", error.message);
+    }
+
+    // 新增的（还没有 id 的）按当前顺序排 slot_index
+    const pending = draftAttachments.filter((a) => !a.id);
+    let slot = draftAttachments.filter((a) => a.id).length;
+    for (const att of pending) {
+      const { error } = await client.from("homework_attachments").insert({
+        homework_id: Number(homeworkId),
+        storage_path: att.storage_path,
+        file_name: att.file_name,
+        mime_type: att.mime_type,
+        byte_size: att.byte_size,
+        slot_index: Math.min(slot, ATTACHMENT_MAX - 1),
+      });
+      if (error) {
+        if (window.console) console.warn("[HomeworkShower] 保存附件记录失败：", error.message);
+      }
+      slot += 1;
+    }
+
+    // 顺序可能与原顺序不同（删过一条后剩下的会往前挪），统一重排一次
+    const finalIds = draftAttachments.filter((a) => a.id).map((a) => Number(a.id));
+    for (let i = 0; i < finalIds.length; i += 1) {
+      await client.from("homework_attachments").update({ slot_index: i }).eq("id", finalIds[i]);
+    }
+  }
+
+  /** 打开编辑框时载入现有附件 */
+  async function loadAttachmentsIntoDraft(homeworkId) {
+    draftAttachments = [];
+    originalAttachmentIds = [];
+    if (homeworkId) {
+      const map = await fetchAttachmentsFor([Number(homeworkId)]);
+      const list = map.get(String(homeworkId)) || [];
+      draftAttachments = list.map((row) => ({
+        id: row.id,
+        storage_path: row.storage_path,
+        file_name: row.file_name,
+        mime_type: row.mime_type,
+        byte_size: row.byte_size,
+      }));
+      originalAttachmentIds = list.map((row) => Number(row.id));
+    }
+    renderAttachmentEditor();
+  }
+
+  /** 绑定附件编辑区的交互（只绑一次） */
+  function bindAttachmentEditor() {
+    const addButton = document.getElementById("edit-attachment-add");
+    const fileInput = document.getElementById("edit-attachment-input");
+    const list = document.getElementById("edit-attachments");
+    if (!addButton || !fileInput || !list) return;
+
+    addButton.addEventListener("click", () => {
+      if (draftAttachments.length >= ATTACHMENT_MAX) return;
+      fileInput.value = "";
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (file) await addAttachmentFile(file);
+    });
+
+    list.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-attachment-remove]");
+      if (!button) return;
+      event.preventDefault();
+      const index = Number(button.dataset.attachmentRemove);
+      if (!Number.isFinite(index)) return;
+      draftAttachments.splice(index, 1);
+      renderAttachmentEditor();
+    });
+  }
+
+  /** 卡片上点播放器/链接时不要触发"选中作业" */
+  function bindAttachmentsInBoard() {
+    boardEl.addEventListener("click", (event) => {
+      if (event.target.closest("[data-attachment]")) event.stopPropagation();
+    }, true);
   }
 
   /* ------------------------------------------------------------- 公告栏 */
@@ -1414,7 +1682,7 @@
       if (title) title.textContent = creating ? "新建作业" : "修改作业";
     }
 
-    function openEdit(id) {
+    async function openEdit(id) {
       if (!ensureCanManage()) {
         hs.toast("你的修改权限已被撤销");
         return;
@@ -1441,6 +1709,8 @@
       editDialog.dataset.id = id;
       editDialog.show();
       window.setTimeout(() => editor.focus(), 80);
+      // 附件：从缓存或数据库取，填进编辑区
+      await loadAttachmentsIntoDraft(id);
     }
 
     /**
@@ -1504,8 +1774,9 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
       saveButton.setAttribute("disabled", "");
 
-      // 新建走 RPC（单条插入）；修改就是普通的 update
-      const { error } = creating
+      // 新建走 RPC（单条插入）；修改就是普通的 update。
+      // create_homework 返回 jsonb（含新行 id），附件要靠它挂上去。
+      const created = creating
         ? await client.rpc("create_homework", {
             p_subject: subject,
             p_content: content,
@@ -1524,6 +1795,16 @@ const duePickerEl = document.getElementById("edit-due-picker");
               due_time: due ? `${due}T00:00:00` : null,
             })
             .eq("id", id);
+      // 两个分支返回结构不同：RPC 是 {data, error}，update 也是 {error}
+      const error = created.error;
+      // create_homework 返回 jsonb：{ "id": 123 } 或直接数字，两种都兜住
+      let createdId = null;
+      if (creating && created.data != null) {
+        const raw = created.data;
+        createdId = typeof raw === "object" ? raw.id ?? raw.create_homework ?? null : raw;
+        if (createdId == null && typeof raw.create_homework === "object") createdId = raw.create_homework.id ?? null;
+        createdId = createdId == null ? null : Number(createdId);
+      }
       saveButton.removeAttribute("disabled");
 
       if (error) {
@@ -1540,6 +1821,15 @@ const duePickerEl = document.getElementById("edit-due-picker");
             : `${creating ? "新建" : "保存"}失败：${error.message}`,
         );
         return;
+      }
+      // 附件：新增的 insert、被移除的 delete。
+      // 新建作业必须先拿到新行 id 才能挂附件 —— create_homework 的返回值里带 id。
+      const targetId = creating ? createdId : id;
+      if (targetId) {
+        await syncAttachments(targetId);
+        invalidateAttachments([Number(targetId)]);
+      } else {
+        invalidateAttachments();
       }
       editDialog.hide();
       hs.toast(creating ? "已新建" : "已保存");
@@ -1605,6 +1895,7 @@ const duePickerEl = document.getElementById("edit-due-picker");
 
       // 富文本工具栏与插图：与公告编辑共用同一套绑定
       bindRichEditor(editDialog, "edit-content", "edit-message");
+      bindAttachmentEditor();
     }
     if (deleteDialog) {
       document.getElementById("delete-confirm")?.addEventListener("click", () => void confirmDelete());
@@ -2342,7 +2633,8 @@ const duePickerEl = document.getElementById("edit-due-picker");
         if (accountRole) accountRole.textContent = hs.roleLabel(latest.role);
         const manageUsersButton = document.getElementById("manage-users-button");
         if (manageUsersButton) manageUsersButton.hidden = !hs.isPublisher(latest);
-        renderBoard(currentRows);
+        await prefetchAttachments(currentRows);
+      renderBoard(currentRows);
         hs.toast(nextCanManage ? "权限已更新" : "你的修改权限已被撤销");
       } catch (error) {
         /* 网络抖动忽略，下次再核对 */
